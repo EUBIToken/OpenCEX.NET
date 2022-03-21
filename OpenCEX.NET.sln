@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31729.503
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenCEX.NET", "OpenCEX.NET\OpenCEX.NET.csproj", "{537DC39A-23C5-4C4E-BC16-DE3666290774}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{537DC39A-23C5-4C4E-BC16-DE3666290774}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{537DC39A-23C5-4C4E-BC16-DE3666290774}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{537DC39A-23C5-4C4E-BC16-DE3666290774}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{537DC39A-23C5-4C4E-BC16-DE3666290774}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7E24A831-95BA-4398-BBD8-86EE389CD746}
+	EndGlobalSection
+EndGlobal
