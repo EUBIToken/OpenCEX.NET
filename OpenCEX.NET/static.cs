@@ -283,9 +283,9 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety(httpListenerRequest.Headers.Get("Origin") == origin, "Illegal origin!");
 
 					//Headers
-					httpListenerResponse.Headers.Add("Access-Control-Allow-Origin", origin);
-					httpListenerResponse.Headers.Add("Access-Control-Allow-Credentials", origin);
-					httpListenerResponse.Headers.Add("Strict-Transport-Security", "max-age=63072000");
+					httpListenerResponse.AddHeader("Access-Control-Allow-Origin", origin);
+					httpListenerResponse.AddHeader("Access-Control-Allow-Credentials", origin);
+					httpListenerResponse.AddHeader("Strict-Transport-Security", "max-age=63072000");
 
 
 					//POST parameter
