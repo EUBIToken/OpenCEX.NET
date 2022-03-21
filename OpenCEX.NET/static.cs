@@ -200,7 +200,7 @@ namespace jessielesbian.OpenCEX{
 		public static void Start(){
 			AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 			lock (httpListener){
-				httpListener.Prefixes.Add($"http://localhost:{Convert.ToUInt16(GetEnv("PORT"))}/");
+				httpListener.Prefixes.Add($"http://0.0.0.0:{Convert.ToUInt16(GetEnv("PORT"))}/");
 				httpListener.Start();
 			}
 
