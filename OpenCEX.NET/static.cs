@@ -11,6 +11,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Text;
 using Newtonsoft.Json.Linq;
+using System.Web;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SafetyException : Exception
@@ -342,8 +343,7 @@ namespace jessielesbian.OpenCEX{
 					string body = streamReader.ReadToEnd();
 
 					CheckSafety(body.StartsWith("OpenCEX_request_body="), "Missing request body!");
-					body = body.Substring(21);
-					Console.WriteLine(body);
+					body = HttpUtility.UrlDecode(body.Substring(21));
 
 					UnprocessedRequest[] unprocessedRequests;
 
