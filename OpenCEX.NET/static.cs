@@ -265,6 +265,9 @@ namespace jessielesbian.OpenCEX{
 			public string method;
 			public Dictionary<string, object> data;
 		}
+
+		private static readonly string origin = GetEnv("Origin");
+
 		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
 			
 			try{
@@ -277,7 +280,13 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety(httpListenerRequest.HttpMethod == "POST", "Illegal request method!");
 
 					//CSRF protection
-					CheckSafety(httpListenerRequest.Headers.Get("Origin") == GetEnv("Origin"), "Illegal origin!");
+					CheckSafety(httpListenerRequest.Headers.Get("Origin") == origin, "Illegal origin!");
+
+					//Headers
+					httpListenerRequest.Headers.Add("Access-Control-Allow-Origin", origin);
+					httpListenerRequest.Headers.Add("Access-Control-Allow-Credentials", origin);
+					httpListenerRequest.Headers.Add("Strict-Transport-Security", "max-age=63072000");
+
 
 					//POST parameter
 					string body = httpListenerRequest.QueryString.Get("OpenCEX_request_body");
