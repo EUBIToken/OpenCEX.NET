@@ -197,7 +197,7 @@ namespace jessielesbian.OpenCEX{
 		private static readonly HttpListener httpListener = new HttpListener();
 		private static readonly ManualResetEventSlim terminateMainThread = new ManualResetEventSlim();
 		private static bool dispose = true;
-		private static readonly JsonSerializerSettings jsonSerializerSettings;
+		private static readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
