@@ -244,6 +244,7 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 		}
+		[JsonObject(MemberSerialization.Fields)]
 		private sealed class FailedRequest{
 			private readonly string status = "error";
 			private readonly string reason;
