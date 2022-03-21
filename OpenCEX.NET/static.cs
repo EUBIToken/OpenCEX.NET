@@ -115,7 +115,7 @@ namespace jessielesbian.OpenCEX{
 	}
 
 	public static class StaticUtils{
-		private static readonly IReadOnlyDictionary<string, string> config = (IReadOnlyDictionary<string, string>)Environment.GetEnvironmentVariables();
+		private static readonly System.Collections.IDictionary config = Environment.GetEnvironmentVariables();
 		public static void CheckSafety(bool status, string message = "An unknown error have occoured!"){
 			if(!status){
 				throw new SafetyException(message);
@@ -151,7 +151,13 @@ namespace jessielesbian.OpenCEX{
 			{
 				temp = "OpenCEX_" + temp;
 			}
-			CheckSafety(config.TryGetValue(temp, out temp), "Unknown enviroment variable!");
+			try{
+				temp = (string)config[temp];
+			} catch{
+				throw new SafetyException("Unable to cast enviroment variable to string!");
+			}
+			
+			CheckSafety(temp, "Unknown enviroment variable!");
 			return temp;
 		}
 
