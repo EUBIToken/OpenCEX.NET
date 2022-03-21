@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Net.Sockets;
 using System.Runtime.Serialization;
 using System.Threading;
 using jessielesbian.OpenCEX.RequestManager;
@@ -199,8 +200,9 @@ namespace jessielesbian.OpenCEX{
 		
 		public static void Start(){
 			AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+			ushort port = Convert.ToUInt16(GetEnv("PORT"));
 			lock (httpListener){
-				httpListener.Prefixes.Add($"http://0.0.0.0:{Convert.ToUInt16(GetEnv("PORT"))}/");
+				httpListener.Prefixes.Add($"http://*:{port}/");
 				httpListener.Start();
 			}
 
