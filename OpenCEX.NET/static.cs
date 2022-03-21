@@ -343,6 +343,7 @@ namespace jessielesbian.OpenCEX{
 
 					CheckSafety(body.StartsWith("OpenCEX_request_body="), "Missing request body!");
 					body = body.Substring(21);
+					Console.WriteLine(body);
 
 					UnprocessedRequest[] unprocessedRequests;
 
