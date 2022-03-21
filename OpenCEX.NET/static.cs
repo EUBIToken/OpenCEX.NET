@@ -322,7 +322,7 @@ namespace jessielesbian.OpenCEX{
 			try{
 				HttpListenerRequest httpListenerRequest = httpListenerContext.Request;
 				HttpListenerResponse httpListenerResponse = httpListenerContext.Response;
-				StreamWriter streamWriter = new StreamWriter(httpListenerResponse.OutputStream, 65536);
+				StreamWriter streamWriter = new StreamWriter(httpListenerResponse.OutputStream, httpListenerResponse.ContentEncoding);
 				try
 				{
 					//Headers
