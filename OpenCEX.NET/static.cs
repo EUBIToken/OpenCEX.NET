@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Net.Sockets;
+using Newtonsoft.Json;
 using System.Runtime.Serialization;
 using System.Threading;
 using jessielesbian.OpenCEX.RequestManager;
 using MySql.Data.MySqlClient;
+using System.IO;
+
 namespace jessielesbian.OpenCEX{
 	public sealed class SafetyException : Exception
 	{
@@ -240,6 +242,55 @@ namespace jessielesbian.OpenCEX{
 				{
 					terminateMainThread.Set();
 				}
+			}
+		}
+		private sealed class FailedRequest{
+			private readonly string status = "error";
+			private readonly string reason;
+
+			public FailedRequest(string reason)
+			{
+				this.reason = reason ?? throw new ArgumentNullException(nameof(reason));
+			}
+		}
+		public static readonly bool debug = Convert.ToBoolean(GetEnv("Debug"));
+		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
+			
+			try{
+				HttpListenerRequest httpListenerRequest = httpListenerContext.Request;
+				HttpListenerResponse httpListenerResponse = httpListenerContext.Response;
+				StreamWriter streamWriter = new StreamWriter(new BufferedStream(httpListenerResponse.OutputStream, 65536));
+				try
+				{
+
+					//POST requests only
+					CheckSafety(httpListenerRequest.HttpMethod == "POST", "Illegal request method!");
+
+					//CSRF protection
+					CheckSafety(httpListenerRequest.Headers.Get("Origin") == GetEnv("Origin"), "Illegal origin!");
+				}
+				catch (ArgumentNullException e)
+				{
+					string error = debug ? e.ToString() : "Null argument passed to function!";
+					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(error)));
+				}
+				catch (SafetyException e){
+					string error = debug ? e.ToString() : e.Message;
+					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(error)));
+				}
+				catch (Exception e){
+					string error = debug ? ("Unexpected internal server error: " + e.ToString()) : "Unexpected internal server error!";
+					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(error)));
+				}
+				finally{
+					streamWriter.Flush();
+					httpListenerResponse.Close();
+				}
+			}
+			
+			catch
+			{
+				
 			}
 		}
 	}

@@ -19,7 +19,18 @@ namespace jessielesbian.OpenCEX.RequestManager
 		{
 			while (true)
 			{
-				httpListener.GetContext().Response.Close();
+				HttpListenerContext httpListenerContext = null;
+				try
+				{
+					//Establish connection
+					httpListenerContext = httpListener.GetContext();
+				} catch{
+					
+				}
+				
+				if(httpListenerContext != null){
+					StaticUtils.HandleHTTPRequest(httpListenerContext);
+				}
 			}
 		}
 	}
