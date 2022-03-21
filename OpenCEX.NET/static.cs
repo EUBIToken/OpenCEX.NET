@@ -7,6 +7,7 @@ using System.Threading;
 using jessielesbian.OpenCEX.RequestManager;
 using MySql.Data.MySqlClient;
 using System.IO;
+using System.Web;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SafetyException : Exception
@@ -166,7 +167,7 @@ namespace jessielesbian.OpenCEX{
 
 		
 
-		public static MySqlTransaction GetSQL(){
+		public static SQLCommandFactory GetSQL(){
 			MySqlConnection mySqlConnection = null;
 			try
 			{
@@ -176,7 +177,7 @@ namespace jessielesbian.OpenCEX{
 				
 				CheckSafety(tx, "MySQL connection establishment failed: invalid MySQL transaction object!");
 				
-				return tx;
+				return new SQLCommandFactory(mySqlConnection, tx);
 			}
 			catch (SafetyException e)
 			{
@@ -193,11 +194,15 @@ namespace jessielesbian.OpenCEX{
 				throw new SafetyException("MySQL connection establishment failed!");
 			}
 		}
-		private static readonly HttpListener httpListener;
+		private static readonly HttpListener httpListener = new HttpListener();
 		private static readonly ManualResetEventSlim terminateMainThread = new ManualResetEventSlim();
 		private static bool dispose = true;
+		private static readonly JsonSerializerSettings jsonSerializerSettings;
+		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
 		static StaticUtils(){
-			httpListener = new HttpListener();
+			jsonSerializerSettings.MaxDepth = 3;
+			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
+			
 		}
 		
 		public static void Start(){
@@ -255,6 +260,11 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 		public static readonly bool debug = Convert.ToBoolean(GetEnv("Debug"));
+
+		private sealed class UnprocessedRequest{
+			public string method;
+			public Dictionary<string, object> data;
+		}
 		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
 			
 			try{
@@ -263,12 +273,36 @@ namespace jessielesbian.OpenCEX{
 				StreamWriter streamWriter = new StreamWriter(new BufferedStream(httpListenerResponse.OutputStream, 65536));
 				try
 				{
-
 					//POST requests only
 					CheckSafety(httpListenerRequest.HttpMethod == "POST", "Illegal request method!");
 
 					//CSRF protection
 					CheckSafety(httpListenerRequest.Headers.Get("Origin") == GetEnv("Origin"), "Illegal origin!");
+
+					//POST parameter
+					string body = httpListenerRequest.QueryString.Get("OpenCEX_request_body");
+					CheckSafety(body, "Missing request body!");
+
+					UnprocessedRequest[] unprocessedRequests;
+
+					try
+					{
+						unprocessedRequests = JsonConvert.DeserializeObject<UnprocessedRequest[]>(body, jsonSerializerSettings);
+					} catch{
+						throw new SafetyException("Invalid request");
+					}
+
+					CheckSafety(unprocessedRequests.Length < 10, "Too many requests in batch!");
+
+					LinkedList<Request> requests = new LinkedList<Request>();
+					foreach(UnprocessedRequest unprocessedRequest in unprocessedRequests){
+						CheckSafety(unprocessedRequest.method, "Missing request method!");
+						RequestMethod requestMethod = null;
+						CheckSafety(requestMethods.TryGetValue(unprocessedRequest.method, out requestMethod), "Unknown request method!");
+						IDictionary<string, object> data = (unprocessedRequest.data == null) ? new Dictionary<string, object>(0) : unprocessedRequest.data;
+						requests.AddLast(new Request(requestMethod, 0, data));
+					}
+					
 				}
 				catch (ArgumentNullException e)
 				{

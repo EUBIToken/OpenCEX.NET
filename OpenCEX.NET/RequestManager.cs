@@ -49,11 +49,41 @@ namespace jessielesbian.OpenCEX.RequestManager
 	}
 
 	public abstract class RequestMethod{
-		
+		public abstract void Execute(SQLCommandFactory sqlCommandFactory, int userID, IDictionary<string, object> objects);
 	}
 
-	public abstract class RequestManager
+	public sealed class RequestManager : IDisposable
 	{
-		protected static IDictionary<string, RequestMethod> RequestMethods = new Dictionary<string, RequestMethod>();
+		private readonly SQLCommandFactory sqlCommandFactory = StaticUtils.GetSQL();
+		private bool disposedValue;
+
+		public void ExecuteRequest(Request request, int userID, bool keep)
+		{
+			StaticUtils.CheckSafety2(disposedValue, "Request manager disposed!");
+			StaticUtils.CheckSafety(request, "Request can't be null!");
+
+			try{
+				request.method.Execute(sqlCommandFactory, userID, request.args);
+			} catch(Exception e){
+				Dispose();
+				throw e;
+			}
+
+			if(keep){
+				sqlCommandFactory.FlushTransaction(true);
+			} else{
+				Dispose();
+			}
+		}
+
+
+		public void Dispose()
+		{
+			if (!disposedValue)
+			{
+				sqlCommandFactory.Dispose();
+				disposedValue = true;
+			}
+		}
 	}
 }
