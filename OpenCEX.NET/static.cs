@@ -7,7 +7,10 @@ using System.Threading;
 using jessielesbian.OpenCEX.RequestManager;
 using MySql.Data.MySqlClient;
 using System.IO;
-using System.Web;
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Text;
+using Newtonsoft.Json.Linq;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SafetyException : Exception
@@ -199,12 +202,56 @@ namespace jessielesbian.OpenCEX{
 		private static bool dispose = true;
 		private static readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
+		public static readonly string underlying = GetEnv("Underlying");
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
 			
 		}
-		
+
+		private sealed class RedirectedRequestMethod : RequestMethod
+		{
+			private readonly string name;
+			public override object Execute(SQLCommandFactory sqlCommandFactory, HttpListenerContext httpListenerContext, IDictionary<string, object> objects)
+			{
+				WebRequest httpWebRequest = WebRequest.Create(underlying);
+				httpWebRequest.Method = "POST";
+				string cookieHeader = httpListenerContext.Request.Headers.Get("Cookie");
+				if(cookieHeader != null){
+					httpWebRequest.Headers.Add("Cookie", cookieHeader);
+				}
+				UnprocessedRequest unprocessedRequest = new UnprocessedRequest();
+				unprocessedRequest.method = name;
+				unprocessedRequest.data = objects;
+				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
+				httpWebRequest.Headers.Add("Origin", origin);
+				byte[] data = Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(unprocessedRequest));
+				httpWebRequest.ContentLength = data.Length;
+				using (var stream = httpWebRequest.GetRequestStream())
+				{
+					stream.Write(data, 0, data.Length);
+				}
+				WebResponse webResponse = httpWebRequest.GetResponse();
+				string returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
+				webResponse.Close();
+				JObject obj = JObject.Parse(returns);
+				JToken token = null;
+				CheckSafety(obj.TryGetValue("status", out token), "Missing request status!");
+				if(token.ToObject<string>() == "success")
+				{
+					CheckSafety(obj.TryGetValue("returns", out token), "Missing request returns!");
+					token = token.First;
+					CheckSafety(token, "Missing request returns!");
+					return token.ToObject<object>();
+				} else{
+					CheckSafety(obj.TryGetValue("reason", out token), "Missing error reason!");
+					token = token.First;
+					CheckSafety(token, "Missing error reason!");
+					throw new SafetyException(token.ToObject<string>());
+				}
+			}
+		}
+
 		public static void Start(){
 			AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 			ushort port = Convert.ToUInt16(GetEnv("PORT"));
@@ -221,6 +268,7 @@ namespace jessielesbian.OpenCEX{
 				thread.Start();
 			}
 			terminateMainThread.Wait();
+			terminateMainThread.Dispose();
 		}
 
 		private static void CurrentDomain_ProcessExit(object sender, EventArgs e)
@@ -261,9 +309,10 @@ namespace jessielesbian.OpenCEX{
 		}
 		public static readonly bool debug = Convert.ToBoolean(GetEnv("Debug"));
 
+		[JsonObject(MemberSerialization.Fields)]
 		private sealed class UnprocessedRequest{
 			public string method;
-			public Dictionary<string, object> data;
+			public IDictionary<string, object> data;
 		}
 
 		private static readonly string origin = GetEnv("Origin");
@@ -276,16 +325,16 @@ namespace jessielesbian.OpenCEX{
 				StreamWriter streamWriter = new StreamWriter(new BufferedStream(httpListenerResponse.OutputStream, 65536));
 				try
 				{
+					//Headers
+					httpListenerResponse.AddHeader("Access-Control-Allow-Origin", origin);
+					httpListenerResponse.AddHeader("Access-Control-Allow-Credentials", "true");
+					httpListenerResponse.AddHeader("Strict-Transport-Security", "max-age=63072000");
+
 					//POST requests only
 					CheckSafety(httpListenerRequest.HttpMethod == "POST", "Illegal request method!");
 
 					//CSRF protection
 					CheckSafety(httpListenerRequest.Headers.Get("Origin") == origin, "Illegal origin!");
-
-					//Headers
-					httpListenerResponse.AddHeader("Access-Control-Allow-Origin", origin);
-					httpListenerResponse.AddHeader("Access-Control-Allow-Credentials", origin);
-					httpListenerResponse.AddHeader("Strict-Transport-Security", "max-age=63072000");
 
 
 					//POST parameter
@@ -309,7 +358,7 @@ namespace jessielesbian.OpenCEX{
 						RequestMethod requestMethod = null;
 						CheckSafety(requestMethods.TryGetValue(unprocessedRequest.method, out requestMethod), "Unknown request method!");
 						IDictionary<string, object> data = (unprocessedRequest.data == null) ? new Dictionary<string, object>(0) : unprocessedRequest.data;
-						requests.AddLast(new Request(requestMethod, 0, data));
+						requests.AddLast(new Request(requestMethod, httpListenerContext, data));
 					}
 					
 				}

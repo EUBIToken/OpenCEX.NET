@@ -25,31 +25,29 @@ namespace jessielesbian.OpenCEX.RequestManager
 					//Establish connection
 					httpListenerContext = httpListener.GetContext();
 				} catch{
-					
+					continue;
 				}
-				
-				if(httpListenerContext != null){
-					StaticUtils.HandleHTTPRequest(httpListenerContext);
-				}
+
+				StaticUtils.HandleHTTPRequest(httpListenerContext);
 			}
 		}
 	}
 	public sealed class Request
 	{
 		public readonly RequestMethod method;
-		public readonly int userID;
+		public readonly HttpListenerContext httpListenerContext;
 		public readonly IDictionary<string, object> args;
 
-		public Request(RequestMethod method, int userID, IDictionary<string, object> args)
+		public Request(RequestMethod method, HttpListenerContext httpListenerContext, IDictionary<string, object> args)
 		{
 			this.method = method ?? throw new ArgumentNullException(nameof(method));
-			this.userID = userID;
+			this.httpListenerContext = httpListenerContext ?? throw new ArgumentNullException(nameof(httpListenerContext));
 			this.args = args ?? throw new ArgumentNullException(nameof(args));
 		}
 	}
 
 	public abstract class RequestMethod{
-		public abstract void Execute(SQLCommandFactory sqlCommandFactory, int userID, IDictionary<string, object> objects);
+		public abstract object Execute(SQLCommandFactory sqlCommandFactory, HttpListenerContext httpListenerContext, IDictionary<string, object> objects);
 	}
 
 	public sealed class RequestManager : IDisposable
@@ -63,7 +61,7 @@ namespace jessielesbian.OpenCEX.RequestManager
 			StaticUtils.CheckSafety(request, "Request can't be null!");
 
 			try{
-				request.method.Execute(sqlCommandFactory, userID, request.args);
+				request.method.Execute(sqlCommandFactory, request.httpListenerContext, request.args);
 			} catch(Exception e){
 				Dispose();
 				throw e;
