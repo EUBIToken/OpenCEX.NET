@@ -322,7 +322,7 @@ namespace jessielesbian.OpenCEX{
 			try{
 				HttpListenerRequest httpListenerRequest = httpListenerContext.Request;
 				HttpListenerResponse httpListenerResponse = httpListenerContext.Response;
-				StreamWriter streamWriter = new StreamWriter(new BufferedStream(httpListenerResponse.OutputStream, 65536));
+				StreamWriter streamWriter = new StreamWriter(httpListenerResponse.OutputStream, 65536);
 				try
 				{
 					//Headers
@@ -338,8 +338,11 @@ namespace jessielesbian.OpenCEX{
 
 
 					//POST parameter
-					string body = httpListenerRequest.QueryString.Get("OpenCEX_request_body");
-					CheckSafety(body, "Missing request body!");
+					StreamReader streamReader = new StreamReader(httpListenerRequest.InputStream, httpListenerRequest.ContentEncoding);
+					string body = streamReader.ReadToEnd();
+
+					CheckSafety(body.StartsWith("OpenCEX_request_body="), "Missing request body!");
+					body = body.Substring(21);
 
 					UnprocessedRequest[] unprocessedRequests;
 
