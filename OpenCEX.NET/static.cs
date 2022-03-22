@@ -140,7 +140,11 @@ namespace jessielesbian.OpenCEX{
 			if(exception == null){
 				return returns;
 			} else{
-				throw exception;
+				if(debug){
+					throw new SafetyException("Concurrent job failed!", exception);
+				} else{
+					throw exception;
+				}
 			}
 		}
 
