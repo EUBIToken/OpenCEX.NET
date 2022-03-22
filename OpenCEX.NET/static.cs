@@ -304,6 +304,11 @@ namespace jessielesbian.OpenCEX{
 					throw new SafetyException(token.ToObject<string>());
 				}
 			}
+
+			protected override bool NeedSQL()
+			{
+				return false;
+			}
 		}
 
 		private static readonly ConcurrentQueue<ConcurrentJob> concurrentJobs = new ConcurrentQueue<ConcurrentJob>();
@@ -502,7 +507,7 @@ namespace jessielesbian.OpenCEX{
 						RequestMethod requestMethod = null;
 						CheckSafety(requestMethods.TryGetValue(unprocessedRequest.method, out requestMethod), "Unknown request method!");
 						IDictionary<string, object> data = (unprocessedRequest.data == null) ? new Dictionary<string, object>(0) : unprocessedRequest.data;
-						requests.Enqueue(new Request(GetSQL(), requestMethod, httpListenerContext, data));
+						requests.Enqueue(new Request(requestMethod.needSQL ? GetSQL() : null, requestMethod, httpListenerContext, data));
 					}
 
 					Queue<Request> secondExecute = new Queue<Request>();
