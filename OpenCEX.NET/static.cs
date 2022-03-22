@@ -297,9 +297,9 @@ namespace jessielesbian.OpenCEX{
 					stream.Write(bytes, 0, bytes.Length);
 				}
 				WebResponse webResponse = httpWebRequest.GetResponse();
-				string cookie = webResponse.Headers["Cookie"];
+				string cookie = webResponse.Headers["Set-Cookie"];
 				if(cookie != null){
-					request.httpListenerContext.Response.AddHeader("Cookie", cookie);
+					request.httpListenerContext.Response.AddHeader("Set-Cookie", cookie);
 				}
 				string returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
 				webResponse.Close();
