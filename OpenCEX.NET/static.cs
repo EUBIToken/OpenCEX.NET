@@ -259,6 +259,7 @@ namespace jessielesbian.OpenCEX{
 
 		private sealed class RedirectedRequestMethod : RequestMethod
 		{
+			private static readonly byte[] prefixData = Encoding.ASCII.GetBytes("OpenCEX_request_body=");
 			private readonly string name;
 
 			public RedirectedRequestMethod(string name)
@@ -279,11 +280,12 @@ namespace jessielesbian.OpenCEX{
 				unprocessedRequest.data = request.args;
 				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
 				httpWebRequest.Headers.Add("Origin", origin);
-				byte[] data = Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(unprocessedRequest));
-				httpWebRequest.ContentLength = data.Length;
+				byte[] bytes = HttpUtility.UrlEncodeToBytes(JsonConvert.SerializeObject(unprocessedRequest));
+
 				using (var stream = httpWebRequest.GetRequestStream())
 				{
-					stream.Write(data, 0, data.Length);
+					stream.Write(prefixData, 0, 21);
+					stream.Write(bytes, 0, bytes.Length);
 				}
 				WebResponse webResponse = httpWebRequest.GetResponse();
 				string returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
