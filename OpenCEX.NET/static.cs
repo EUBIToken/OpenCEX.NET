@@ -225,12 +225,16 @@ namespace jessielesbian.OpenCEX{
 				mySqlConnection.Close();
 				throw e;
 			}
-			catch
+			catch (Exception e)
 			{
 				if(mySqlConnection != null){
 					mySqlConnection.Close();
 				}
-				throw new SafetyException("MySQL connection establishment failed!");
+				if(debug){
+					throw e;
+				} else{
+					throw new SafetyException("MySQL connection establishment failed!");
+				}
 			}
 		}
 		private static readonly HttpListener httpListener = new HttpListener();
