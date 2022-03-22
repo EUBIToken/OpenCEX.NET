@@ -299,8 +299,6 @@ namespace jessielesbian.OpenCEX{
 					return token.ToObject<object>();
 				} else{
 					CheckSafety(obj.TryGetValue("reason", out token), "Missing error reason!");
-					token = token.First;
-					CheckSafety(token, "Missing error reason!");
 					throw new SafetyException(token.ToObject<string>());
 				}
 			}
