@@ -242,6 +242,15 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 		}
+
+		private sealed class DummyConcurrentJob : ConcurrentJob
+		{
+			protected override object ExecuteIMPL()
+			{
+				return null;
+			}
+		}
+
 		private static readonly HttpListener httpListener = new HttpListener();
 		private static readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
@@ -251,12 +260,10 @@ namespace jessielesbian.OpenCEX{
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
 
 			//Redirected Request Methods
-			string[] redirectedRequestMethods = {"get_chart", "bid_ask"};
+			string[] redirectedRequestMethods = {"create_account", "login", "flush", "client_name", "logout", "get_test_tokens", "balances", "eth_deposit_address", "withdraw", "load_active_orders", "get_chart", "bid_ask"};
 			foreach(string meth in redirectedRequestMethods){
 				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
 			}
-
-			masterWallet = new Nethereum.Web3.Accounts.Account(GetEnv("PrivateKey"));
 		}
 
 		private sealed class RedirectedRequestMethod : RequestMethod
@@ -290,6 +297,10 @@ namespace jessielesbian.OpenCEX{
 					stream.Write(bytes, 0, bytes.Length);
 				}
 				WebResponse webResponse = httpWebRequest.GetResponse();
+				string cookie = webResponse.Headers["Cookie"];
+				if(cookie != null){
+					request.httpListenerContext.Response.AddHeader("Cookie", cookie);
+				}
 				string returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
 				webResponse.Close();
 				JObject obj = JObject.Parse(returns);
@@ -316,17 +327,9 @@ namespace jessielesbian.OpenCEX{
 		private static readonly ConcurrentQueue<ConcurrentJob> concurrentJobs = new ConcurrentQueue<ConcurrentJob>();
 
 		private static readonly ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim();
-		private static readonly ManualResetEventSlim abortMainThreadAllowed = new ManualResetEventSlim();
 		private static void ExecutionThread(){
 			while(true){
 				if(concurrentJobs.TryDequeue(out ConcurrentJob concurrentJob)){
-					lock(abortMainThreadAllowed)
-					{
-						if (abortMainThreadAllowed.IsSet)
-						{
-							abortMainThreadAllowed.Reset();
-						}
-					}
 					concurrentJob.Execute();
 				} else{
 					lock (manualResetEventSlim)
@@ -334,11 +337,6 @@ namespace jessielesbian.OpenCEX{
 						if (concurrentJobs.IsEmpty && manualResetEventSlim.IsSet)
 						{
 							manualResetEventSlim.Reset();
-							lock(abortMainThreadAllowed){
-								if(!abortMainThreadAllowed.IsSet){
-									abortMainThreadAllowed.Set();
-								}
-							}
 						}
 					}
 					manualResetEventSlim.Wait(1);
@@ -418,16 +416,12 @@ namespace jessielesbian.OpenCEX{
 			}
 			httpListener.Close();
 
-			//Cancel all outstanding tasks
-			concurrentJobs.Clear();
-			
 			//Wait for all execution threads to complete
-			lock(abortMainThreadAllowed){
-				if(!abortMainThreadAllowed.IsSet){
-					abortMainThreadAllowed.Wait();
-				}
+			while(!concurrentJobs.IsEmpty){
+				ConcurrentJob concurrentJob = new DummyConcurrentJob();
+				Append(concurrentJob);
+				concurrentJob.Wait();
 			}
-			
 		}
 
 		private static void CurrentDomain_ProcessExit(object sender, EventArgs e)

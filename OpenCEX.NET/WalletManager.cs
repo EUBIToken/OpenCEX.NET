@@ -6,7 +6,7 @@ namespace jessielesbian.OpenCEX
 	public static partial class StaticUtils
 	{
 		
-		private static readonly Account masterWallet;
+		
 		
 	}
 	public sealed class BlockchainManager{
