@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Text;
 using Newtonsoft.Json.Linq;
 using System.Web;
+using System.Collections.Concurrent;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SafetyException : Exception
@@ -77,7 +78,7 @@ namespace jessielesbian.OpenCEX{
 			StaticUtils.CheckSafety(mySqlConnection, "Unable to flush MySQL transaction!");
 		}
 
-		public void DestroyTransaction(bool commit){
+		public void DestroyTransaction(bool commit, bool destroy){
 			RequireTransaction();
 			try
 			{
@@ -87,8 +88,11 @@ namespace jessielesbian.OpenCEX{
 					mySqlTransaction.Rollback();
 				}
 				
-				mySqlTransaction.Dispose();
-				mySqlTransaction = null;
+				if(destroy){
+					mySqlTransaction.Dispose();
+					mySqlTransaction = null;
+				}
+				
 			} catch{
 				throw new SafetyException("Unable to commit MySQL transaction!");
 			}	
@@ -105,14 +109,18 @@ namespace jessielesbian.OpenCEX{
 			GC.SuppressFinalize(this);
 			if (!disposedValue)
 			{
-				if(mySqlTransaction != null){
-					DestroyTransaction(false);
+				if (mySqlTransaction != null)
+				{
+					DestroyTransaction(false, true);
 				}
-				mySqlConnection.Close();
+				else
+				{
+					mySqlConnection.Close();
 
-				// TODO: free unmanaged resources (unmanaged objects) and override finalizer
-				// TODO: set large fields to null
-				disposedValue = true;
+					// TODO: free unmanaged resources (unmanaged objects) and override finalizer
+					// TODO: set large fields to null
+					disposedValue = true;
+				}		
 			}
 		}
 
@@ -120,6 +128,33 @@ namespace jessielesbian.OpenCEX{
 		{
 			Dispose();
 		}
+	}
+
+	public abstract class ConcurrentJob{
+		public readonly ManualResetEventSlim sync = new ManualResetEventSlim();
+		public Exception exception = null;
+		public object returns = null;
+		public object Wait(){
+			sync.Wait();
+			sync.Dispose();
+			if(exception == null){
+				return returns;
+			} else{
+				throw exception;
+			}
+		}
+
+		public void Execute(){
+			try{
+				StaticUtils.CheckSafety2(sync.IsSet, "Job already executed!");
+				returns = ExecuteIMPL();
+			} catch(Exception e){
+				exception = e;
+			} finally{
+				sync.Set();
+			}
+		}
+		protected abstract object ExecuteIMPL();
 	}
 
 	public static class StaticUtils{
@@ -199,8 +234,6 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 		private static readonly HttpListener httpListener = new HttpListener();
-		private static readonly ManualResetEventSlim terminateMainThread = new ManualResetEventSlim();
-		private static bool dispose = true;
 		private static readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
 		public static readonly string underlying = GetEnv("Underlying");
@@ -224,17 +257,17 @@ namespace jessielesbian.OpenCEX{
 				this.name = name ?? throw new ArgumentNullException(nameof(name));
 			}
 
-			public override object Execute(SQLCommandFactory sqlCommandFactory, HttpListenerContext httpListenerContext, IDictionary<string, object> objects)
+			public override object Execute(Request request)
 			{
 				WebRequest httpWebRequest = WebRequest.Create(underlying);
 				httpWebRequest.Method = "POST";
-				string cookieHeader = httpListenerContext.Request.Headers.Get("Cookie");
+				string cookieHeader = request.httpListenerContext.Request.Headers.Get("Cookie");
 				if(cookieHeader != null){
 					httpWebRequest.Headers.Add("Cookie", cookieHeader);
 				}
 				UnprocessedRequest unprocessedRequest = new UnprocessedRequest();
 				unprocessedRequest.method = name;
-				unprocessedRequest.data = objects;
+				unprocessedRequest.data = request.args;
 				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
 				httpWebRequest.Headers.Add("Origin", origin);
 				byte[] data = Encoding.ASCII.GetBytes(JsonConvert.SerializeObject(unprocessedRequest));
@@ -264,7 +297,81 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
+		private static readonly ConcurrentQueue<ConcurrentJob> concurrentJobs = new ConcurrentQueue<ConcurrentJob>();
+
+		private static readonly ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim();
+		private static readonly ManualResetEventSlim abortMainThreadAllowed = new ManualResetEventSlim();
+		private static void ExecutionThread(){
+			while(true){
+				if(concurrentJobs.TryDequeue(out ConcurrentJob concurrentJob)){
+					lock(abortMainThreadAllowed)
+					{
+						if (abortMainThreadAllowed.IsSet)
+						{
+							abortMainThreadAllowed.Reset();
+						}
+					}
+					concurrentJob.Execute();
+				} else{
+					lock (manualResetEventSlim)
+					{
+						if (concurrentJobs.IsEmpty && manualResetEventSlim.IsSet)
+						{
+							manualResetEventSlim.Reset();
+							lock(abortMainThreadAllowed){
+								if(!abortMainThreadAllowed.IsSet){
+									abortMainThreadAllowed.Set();
+								}
+							}
+						}
+					}
+					manualResetEventSlim.Wait(1);
+				}
+			}
+		}
+
+		private sealed class ProcessHTTP : ConcurrentJob
+		{
+			private readonly HttpListenerContext httpListenerContext;
+
+			public ProcessHTTP(HttpListenerContext httpListenerContext)
+			{
+				this.httpListenerContext = httpListenerContext ?? throw new ArgumentNullException(nameof(httpListenerContext));
+			}
+
+			protected override object ExecuteIMPL()
+			{
+				HandleHTTPRequest(httpListenerContext);
+				return null;
+			}
+		}
+
+		private static volatile bool abort = false;
+
+		public static void Append(ConcurrentJob concurrentJob){
+			lock(manualResetEventSlim){
+				if(abort){
+					return;
+				}
+				concurrentJobs.Enqueue(concurrentJob);
+				if(!manualResetEventSlim.IsSet){
+					manualResetEventSlim.Set();
+				}
+			}
+		}
+
 		public static void Start(){
+			//Start threads
+			ushort thrlimit = Convert.ToUInt16(GetEnv("ExecutionThreadCount"));
+			for (ushort i = 0; i < thrlimit; )
+			{
+				Thread thread = new Thread(ExecutionThread);
+				thread.IsBackground = true;
+				thread.Name = "OpenCEX.NET Execution Thread #" + (++i).ToString();
+				thread.Start();
+			}
+
+			//Start HTTP listening
 			AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 			ushort port = Convert.ToUInt16(GetEnv("PORT"));
 			lock (httpListener){
@@ -272,15 +379,39 @@ namespace jessielesbian.OpenCEX{
 				httpListener.Start();
 			}
 
-			ushort thrlimit = Convert.ToUInt16(GetEnv("RequestAppenderThreadCount"));
-			for(ushort i = 0; i < thrlimit; i++){
-				Thread thread = new Thread(new RequestAppender(httpListener).Loop);
-				thread.IsBackground = true;
-				thread.Name = "OpenCEX.NET Request Appender Thread";
-				thread.Start();
+			while (httpListener.IsListening)
+			{
+				HttpListenerContext httpListenerContext = null;
+				try
+				{
+					//Establish connection
+					httpListenerContext = httpListener.GetContext();
+				}
+				catch
+				{
+					
+				}
+
+				if(httpListenerContext == null)
+				{
+					continue;
+				} else{
+					Append(new ProcessHTTP(httpListenerContext));
+				}
+				
 			}
-			terminateMainThread.Wait();
-			terminateMainThread.Dispose();
+			httpListener.Close();
+
+			//Cancel all outstanding tasks
+			concurrentJobs.Clear();
+			
+			//Wait for all execution threads to complete
+			lock(abortMainThreadAllowed){
+				if(!abortMainThreadAllowed.IsSet){
+					abortMainThreadAllowed.Wait();
+				}
+			}
+			
 		}
 
 		private static void CurrentDomain_ProcessExit(object sender, EventArgs e)
@@ -291,21 +422,6 @@ namespace jessielesbian.OpenCEX{
 				if(httpListener.IsListening)
 				{
 					httpListener.Stop();
-				}
-
-				//Dispose HTTP listener
-				if (dispose)
-				{
-					httpListener.Close();
-					dispose = false;
-				}
-			}
-
-			lock(terminateMainThread){
-				//Terminate main thread
-				if (!terminateMainThread.IsSet)
-				{
-					terminateMainThread.Set();
 				}
 			}
 		}
@@ -366,16 +482,42 @@ namespace jessielesbian.OpenCEX{
 					}
 
 					CheckSafety(unprocessedRequests.Length < 10, "Too many requests in batch!");
+					if(unprocessedRequests.Length == 0){
+						streamWriter.Write("{\"status\": \"success\", \"returns\": []}");
+						return;
+					}
 
-					LinkedList<Request> requests = new LinkedList<Request>();
+					Queue<Request> requests = new Queue<Request>();
 					foreach(UnprocessedRequest unprocessedRequest in unprocessedRequests){
 						CheckSafety(unprocessedRequest.method, "Missing request method!");
 						RequestMethod requestMethod = null;
 						CheckSafety(requestMethods.TryGetValue(unprocessedRequest.method, out requestMethod), "Unknown request method!");
 						IDictionary<string, object> data = (unprocessedRequest.data == null) ? new Dictionary<string, object>(0) : unprocessedRequest.data;
-						requests.AddLast(new Request(requestMethod, httpListenerContext, data));
+						requests.Enqueue(new Request(GetSQL(), requestMethod, httpListenerContext, data));
 					}
-					
+
+					Queue<Request> secondExecute = new Queue<Request>();
+					while (requests.Count != 0){
+						Request request = requests.Dequeue();
+						concurrentJobs.Enqueue(request);
+						secondExecute.Enqueue(request);
+					}
+					requests = secondExecute;
+					secondExecute = null;
+					lock(manualResetEventSlim){
+						if(!(manualResetEventSlim.IsSet || concurrentJobs.IsEmpty)){
+							manualResetEventSlim.Set();
+						}
+					}
+
+					Queue<object> returns = new Queue<object>();
+					while (requests.Count != 0)
+					{
+						Request request = requests.Dequeue();
+						returns.Enqueue(request.Wait());
+					}
+
+					streamWriter.Write("{\"status\": \"success\", \"returns\": " + JsonConvert.SerializeObject(returns.ToArray()) + "}");
 				}
 				catch (ArgumentNullException e)
 				{
