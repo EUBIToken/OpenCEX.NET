@@ -280,9 +280,9 @@ namespace jessielesbian.OpenCEX{
 			{
 				WebRequest httpWebRequest = WebRequest.Create(underlying);
 				httpWebRequest.Method = "POST";
-				string cookieHeader = request.httpListenerContext.Request.Headers.Get("Cookie");
-				if(cookieHeader != null){
-					httpWebRequest.Headers.Add("Cookie", cookieHeader);
+				string cookie = request.httpListenerContext.Request.Headers.Get("Cookie");
+				if(cookie != null){
+					httpWebRequest.Headers.Add("Cookie", cookie);
 				}
 				UnprocessedRequest unprocessedRequest = new UnprocessedRequest();
 				unprocessedRequest.method = name;
@@ -297,9 +297,10 @@ namespace jessielesbian.OpenCEX{
 					stream.Write(bytes, 0, bytes.Length);
 				}
 				WebResponse webResponse = httpWebRequest.GetResponse();
-				string cookie = webResponse.Headers["Set-Cookie"];
+				cookie = webResponse.Headers["Set-Cookie"];
 				if(cookie != null){
 					request.httpListenerContext.Response.AddHeader("Set-Cookie", cookie);
+					Console.WriteLine(cookie);
 				}
 				string returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
 				webResponse.Close();
