@@ -207,12 +207,23 @@ namespace jessielesbian.OpenCEX{
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
-			
+
+			//Redirected Request Methods
+			string[] redirectedRequestMethods = {"get_chart", "bid_ask"};
+			foreach(string meth in redirectedRequestMethods){
+				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
+			}
 		}
 
 		private sealed class RedirectedRequestMethod : RequestMethod
 		{
 			private readonly string name;
+
+			public RedirectedRequestMethod(string name)
+			{
+				this.name = name ?? throw new ArgumentNullException(nameof(name));
+			}
+
 			public override object Execute(SQLCommandFactory sqlCommandFactory, HttpListenerContext httpListenerContext, IDictionary<string, object> objects)
 			{
 				WebRequest httpWebRequest = WebRequest.Create(underlying);
