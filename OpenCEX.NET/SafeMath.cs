@@ -20,6 +20,12 @@ namespace jessielesbian.OpenCEX
 				for(uint i = 0; i < limit; i++){
 					divisor *= decParseLimit;
 				}
+				ulong div2 = 1;
+				limit = (uint)(number.Length % 18);
+				for (uint i = 0; i < limit; i++)
+				{
+					div2 *= 10;
+				}
 
 				while (number != ""){
 					string chunk;
@@ -28,8 +34,9 @@ namespace jessielesbian.OpenCEX
 					{
 						chunk = number.Substring(0, 18);
 					} else{
-						chunk = number;
 						CheckSafety(divisor.IsOne, "SafeMath: Unreachable parse error!");
+						bigInteger /= new BigInteger(div2);
+						chunk = number;
 					}
 
 					ulong preconv = Convert.ToUInt64(chunk);
