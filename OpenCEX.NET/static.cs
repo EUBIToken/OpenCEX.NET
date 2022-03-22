@@ -211,6 +211,7 @@ namespace jessielesbian.OpenCEX{
 			try
 			{
 				mySqlConnection = new MySqlConnection(GetEnv("SQLConnectionString"));
+				mySqlConnection.Open();
 				MySqlTransaction tx = mySqlConnection.BeginTransaction();
 
 				
