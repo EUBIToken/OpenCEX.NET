@@ -280,7 +280,7 @@ namespace jessielesbian.OpenCEX{
 				unprocessedRequest.data = request.args;
 				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
 				httpWebRequest.Headers.Add("Origin", origin);
-				byte[] bytes = HttpUtility.UrlEncodeToBytes(JsonConvert.SerializeObject(unprocessedRequest));
+				byte[] bytes = HttpUtility.UrlEncodeToBytes("[" + JsonConvert.SerializeObject(unprocessedRequest) + "]");
 
 				using (var stream = httpWebRequest.GetRequestStream())
 				{
