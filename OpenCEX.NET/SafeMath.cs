@@ -16,10 +16,25 @@ namespace jessielesbian.OpenCEX
 			} else{
 				CheckSafety2(number == "", "SafeMath: Invaid Number!");
 				while (number != ""){
-					string chunk = number.Substring(0, 18);
-					CheckSafety2(chunk.StartsWith("0x"), "Illegal hexadecimal chunk!");
-					bigInteger = (bigInteger * decParseLimit) + new BigInteger(Convert.ToUInt64(chunk));
-					number = number.Substring(18);
+					string chunk;
+					bool nobrk = number.Length > 17;
+					if (nobrk)
+					{
+						chunk = number.Substring(0, 18);
+					} else{
+						chunk = number;
+					}
+
+					ulong preconv = Convert.ToUInt64(chunk);
+					CheckSafety(preconv.ToString() == chunk, "Corrupted integer value!");
+					bigInteger = (bigInteger * decParseLimit) + new BigInteger(preconv);
+					if(nobrk)
+					{
+						number = number[18..];
+					} else{
+						break;
+					}
+					
 				}
 				return new SafeUint(bigInteger);
 			}
