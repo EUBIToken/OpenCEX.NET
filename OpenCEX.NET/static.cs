@@ -161,7 +161,7 @@ namespace jessielesbian.OpenCEX{
 		protected abstract object ExecuteIMPL();
 	}
 
-	public static class StaticUtils{
+	public static partial class StaticUtils{
 		private static readonly System.Collections.IDictionary config = Environment.GetEnvironmentVariables();
 		public static void CheckSafety(bool status, string message = "An unknown error have occoured!"){
 			if(!status){
@@ -255,6 +255,8 @@ namespace jessielesbian.OpenCEX{
 			foreach(string meth in redirectedRequestMethods){
 				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
 			}
+
+			masterWallet = new Nethereum.Web3.Accounts.Account(GetEnv("PrivateKey"));
 		}
 
 		private sealed class RedirectedRequestMethod : RequestMethod
