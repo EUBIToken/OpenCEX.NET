@@ -27,8 +27,6 @@ namespace jessielesbian.OpenCEX
 					div2 *= 10;
 				}
 
-				div2 *= div2;
-
 				while (number != ""){
 					string chunk;
 					bool nobrk = number.Length > 17;
@@ -37,7 +35,8 @@ namespace jessielesbian.OpenCEX
 						chunk = number.Substring(0, 18);
 					} else{
 						CheckSafety(divisor.IsOne, "SafeMath: Unreachable parse error!");
-						bigInteger /= new BigInteger(div2);
+						BigInteger div3 = new BigInteger(div2);
+						bigInteger /= div3 * div3;
 						chunk = number;
 					}
 
