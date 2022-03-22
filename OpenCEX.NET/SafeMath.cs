@@ -21,7 +21,7 @@ namespace jessielesbian.OpenCEX
 					divisor *= decParseLimit;
 				}
 				ulong div2 = 1;
-				limit = (uint)(number.Length % 18);
+				limit = 17U - (uint)(number.Length % 18);
 				for (uint i = 0; i < limit; i++)
 				{
 					div2 *= 10;
@@ -35,8 +35,7 @@ namespace jessielesbian.OpenCEX
 						chunk = number.Substring(0, 18);
 					} else{
 						CheckSafety(divisor.IsOne, "SafeMath: Unreachable parse error!");
-						BigInteger div3 = new BigInteger(div2);
-						bigInteger /= div3 * div3;
+						bigInteger /= new BigInteger(div2);
 						chunk = number;
 					}
 
