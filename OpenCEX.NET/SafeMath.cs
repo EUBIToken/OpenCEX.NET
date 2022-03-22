@@ -15,6 +15,12 @@ namespace jessielesbian.OpenCEX
 				throw new SafetyException("Hexadecimal SafeUint not implemented yet!");
 			} else{
 				CheckSafety2(number == "", "SafeMath: Invaid Number!");
+				BigInteger divisor = BigInteger.One;
+				uint limit = (uint)(number.Length / 18);
+				for(uint i = 0; i < limit; i++){
+					divisor *= decParseLimit;
+				}
+
 				while (number != ""){
 					string chunk;
 					bool nobrk = number.Length > 17;
@@ -27,8 +33,9 @@ namespace jessielesbian.OpenCEX
 
 					ulong preconv = Convert.ToUInt64(chunk);
 					CheckSafety(preconv.ToString() == chunk, "Corrupted integer value!");
-					bigInteger = (bigInteger * decParseLimit) + new BigInteger(preconv);
-					if(nobrk)
+					bigInteger += new BigInteger(preconv) * divisor;
+					divisor /= decParseLimit;
+					if (nobrk)
 					{
 						number = number[18..];
 					} else{
