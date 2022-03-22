@@ -29,6 +29,7 @@ namespace jessielesbian.OpenCEX
 						chunk = number.Substring(0, 18);
 					} else{
 						chunk = number;
+						CheckSafety(divisor.IsOne, "SafeMath: Unreachable parse error!");
 					}
 
 					ulong preconv = Convert.ToUInt64(chunk);
