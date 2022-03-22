@@ -8,6 +8,7 @@ namespace jessielesbian.OpenCEX
 {
 	public static partial class StaticUtils{
 		public static BigInteger decParseLimit = new BigInteger(1000000000000000000UL);
+		public static BigInteger ten = new BigInteger(10);
 		public static SafeUint getSafeUint(string number){
 			number = number.ToLower();
 			BigInteger bigInteger = new BigInteger(0);
@@ -20,11 +21,11 @@ namespace jessielesbian.OpenCEX
 				for(uint i = 0; i < limit; i++){
 					divisor *= decParseLimit;
 				}
-				ulong div2 = 1;
-				limit = 17U - (uint)(number.Length % 18);
+				BigInteger div2 = 1;
+				limit = 18U - (uint)(number.Length % 18);
 				for (uint i = 0; i < limit; i++)
 				{
-					div2 *= 10;
+					div2 *= ten;
 				}
 
 				while (number != ""){
@@ -35,7 +36,7 @@ namespace jessielesbian.OpenCEX
 						chunk = number.Substring(0, 18);
 					} else{
 						CheckSafety(divisor.IsOne, "SafeMath: Unreachable parse error!");
-						bigInteger /= new BigInteger(div2);
+						bigInteger /= div2;
 						chunk = number;
 					}
 
