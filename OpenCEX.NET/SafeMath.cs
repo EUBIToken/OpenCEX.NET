@@ -27,6 +27,8 @@ namespace jessielesbian.OpenCEX
 					div2 *= 10;
 				}
 
+				div2 *= div2;
+
 				while (number != ""){
 					string chunk;
 					bool nobrk = number.Length > 17;
