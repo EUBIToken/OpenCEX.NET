@@ -41,34 +41,6 @@ namespace jessielesbian.OpenCEX{
 			return new MySqlCommand(cmd, mySqlConnection, mySqlTransaction);
 		}
 
-		public void FlushTransaction(bool commit)
-		{
-			RequireTransaction();
-			try
-			{
-				if (commit)
-				{
-					StaticUtils.CheckSafety2(dataReader, "Data reader still open!");
-					mySqlTransaction.Commit();
-				}
-				else
-				{
-					if(dataReader != null){
-						SafeDestroyReader();
-					}
-					mySqlTransaction.Rollback();
-				}
-
-				mySqlTransaction.Dispose();
-				mySqlTransaction = mySqlConnection.BeginTransaction();
-			}
-			catch
-			{
-				throw new SafetyException("Unable to flush MySQL transaction!");
-			}
-			StaticUtils.CheckSafety(mySqlConnection, "Unable to flush MySQL transaction!");
-		}
-
 		public void DestroyTransaction(bool commit, bool destroy)
 		{
 			RequireTransaction();
@@ -78,14 +50,21 @@ namespace jessielesbian.OpenCEX{
 				{
 					StaticUtils.CheckSafety2(dataReader, "Data reader still open!");
 					mySqlTransaction.Commit();
+					mySqlTransaction = null;
 				}
 				else
 				{
-					if (dataReader != null)
-					{
-						SafeDestroyReader();
+					try{
+						if (dataReader != null)
+						{
+							SafeDestroyReader();
+						}
+						mySqlTransaction.Rollback();
+						mySqlTransaction.Dispose();
+					} finally{
+						mySqlTransaction = null;
 					}
-					mySqlTransaction.Rollback();
+					
 				}
 
 				if (destroy)
