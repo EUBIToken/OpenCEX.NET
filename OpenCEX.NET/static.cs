@@ -441,7 +441,7 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety(body.StartsWith("OpenCEX_request_body="), "Missing request body!");
 					body = HttpUtility.UrlDecode(body.Substring(21));
 
-					CheckSafety(watchdogSoftReboot, "Soft reboot in progress, please try again later!");
+					CheckSafety2(watchdogSoftReboot, "Soft reboot in progress, please try again later!");
 
 					UnprocessedRequest[] unprocessedRequests;
 
