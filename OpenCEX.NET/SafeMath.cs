@@ -7,9 +7,10 @@ using System;
 namespace jessielesbian.OpenCEX
 {
 	public static partial class StaticUtils{
+		public static SafeUint ether = GetSafeUint("1000000000000000000");
 		public static BigInteger decParseLimit = new BigInteger(1000000000000000000UL);
 		public static BigInteger ten = new BigInteger(10);
-		public static SafeUint getSafeUint(string number){
+		public static SafeUint GetSafeUint(string number){
 			number = number.ToLower();
 			BigInteger bigInteger = new BigInteger(0);
 			if(number.StartsWith("0x")){

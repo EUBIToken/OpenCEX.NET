@@ -3,6 +3,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
+using jessielesbian.OpenCEX.RequestManager;
+using jessielesbian.OpenCEX.SafeMath;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -45,6 +47,32 @@ namespace jessielesbian.OpenCEX.RequestManager
 
 		public RequestMethod(){
 			needSQL = NeedSQL();
+		}
+	}
+}
+
+namespace jessielesbian.OpenCEX{
+	public static partial class StaticUtils{
+		public sealed class TestShitcoins : RequestMethod
+		{
+			private TestShitcoins(){
+
+			}
+
+			public static readonly RequestMethod instance = new TestShitcoins();
+
+			public override object Execute(Request request)
+			{
+				ulong userId = request.GetUserID();
+				request.Credit("shitcoin", userId, ether);
+				request.Credit("scamcoin", userId, ether);
+				return null;
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
 		}
 	}
 }
