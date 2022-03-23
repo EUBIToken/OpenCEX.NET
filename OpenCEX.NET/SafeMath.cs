@@ -45,9 +45,13 @@ namespace jessielesbian.OpenCEX
 					}
 
 					ulong preconv = Convert.ToUInt64(chunk);
-					Console.WriteLine(chunk);
-					Console.WriteLine(preconv.ToString());
-					CheckSafety(preconv.ToString() == chunk, "Corrupted integer value!");
+					foreach(char c in chunk){
+						if(c != '0'){
+							CheckSafety(preconv.ToString() == chunk, "Corrupted integer value!");
+							break;
+						}
+					}
+
 					bigInteger += new BigInteger(preconv) * divisor;
 					divisor /= decParseLimit;
 					if (nobrk)
