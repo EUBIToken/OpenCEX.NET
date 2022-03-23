@@ -39,10 +39,12 @@ namespace jessielesbian.OpenCEX
 			{
 				if (reader.GetInt64("Expiry") > DateTimeOffset.UtcNow.ToUnixTimeSeconds())
 				{
+					ret = reader.GetUInt64("UserID");
+					reader.CheckSingletonResult();
+				} else{
 					StaticUtils.CheckSafety2(thr, "Session token expired!");
 				}
-				ret =  reader.GetUInt64("UserID");
-				reader.CheckSingletonResult();
+				
 			}
 			else
 			{
