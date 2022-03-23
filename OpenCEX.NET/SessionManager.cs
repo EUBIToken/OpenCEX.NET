@@ -32,7 +32,7 @@ namespace jessielesbian.OpenCEX
 			string result = BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", string.Empty);
 			hash.Dispose();
 
-			MySqlDataReader reader = request.sqlCommandFactory.GetCommand("SELECT UserID, Expiry FROM Sessions WHERE SessionTokenHash = \"" + result + "\";").ExecuteReader();
+			MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT UserID, Expiry FROM Sessions WHERE SessionTokenHash = \"" + result + "\";"));
 
 			ulong ret = 0;
 			if (reader.HasRows)
@@ -48,7 +48,7 @@ namespace jessielesbian.OpenCEX
 			{
 				StaticUtils.CheckSafety2(thr, "Invalid session token!");
 			}
-			reader.Close();
+			request.sqlCommandFactory.SafeDestroyReader();
 			return ret;
 		}
 	}

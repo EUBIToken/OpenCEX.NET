@@ -10,7 +10,7 @@ namespace jessielesbian.OpenCEX{
 			MySqlCommand command = sqlCommandFactory.GetCommand("SELECT Balance FROM Balances WHERE UserID = " + userid + " AND Coin = @coin FOR UPDATE;");
 			command.Prepare();
 			command.Parameters.AddWithValue("@coin", coin);
-			MySqlDataReader reader = command.ExecuteReader();
+			MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(command);
 			SafeUint balance;
 			if (reader.HasRows)
 			{
@@ -23,7 +23,7 @@ namespace jessielesbian.OpenCEX{
 				balance = new SafeUint(BigInteger.Zero);
 				command = sqlCommandFactory.GetCommand("INSERT INTO Balances (Balance, UserID, Coin) VALUES (@balance, " + userid + ", @coin);");
 			}
-			reader.Close();
+			sqlCommandFactory.SafeDestroyReader();
 
 			//Manipulate balance with safety checks
 			if (credit){

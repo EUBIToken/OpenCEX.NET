@@ -24,7 +24,7 @@ namespace jessielesbian.OpenCEX{
 
 		public void SafeDestroyReader(){
 			StaticUtils.CheckSafety(dataReader, "Data reader already destroyed!");
-			dataReader.Dispose();
+			dataReader.Close();
 			dataReader = null;
 		}
 
