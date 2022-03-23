@@ -99,7 +99,7 @@ namespace jessielesbian.OpenCEX{
 				CheckSafety(request.args.TryGetValue("target", out object target2), "Order cancellation must specify target!");
 				ulong target;
 				try{
-					target = (ulong)target2;
+					target = Convert.ToUInt64(target2);
 				} catch{
 					throw new SafetyException("Target must be unsigned number!");
 				}
