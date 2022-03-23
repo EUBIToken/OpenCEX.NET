@@ -18,6 +18,7 @@ namespace jessielesbian.OpenCEX{
 		public MySqlDataReader SafeExecuteReader(MySqlCommand mySqlCommand){
 			StaticUtils.CheckSafety2(dataReader, "Data reader already created!");
 			MySqlDataReader temp = mySqlCommand.ExecuteReader();
+			temp.Read();
 			dataReader = temp;
 			return temp;
 		}
