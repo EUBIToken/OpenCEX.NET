@@ -7,9 +7,9 @@ using System;
 namespace jessielesbian.OpenCEX
 {
 	public static partial class StaticUtils{
-		public static readonly SafeUint ether = GetSafeUint("1000000000000000000");
 		public static readonly BigInteger decParseLimit = new BigInteger(1000000000000000000UL);
 		public static readonly BigInteger ten = new BigInteger(10);
+		public static readonly SafeUint ether = GetSafeUint("1000000000000000000");
 		public static SafeUint GetSafeUint(string number){
 			number = number.ToLower();
 			BigInteger bigInteger = new BigInteger(0);
