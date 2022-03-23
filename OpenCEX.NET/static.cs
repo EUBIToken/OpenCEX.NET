@@ -93,8 +93,13 @@ namespace jessielesbian.OpenCEX{
 					mySqlTransaction = null;
 				}
 				
-			} catch{
-				throw new SafetyException("Unable to commit MySQL transaction!");
+			} catch (Exception e){
+				if(StaticUtils.debug){
+					throw e;
+				} else{
+					throw new SafetyException("Unable to commit MySQL transaction!");
+				}
+				
 			}	
 		}
 
