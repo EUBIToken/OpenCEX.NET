@@ -30,7 +30,15 @@ namespace jessielesbian.OpenCEX.RequestManager
 
 		protected override object ExecuteIMPL()
 		{
-			object returns = method.Execute(this);
+			object returns;
+			try
+			{
+				returns = method.Execute(this);
+			} catch(Exception e){
+				sqlCommandFactory.DestroyTransaction(false, true);
+				throw e;
+			}
+			
 			if (method.needSQL)
 			{
 				sqlCommandFactory.DestroyTransaction(true, true);

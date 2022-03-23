@@ -12,14 +12,16 @@ namespace jessielesbian.OpenCEX{
 			command.Parameters.AddWithValue("@coin", coin);
 			MySqlDataReader reader = command.ExecuteReader();
 			SafeUint balance;
-			int fields = reader.RecordsAffected;
-			if (fields == 0){
+			if (reader.HasRows)
+			{
+				balance = StaticUtils.GetSafeUint(reader.GetString("Balance"));
+				reader.CheckSingletonResult();
+				command = sqlCommandFactory.GetCommand("UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;");
+			}
+			else
+			{
 				balance = new SafeUint(BigInteger.Zero);
 				command = sqlCommandFactory.GetCommand("INSERT INTO Balances (Balance, UserID, Coin) VALUES (@balance, " + userid + ", @coin);");
-			} else{
-				StaticUtils.CheckSafety(fields == 1, "Balances table corrupted!");
-				balance = StaticUtils.GetSafeUint(reader.GetString("Balance"));
-				command = sqlCommandFactory.GetCommand("UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;");
 			}
 			reader.Close();
 

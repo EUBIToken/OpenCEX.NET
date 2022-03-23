@@ -34,21 +34,22 @@ namespace jessielesbian.OpenCEX
 
 			MySqlDataReader reader = request.sqlCommandFactory.GetCommand("SELECT UserID, Expiry FROM Sessions WHERE SessionTokenHash = \"" + result + "\";").ExecuteReader();
 
-			int len = reader.RecordsAffected;
-			if(len == 0){
-				StaticUtils.CheckSafety2(thr, "Invalid session token!");
-				return 0;
-			} else{
-				StaticUtils.CheckSafety(len == 1, "Corrupted sessions table!");
-				if(reader.GetInt64("Expiry") > DateTimeOffset.UtcNow.ToUnixTimeSeconds()){
+			ulong ret = 0;
+			if (reader.HasRows)
+			{
+				if (reader.GetInt64("Expiry") > DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+				{
 					StaticUtils.CheckSafety2(thr, "Session token expired!");
 				}
-				ulong ret = reader.GetUInt64("UserID");
-				reader.Close();
-				return ret;
+				ret =  reader.GetUInt64("UserID");
+				reader.CheckSingletonResult();
 			}
-
-
+			else
+			{
+				StaticUtils.CheckSafety2(thr, "Invalid session token!");
+			}
+			reader.Close();
+			return ret;
 		}
 	}
 }

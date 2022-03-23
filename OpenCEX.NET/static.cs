@@ -162,6 +162,13 @@ namespace jessielesbian.OpenCEX{
 	}
 
 	public static partial class StaticUtils{
+		public static void CheckSingletonResult(this MySqlDataReader mySqlDataReader){
+			if(mySqlDataReader.NextResult()){
+				mySqlDataReader.Close();
+				throw new SafetyException("Unexpected trailing data!");
+			}
+		}
+
 		private static readonly System.Collections.IDictionary config = Environment.GetEnvironmentVariables();
 		public static void CheckSafety(bool status, string message = "An unknown error have occoured!"){
 			if(!status){
