@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Collections;
 using System.Linq;
 using System;
+using System.Globalization;
 
 namespace jessielesbian.OpenCEX
 {
@@ -11,64 +12,13 @@ namespace jessielesbian.OpenCEX
 		public static readonly BigInteger ten = new BigInteger(10);
 		public static readonly SafeUint ether = GetSafeUint("1000000000000000000");
 		public static SafeUint GetSafeUint(string number){
-			number = number.ToLower();
-			BigInteger bigInteger = new BigInteger(0);
-			if(number.StartsWith("0x")){
-				throw new SafetyException("Hexadecimal SafeUint not implemented yet!");
-			} else{
-				CheckSafety2(number == "", "SafeMath: Invaid Number!");
-				BigInteger divisor = BigInteger.One;
-				uint limit = (uint)(number.Length / 18);
-				for(uint i = 0; i < limit; i++){
-					divisor *= decParseLimit;
-				}
-				uint div2 = 1;
-				limit = 18U - (uint)(number.Length % 18);
-				if(limit < 18){
-					for (uint i = 0; i < limit; i++)
-					{
-						div2 *= 10;
-					}
-				}
-				
-
-				while (number != ""){
-					string chunk;
-					bool nobrk = number.Length > 17;
-					if (nobrk)
-					{
-						chunk = number.Substring(0, 18);
-					} else{
-						CheckSafety(divisor.IsOne, "SafeMath: Unreachable parse error!");
-						bigInteger /= div2;
-						chunk = number;
-					}
-
-					ulong preconv;
-					for (int i = 0; i < chunk.Length; i++)
-					{
-						char c = chunk[i];
-						if (c != '0'){
-							chunk = chunk.Substring(i);
-							break;
-						}
-					}
-					preconv = Convert.ToUInt64(chunk);
-					CheckSafety(preconv.ToString() == chunk, "Corrupted integer value!");
-
-					bigInteger += new BigInteger(preconv) * divisor;
-					divisor /= decParseLimit;
-					if (nobrk)
-					{
-						number = number[18..];
-					} else{
-						break;
-					}
-					
-				}
-				return new SafeUint(bigInteger);
+			if (number.StartsWith("0x"))
+			{
+				return new SafeUint(BigInteger.Parse(number.Substring(2), NumberStyles.AllowHexSpecifier));
 			}
-			
+			else{
+				return new SafeUint(BigInteger.Parse(number, NumberStyles.None));
+			}
 		}
 	}
 }
