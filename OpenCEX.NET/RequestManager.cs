@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Net;
 using jessielesbian.OpenCEX.RequestManager;
 using jessielesbian.OpenCEX.SafeMath;
+using MySql.Data.MySqlClient;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -59,10 +60,12 @@ namespace jessielesbian.OpenCEX.RequestManager
 }
 
 namespace jessielesbian.OpenCEX{
-	public static partial class StaticUtils{
-		public sealed class TestShitcoins : RequestMethod
+	public static partial class StaticUtils
+	{
+		private sealed class TestShitcoins : RequestMethod
 		{
-			private TestShitcoins(){
+			private TestShitcoins()
+			{
 
 			}
 
@@ -73,6 +76,51 @@ namespace jessielesbian.OpenCEX{
 				ulong userId = request.GetUserID();
 				request.Credit("shitcoin", userId, ether);
 				request.Credit("scamcoin", userId, ether);
+				return null;
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
+
+		private sealed class CancelOrder : RequestMethod
+		{
+			private CancelOrder()
+			{
+
+			}
+
+			public static readonly RequestMethod instance = new CancelOrder();
+
+			public override object Execute(Request request)
+			{
+				CheckSafety(request.args.TryGetValue("target", out object target2), "Order cancellation must specify target!");
+				ulong target;
+				try{
+					target = (ulong)target2;
+				} catch{
+					throw new SafetyException("Target must be unsigned number!");
+				}
+
+				ulong userid = request.GetUserID();
+
+				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT PlacedBy, Pri, Sec, InitialAmount, TotalCost, Buy FROM Orders WHERE Id = \"" + target + "\";"));
+
+				CheckSafety(mySqlDataReader.GetUInt64("PlacedBy") == userid, "Attempted to cancel another user's order!");
+				string refund;
+				if(mySqlDataReader.GetUInt32("Buy") == 0){
+					refund = mySqlDataReader.GetString("Sec");
+				} else{
+					refund = mySqlDataReader.GetString("Pri");
+				}
+				SafeUint amount = GetSafeUint(mySqlDataReader.GetString("InitialAmount")).Sub(GetSafeUint(mySqlDataReader.GetString("TotalCost")));
+
+				mySqlDataReader.CheckSingletonResult();
+				request.sqlCommandFactory.SafeDestroyReader();
+
+				request.sqlCommandFactory.Credit(refund, userid, amount);
 				return null;
 			}
 

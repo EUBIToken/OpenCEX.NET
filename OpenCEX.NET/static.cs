@@ -175,8 +175,12 @@ namespace jessielesbian.OpenCEX{
 			foreach(string meth in redirectedRequestMethods){
 				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
 			}
+			if(debug){
+				requestMethods.Add("place_order", new RedirectedRequestMethod("place_order"));
+			}
 
 			requestMethods.Add("get_test_tokens", TestShitcoins.instance);
+			requestMethods.Add("cancel_order", CancelOrder.instance);
 		}
 
 		private sealed class RedirectedRequestMethod : RequestMethod
