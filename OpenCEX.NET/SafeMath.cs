@@ -44,13 +44,17 @@ namespace jessielesbian.OpenCEX
 						chunk = number;
 					}
 
-					ulong preconv = Convert.ToUInt64(chunk);
-					foreach(char c in chunk){
-						if(c != '0'){
-							CheckSafety(preconv.ToString() == chunk, "Corrupted integer value!");
+					ulong preconv;
+					for (int i = 0; i < chunk.Length; i++)
+					{
+						char c = chunk[i];
+						if (c != '0'){
+							chunk = chunk.Substring(i);
 							break;
 						}
 					}
+					preconv = Convert.ToUInt64(chunk);
+					CheckSafety(preconv.ToString() == chunk, "Corrupted integer value!");
 
 					bigInteger += new BigInteger(preconv) * divisor;
 					divisor /= decParseLimit;
