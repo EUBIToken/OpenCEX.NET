@@ -253,7 +253,6 @@ namespace jessielesbian.OpenCEX{
 					{
 						if (concurrentJobs.IsEmpty && manualResetEventSlim.IsSet)
 						{
-							watchdogSoftReboot = false;
 							manualResetEventSlim.Reset();
 						}
 					}
@@ -345,7 +344,7 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
-		private static volatile bool watchdogSoftReboot = false;
+		private static bool watchdogSoftReboot = false;
 		private class Ping : ConcurrentJob
 		{
 			protected override object ExecuteIMPL()
@@ -358,12 +357,19 @@ namespace jessielesbian.OpenCEX{
 		/// </summary>
 		private static void QOSWatchdog(){
 			while(!abort){
-				Ping ping = new Ping();
-				Append(ping);
-				Thread.Sleep(10000);
-				if(ping.returns == null){
-					watchdogSoftReboot = true;
+				if(watchdogSoftReboot){
+					Thread.Sleep(1000);
+					watchdogSoftReboot = !concurrentJobs.IsEmpty;
+				} else{
+					Ping ping = new Ping();
+					Append(ping);
+					Thread.Sleep(10000);
+					if (ping.returns == null)
+					{
+						watchdogSoftReboot = true;
+					}
 				}
+				
 			}
 		}
 
