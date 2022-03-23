@@ -253,6 +253,7 @@ namespace jessielesbian.OpenCEX{
 					{
 						if (concurrentJobs.IsEmpty && manualResetEventSlim.IsSet)
 						{
+							watchdogSoftReboot = false;
 							manualResetEventSlim.Reset();
 						}
 					}
@@ -301,6 +302,9 @@ namespace jessielesbian.OpenCEX{
 				thread.Name = "OpenCEX.NET Execution Thread #" + (++i).ToString();
 				thread.Start();
 			}
+			Thread watchdog1 = new Thread(QOSWatchdog);
+			watchdog1.Name = "OpenCEX.NET Quality-Of-Service Watchdog Thread";
+			watchdog1.Start();
 
 			//Start HTTP listening
 			AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
@@ -341,12 +345,44 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
+		private static volatile bool watchdogSoftReboot = false;
+		private class Ping : ConcurrentJob
+		{
+			protected override object ExecuteIMPL()
+			{
+				return true;
+			}
+		}
+		/// <summary>
+		/// Quality of service watchdog soft reboots if
+		/// </summary>
+		private static void QOSWatchdog(){
+			while(!abort){
+				Ping ping = new Ping();
+				Append(ping);
+				Thread.Sleep(10000);
+				if(ping.returns == null){
+					watchdogSoftReboot = true;
+				}
+			}
+		}
+
 		private static void CurrentDomain_ProcessExit(object sender, EventArgs e)
 		{
 			lock (httpListener)
 			{
+				//Abort once
+				if (abort)
+				{
+					return;
+				}
+				else
+				{
+					abort = true;
+				}
+
 				//Stop listening
-				if(httpListener.IsListening)
+				if (httpListener.IsListening)
 				{
 					httpListener.Stop();
 				}
@@ -398,6 +434,8 @@ namespace jessielesbian.OpenCEX{
 
 					CheckSafety(body.StartsWith("OpenCEX_request_body="), "Missing request body!");
 					body = HttpUtility.UrlDecode(body.Substring(21));
+
+					CheckSafety(watchdogSoftReboot, "Soft reboot in progress, please try again later!");
 
 					UnprocessedRequest[] unprocessedRequests;
 
