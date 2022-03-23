@@ -7,9 +7,9 @@ namespace jessielesbian.OpenCEX{
 	public static class BalanceManager{		
 		private static void CreditOrDebit(SQLCommandFactory sqlCommandFactory, string coin, ulong userid, SafeUint amount, bool credit){
 			//Fetch balance from database
-			MySqlCommand command = sqlCommandFactory.GetCommand("SELECT Balance FROM Balances WHERE UserID = \"" + userid + "\" AND Coin = @coin FOR UPDATE;");
-			command.Prepare();
+			MySqlCommand command = sqlCommandFactory.GetCommand("SELECT Balance FROM Balances WHERE UserID = " + userid + " AND Coin = @coin FOR UPDATE;");
 			command.Parameters.AddWithValue("@coin", coin);
+			command.Prepare();
 			MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(command);
 			SafeUint balance;
 			if (reader.HasRows)
@@ -33,9 +33,9 @@ namespace jessielesbian.OpenCEX{
 			}
 
 			//Fill in SQL query
-			command.Prepare();
 			command.Parameters.AddWithValue("@coin", coin);
 			command.Parameters.AddWithValue("@balance", balance.ToString());
+			command.Prepare();
 
 			//Execute SQL query
 			command.ExecuteNonQuery();
