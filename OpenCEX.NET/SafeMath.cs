@@ -22,12 +22,15 @@ namespace jessielesbian.OpenCEX
 				for(uint i = 0; i < limit; i++){
 					divisor *= decParseLimit;
 				}
-				BigInteger div2 = 1;
+				uint div2 = 1;
 				limit = 18U - (uint)(number.Length % 18);
-				for (uint i = 0; i < limit; i++)
-				{
-					div2 *= ten;
+				if(limit < 18){
+					for (uint i = 0; i < limit; i++)
+					{
+						div2 *= 10;
+					}
 				}
+				
 
 				while (number != ""){
 					string chunk;
