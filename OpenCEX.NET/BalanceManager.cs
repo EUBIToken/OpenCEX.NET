@@ -15,9 +15,7 @@ namespace jessielesbian.OpenCEX{
 			SafeUint balance;
 			if (reader.HasRows)
 			{
-				string b = reader.GetString("Balance");
-				Console.WriteLine(b);
-				balance = StaticUtils.GetSafeUint(b);
+				balance = StaticUtils.GetSafeUint(reader.GetString("Balance"));
 				reader.CheckSingletonResult();
 				command = sqlCommandFactory.GetCommand("UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;");
 			}
