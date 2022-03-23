@@ -32,7 +32,7 @@ namespace jessielesbian.OpenCEX
 			string result = BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", string.Empty);
 			hash.Dispose();
 
-			MySqlDataReader reader = request.sqlCommandFactory.GetCommand("SELECT UserID, Expiry FROM Sessions WHERE SessionTokenHash = " + result + ";").ExecuteReader();
+			MySqlDataReader reader = request.sqlCommandFactory.GetCommand("SELECT UserID, Expiry FROM Sessions WHERE SessionTokenHash = \"" + result + "\";").ExecuteReader();
 
 			int len = reader.FieldCount;
 			if(len == 0){
