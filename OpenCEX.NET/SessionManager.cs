@@ -34,7 +34,7 @@ namespace jessielesbian.OpenCEX
 
 			MySqlDataReader reader = request.sqlCommandFactory.GetCommand("SELECT UserID, Expiry FROM Sessions WHERE SessionTokenHash = \"" + result + "\";").ExecuteReader();
 
-			int len = reader.FieldCount;
+			int len = reader.RecordsAffected;
 			if(len == 0){
 				StaticUtils.CheckSafety2(thr, "Invalid session token!");
 				return 0;

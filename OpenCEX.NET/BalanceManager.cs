@@ -12,7 +12,7 @@ namespace jessielesbian.OpenCEX{
 			command.Parameters.AddWithValue("@coin", coin);
 			MySqlDataReader reader = command.ExecuteReader();
 			SafeUint balance;
-			int fields = reader.FieldCount;
+			int fields = reader.RecordsAffected;
 			if (fields == 0){
 				balance = new SafeUint(BigInteger.Zero);
 				command = sqlCommandFactory.GetCommand("INSERT INTO Balances (Balance, UserID, Coin) VALUES (@balance, " + userid + ", @coin);");
