@@ -8,10 +8,6 @@ namespace jessielesbian.OpenCEX
 		{
 			Console.WriteLine("OpenCEX.NET: advanced-technology, open-source cryptocurrency exchange");
 			Console.WriteLine("Made by Jessie Lesbian <jessielesbian@protonmail.com>");
-			Console.WriteLine(StaticUtils.getSafeUint("1234567890"));
-			Console.WriteLine(StaticUtils.getSafeUint("12345678901234567890"));
-			Console.WriteLine(StaticUtils.getSafeUint("1234567890123456789012345678901234567890"));
-			Console.WriteLine(StaticUtils.getSafeUint("12345678901234567890123456789012345678901234567890123456789012345678901234567890"));
 			Console.WriteLine();
 			StaticUtils.Start();
 		}
