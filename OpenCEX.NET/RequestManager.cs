@@ -106,8 +106,8 @@ namespace jessielesbian.OpenCEX{
 
 				ulong userid = request.GetUserID();
 
-				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT PlacedBy, Pri, Sec, InitialAmount, TotalCost, Buy FROM Orders WHERE Id = \"" + target + "\";"));
-
+				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT PlacedBy, Pri, Sec, InitialAmount, TotalCost, Buy FROM Orders WHERE Id = \"" + target + "\" FOR UPDATE;"));
+				CheckSafety(mySqlDataReader.HasRows, "Nonexistant order!");
 				CheckSafety(mySqlDataReader.GetUInt64("PlacedBy") == userid, "Attempted to cancel another user's order!");
 				string refund;
 				if(mySqlDataReader.GetUInt32("Buy") == 0){
@@ -120,7 +120,8 @@ namespace jessielesbian.OpenCEX{
 				mySqlDataReader.CheckSingletonResult();
 				request.sqlCommandFactory.SafeDestroyReader();
 
-				request.sqlCommandFactory.Credit(refund, userid, amount);
+				request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + target + "\";");
+				request.Credit(refund, userid, amount);
 				return null;
 			}
 

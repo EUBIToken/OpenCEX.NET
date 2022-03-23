@@ -87,6 +87,13 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
+		/// <summary>
+		/// Executes query and restricts effect to single row
+		/// </summary>
+		public void SafeExecuteNonQuery(string query){
+			StaticUtils.CheckSafety(GetCommand(query).ExecuteNonQuery() == 1, "Excessive write effect!");
+		}
+
 		public void BeginTransaction()
 		{
 			StaticUtils.CheckSafety2(disposedValue, "MySQL connection already disposed!");
