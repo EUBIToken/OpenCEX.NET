@@ -21,7 +21,7 @@ namespace jessielesbian.OpenCEX
 
 			byte[] bytes;
 			try{
-				bytes = Convert.FromBase64String(cookie.Value);
+				bytes = Convert.FromBase64String(WebUtility.UrlDecode(cookie.Value));
 			} catch{
 				StaticUtils.CheckSafety2(thr, "Invalid session token!");
 				return 0;
