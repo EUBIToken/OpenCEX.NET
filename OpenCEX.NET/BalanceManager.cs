@@ -1,6 +1,7 @@
 using jessielesbian.OpenCEX.RequestManager;
 using jessielesbian.OpenCEX.SafeMath;
 using MySql.Data.MySqlClient;
+using System;
 using System.Numerics;
 
 namespace jessielesbian.OpenCEX{
@@ -14,7 +15,9 @@ namespace jessielesbian.OpenCEX{
 			SafeUint balance;
 			if (reader.HasRows)
 			{
-				balance = StaticUtils.GetSafeUint(reader.GetString("Balance"));
+				string b = reader.GetString("Balance");
+				Console.WriteLine(b);
+				balance = StaticUtils.GetSafeUint(b);
 				reader.CheckSingletonResult();
 				command = sqlCommandFactory.GetCommand("UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;");
 			}
