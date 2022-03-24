@@ -278,19 +278,15 @@ namespace jessielesbian.OpenCEX{
 
 				request.sqlCommandFactory.SafeDestroyReader();
 
-				while (moddedOrders.TryDequeue(out Order modded)){
-					if(modded.amount.isZero){
-						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + modded.id + "\";");
-					} else{
-						request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Orders SET Amount = \"" + modded.amount + "\", TotalCost = \""+ modded.totalCost + "\"" + " WHERE Id = \"" + modded.id + "\";");
-					}
-					
-				}
-
 				if(!instance.Balance.isZero)
 				{
 					//We only save the order to database if it's a limit order and it's not fully executed.
 					CheckSafety2(fillMode == 2, "Fill or kill order canceled due to insufficient liquidity!");
+					if(instance.amount == zero || fillMode == 1){
+						//Cancel order
+						request.Credit(selected, userid, instance.Balance);
+						return null;
+					}
 					StringBuilder stringBuilder = new StringBuilder("INSERT INTO Orders (Pri, Sec, Price, Amount, InitialAmount, TotalCost, Id, PlacedBy, Buy) VALUES (@primary, @secondary, \"");
 					stringBuilder.Append(instance.price.ToString() + "\", \"");
 					stringBuilder.Append(instance.amount.ToString() + "\", \"");
@@ -305,6 +301,24 @@ namespace jessielesbian.OpenCEX{
 					mySqlCommand.ExecuteNonQuery();
 				}
 
+				while (moddedOrders.TryDequeue(out Order modded))
+				{
+					if (modded.amount.isZero)
+					{
+						SafeUint balance = modded.Balance;
+						if(!balance.isZero){
+							request.Credit(output, modded.placedby, balance);
+						}
+						
+						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + modded.id + "\";");
+					}
+					else
+					{
+						request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Orders SET Amount = \"" + modded.amount + "\", TotalCost = \"" + modded.totalCost + "\"" + " WHERE Id = \"" + modded.id + "\";");
+					}
+
+				}
+
 				//Credit funds to customers
 				if (!debt.isZero)
 				{
@@ -314,8 +328,6 @@ namespace jessielesbian.OpenCEX{
 				foreach(KeyValuePair<ulong, SafeUint> keyValuePair in tmpbalances){
 					request.Credit(selected, keyValuePair.Key, keyValuePair.Value);
 				}
-
-
 
 				return null;
 			}
