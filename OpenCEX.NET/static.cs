@@ -353,7 +353,7 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 		/// <summary>
-		/// Quality of service watchdog soft reboots if
+		/// Quality of service watchdog soft reboots if server is overloaded!
 		/// </summary>
 		private static void QOSWatchdog(){
 			while(!abort){
@@ -413,6 +413,7 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private static readonly string origin = GetEnv("Origin");
+		private static readonly int maxEventQueueSize = GetEnv("MaxEventQueueSize");
 
 		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
 			
@@ -433,7 +434,6 @@ namespace jessielesbian.OpenCEX{
 					//CSRF protection
 					CheckSafety(httpListenerRequest.Headers.Get("Origin") == origin, "Illegal origin!");
 
-
 					//POST parameter
 					StreamReader streamReader = new StreamReader(httpListenerRequest.InputStream, httpListenerRequest.ContentEncoding);
 					string body = streamReader.ReadToEnd();
@@ -442,6 +442,7 @@ namespace jessielesbian.OpenCEX{
 					body = HttpUtility.UrlDecode(body.Substring(21));
 
 					CheckSafety2(watchdogSoftReboot, "Soft reboot in progress, please try again later!");
+					CheckSafety2(concurrentJobs.Count > 1000, "Server overloaded, please try again later!");
 
 					UnprocessedRequest[] unprocessedRequests;
 
