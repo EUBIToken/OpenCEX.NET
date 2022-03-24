@@ -276,7 +276,9 @@ namespace jessielesbian.OpenCEX{
 					}
 				}
 
-				while(moddedOrders.TryDequeue(out Order modded)){
+				request.sqlCommandFactory.SafeDestroyReader();
+
+				while (moddedOrders.TryDequeue(out Order modded)){
 					if(modded.amount.isZero){
 						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + modded.id + "\";");
 					} else{
@@ -285,7 +287,6 @@ namespace jessielesbian.OpenCEX{
 					
 				}
 
-				request.sqlCommandFactory.SafeDestroyReader();
 				if(!instance.Balance.isZero)
 				{
 					//We only save the order to database if it's a limit order and it's not fully executed.
