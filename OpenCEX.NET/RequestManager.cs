@@ -165,7 +165,7 @@ namespace jessielesbian.OpenCEX{
 					request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Misc SET Val = \"" + orderId + "\"WHERE Kei = \"OrderCounter\";");
 				}
 
-				request.sqlCommandFactory.GetCommand("UNLOCK TABLES Misc;").ExecuteNonQuery();
+				request.sqlCommandFactory.GetCommand("UNLOCK TABLES;").ExecuteNonQuery();
 
 
 				return null;
