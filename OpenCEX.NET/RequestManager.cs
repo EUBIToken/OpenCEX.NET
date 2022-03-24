@@ -285,7 +285,7 @@ namespace jessielesbian.OpenCEX{
 					if(instance.amount == zero || fillMode == 1){
 						//Cancel order
 						request.Credit(selected, userid, instance.Balance);
-						return null;
+						goto admitted;
 					}
 					StringBuilder stringBuilder = new StringBuilder("INSERT INTO Orders (Pri, Sec, Price, Amount, InitialAmount, TotalCost, Id, PlacedBy, Buy) VALUES (@primary, @secondary, \"");
 					stringBuilder.Append(instance.price.ToString() + "\", \"");
@@ -300,6 +300,8 @@ namespace jessielesbian.OpenCEX{
 					mySqlCommand.Prepare();
 					mySqlCommand.ExecuteNonQuery();
 				}
+
+			admitted:
 
 				while (moddedOrders.TryDequeue(out Order modded))
 				{
