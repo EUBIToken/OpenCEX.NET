@@ -413,7 +413,7 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private static readonly string origin = GetEnv("Origin");
-		private static readonly int maxEventQueueSize = GetEnv("MaxEventQueueSize");
+		private static readonly int maxEventQueueSize = Convert.ToInt32(GetEnv("MaxEventQueueSize"));
 
 		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
 			
@@ -442,7 +442,7 @@ namespace jessielesbian.OpenCEX{
 					body = HttpUtility.UrlDecode(body.Substring(21));
 
 					CheckSafety2(watchdogSoftReboot, "Soft reboot in progress, please try again later!");
-					CheckSafety2(concurrentJobs.Count > 1000, "Server overloaded, please try again later!");
+					CheckSafety2(concurrentJobs.Count > maxEventQueueSize, "Server overloaded, please try again later!");
 
 					UnprocessedRequest[] unprocessedRequests;
 
