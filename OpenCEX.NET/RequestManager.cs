@@ -149,7 +149,7 @@ namespace jessielesbian.OpenCEX{
 			public override object Execute(Request request)
 			{
 				//Safety checks
-				int fillMode;
+				long fillMode;
 				SafeUint price;
 				SafeUint amount;
 				string primary;
@@ -158,7 +158,7 @@ namespace jessielesbian.OpenCEX{
 				{
 					object tmp = null;
 					CheckSafety(request.args.TryGetValue("fill_mode", out tmp), "Missing order fill mode!");
-					fillMode = (int) tmp;
+					fillMode = (long) tmp;
 					CheckSafety(request.args.TryGetValue("price", out tmp), "Missing order price!");
 					price = GetSafeUint((string)tmp);
 					CheckSafety(request.args.TryGetValue("amount", out tmp), "Missing order amount!");
