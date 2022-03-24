@@ -54,9 +54,8 @@ namespace jessielesbian.OpenCEX.SafeMath{
 
 		public SafeUint Div(SafeUint other, string msg = "SafeMath: Divide by zero!")
 		{
-			StaticUtils.CheckSafety(other.isZero, msg);
+			StaticUtils.CheckSafety2(other.isZero, msg);
 			BigInteger b = bigInteger / other.bigInteger;
-			Console.WriteLine(b.ToString());
 			return new SafeUint(b, "SafeMath: Unreachable Divide Error (should not reach here)!");
 		}
 
