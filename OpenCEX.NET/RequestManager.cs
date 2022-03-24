@@ -240,6 +240,7 @@ namespace jessielesbian.OpenCEX{
 
 				Queue<Order> moddedOrders = new Queue<Order>();
 				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
+				Dictionary<ulong, SafeUint> tmpbalances = new Dictionary<ulong, SafeUint>();
 				SafeUint debt = zero;
 				if(reader.HasRows){
 					bool read = true;
@@ -254,10 +255,21 @@ namespace jessielesbian.OpenCEX{
 							SafeUint secamt = temp2.Mul(ether).Div(other.price);
 							if (buy){
 								debt = debt.Add(secamt);
-								request.Credit(selected, other.placedby, temp2);
+								if(tmpbalances.TryGetValue(other.placedby, out SafeUint temp3)){
+									tmpbalances[other.placedby] = temp3.Add(temp2);
+								} else{
+									tmpbalances.Add(other.placedby, temp2);
+								}
 							} else{
 								debt = debt.Add(temp2);
-								request.Credit(selected, other.placedby, secamt);
+								if (tmpbalances.TryGetValue(other.placedby, out SafeUint temp3))
+								{
+									tmpbalances[other.placedby] = temp3.Add(secamt);
+								}
+								else
+								{
+									tmpbalances.Add(other.placedby, secamt);
+								}
 							}
 							read = reader.NextResult();
 						}
@@ -292,10 +304,14 @@ namespace jessielesbian.OpenCEX{
 					mySqlCommand.ExecuteNonQuery();
 				}
 
+				//Credit funds to customers
 				if (!debt.isZero)
 				{
-					//Credit purchased tokens
 					request.Credit(output, userid, debt);
+				}
+
+				foreach(KeyValuePair<ulong, SafeUint> keyValuePair in tmpbalances){
+					request.Credit(selected, keyValuePair.Key, keyValuePair.Value);
 				}
 
 
