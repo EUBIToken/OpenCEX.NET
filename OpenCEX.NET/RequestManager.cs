@@ -196,8 +196,8 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				if(fillMode == 0){
-					CheckSafety2(amount == zero, "Zero limit order size!");
-					CheckSafety(amount < GetSafeUint(GetEnv("MinimumLimit_" + selected)), "Order is smaller than minimum limit order size!");
+					CheckSafety2(amount.isZero, "Zero limit order size!");
+					CheckSafety2(amount < GetSafeUint(GetEnv("MinimumLimit_" + selected)), "Order is smaller than minimum limit order size!");
 				}
 				
 
@@ -235,7 +235,7 @@ namespace jessielesbian.OpenCEX{
 					{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
 						SafeUint temp2 = MatchOrders(instance, other, buy);
-						if(temp2 == zero){
+						if(temp2.isZero){
 							break;
 						} else{
 							moddedOrders.Enqueue(other);
@@ -253,7 +253,7 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				while(moddedOrders.TryDequeue(out Order modded)){
-					if(modded.amount == zero){
+					if(modded.amount.isZero){
 						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + modded.id + "\";");
 					} else{
 						request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Orders SET Amount = \"" + modded.amount + "\", TotalCost = \""+ modded.totalCost + "\"" + " WHERE Id = \"" + modded.id + "\";");
@@ -262,7 +262,7 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				request.sqlCommandFactory.SafeDestroyReader();
-				if(instance.Balance != zero)
+				if(!instance.Balance.isZero)
 				{
 					//We only save the order to database if it's a limit order and it's not fully executed.
 					CheckSafety2(fillMode == 2, "Fill or kill order canceled due to insufficient liquidity!");
@@ -280,7 +280,7 @@ namespace jessielesbian.OpenCEX{
 					mySqlCommand.ExecuteNonQuery();
 				}
 
-				if (debt != zero)
+				if (!debt.isZero)
 				{
 					//Credit purchased tokens
 					request.Credit(output, userid, debt);
@@ -309,7 +309,7 @@ namespace jessielesbian.OpenCEX{
 						second.Debit(ret, second.price);
 					}
 				}
-				CheckSafety2(ret == zero, "Order matched without output (should not reach here)!");
+				CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!");
 				return ret;
 			}
 
