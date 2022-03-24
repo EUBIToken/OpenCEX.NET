@@ -40,6 +40,7 @@ namespace jessielesbian.OpenCEX
 				if (reader.GetInt64("Expiry") > DateTimeOffset.UtcNow.ToUnixTimeSeconds())
 				{
 					ret = reader.GetUInt64("UserID");
+					StaticUtils.CheckSafety2(ret == 0, "Illegal User ID!");
 					reader.CheckSingletonResult();
 				} else{
 					StaticUtils.CheckSafety2(thr, "Session token expired!");

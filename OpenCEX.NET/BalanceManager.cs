@@ -6,7 +6,8 @@ using System.Numerics;
 
 namespace jessielesbian.OpenCEX{
 	public static class BalanceManager{		
-		private static void CreditOrDebit(SQLCommandFactory sqlCommandFactory, string coin, ulong userid, SafeUint amount, bool credit){
+		private static void CreditOrDebit(SQLCommandFactory sqlCommandFactory, string coin, ulong userid, SafeUint amount, bool credit)
+		{
 			//Fetch balance from database
 			MySqlCommand command = sqlCommandFactory.GetCommand("SELECT Balance FROM Balances WHERE UserID = " + userid + " AND Coin = @coin FOR UPDATE;");
 			command.Parameters.AddWithValue("@coin", coin);
@@ -30,7 +31,7 @@ namespace jessielesbian.OpenCEX{
 			if (credit){
 				balance = balance.Add(amount);
 			} else{
-				balance = balance.Sub(amount, "Insufficent balance!");
+				balance = balance.Sub(amount, (userid == 0) ? "Shortfall detected!" : "Insufficent balance!");
 			}
 
 			//Fill in SQL query
@@ -45,32 +46,40 @@ namespace jessielesbian.OpenCEX{
 		/// <summary>
 		/// Credit funds to a customer account.
 		/// </summary>
-		public static void Credit(this SQLCommandFactory sqlCommandFactory, string coin, ulong userid, SafeUint amount){
+		public static void Credit(this SQLCommandFactory sqlCommandFactory, string coin, ulong userid, SafeUint amount, bool safe = true){
+			if(safe){
+				//Shortfall protection: debit funds from null account
+				CreditOrDebit(sqlCommandFactory, coin, 0, amount, false);
+			}
 			CreditOrDebit(sqlCommandFactory, coin, userid, amount, true);
 		}
 
 		/// <summary>
 		/// Debit funds from a customer account.
 		/// </summary>
-		public static void Debit(this SQLCommandFactory sqlCommandFactory, string coin, ulong userid, SafeUint amount)
+		public static void Debit(this SQLCommandFactory sqlCommandFactory, string coin, ulong userid, SafeUint amount, bool safe = true)
 		{
+			if(safe){
+				//Shortfall protection: credit funds to null account
+				CreditOrDebit(sqlCommandFactory, coin, 0, amount, true);
+			}
 			CreditOrDebit(sqlCommandFactory, coin, userid, amount, false);
 		}
 
 		/// <summary>
 		/// Credit funds to a customer account.
 		/// </summary>
-		public static void Credit(this Request request, string coin, ulong userid, SafeUint amount)
+		public static void Credit(this Request request, string coin, ulong userid, SafeUint amount, bool safe = true)
 		{
-			CreditOrDebit(request.sqlCommandFactory, coin, userid, amount, true);
+			request.sqlCommandFactory.Credit(coin, userid, amount, safe);
 		}
 
 		/// <summary>
 		/// Debit funds from a customer account.
 		/// </summary>
-		public static void Debit(this Request request, string coin, ulong userid, SafeUint amount)
+		public static void Debit(this Request request, string coin, ulong userid, SafeUint amount, bool safe = true)
 		{
-			CreditOrDebit(request.sqlCommandFactory, coin, userid, amount, false);
+			request.sqlCommandFactory.Debit(coin, userid, amount, safe);
 		}
 	}
 }

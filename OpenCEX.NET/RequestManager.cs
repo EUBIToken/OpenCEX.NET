@@ -6,6 +6,7 @@ using System.Net;
 using jessielesbian.OpenCEX.RequestManager;
 using jessielesbian.OpenCEX.SafeMath;
 using MySql.Data.MySqlClient;
+using System.Text;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -77,9 +78,10 @@ namespace jessielesbian.OpenCEX{
 
 			public override object Execute(Request request)
 			{
+				//NOTE: Shortfall protection is disabled, since we are depositing.
 				ulong userId = request.GetUserID();
-				request.Credit("shitcoin", userId, ether);
-				request.Credit("scamcoin", userId, ether);
+				request.Credit("shitcoin", userId, ether, false);
+				request.Credit("scamcoin", userId, ether, false);
 				return null;
 			}
 
@@ -146,7 +148,60 @@ namespace jessielesbian.OpenCEX{
 
 			public override object Execute(Request request)
 			{
-				//Partially-atomic
+				//Safety checks
+				int fillMode;
+				SafeUint price;
+				SafeUint amount;
+				string primary;
+				string secondary;
+				bool buy;
+				{
+					object tmp = null;
+					CheckSafety(request.args.TryGetValue("fill_mode", out tmp), "Missing order fill mode!");
+					fillMode = (int) tmp;
+					CheckSafety(request.args.TryGetValue("price", out tmp), "Missing order price!");
+					price = GetSafeUint((string)tmp);
+					CheckSafety(request.args.TryGetValue("amount", out tmp), "Missing order amount!");
+					amount = GetSafeUint((string)tmp);
+					CheckSafety(request.args.TryGetValue("primary", out tmp), "Missing primary token!");
+					primary = (string)tmp;
+					CheckSafety(request.args.TryGetValue("secondary", out tmp), "Missing secondary token!");
+					secondary = (string)tmp;
+					CheckSafety(request.args.TryGetValue("buy", out tmp), "Missing order type!");
+					buy = Convert.ToBoolean(tmp);
+				}
+
+				CheckSafety(fillMode > -1, "Invalid fill mode!");
+				CheckSafety(fillMode < 3, "Invalid fill mode!");
+				try{
+					GetEnv("PairExists_" + primary.Replace("_", "__") + "_" + secondary);
+				} catch{
+					throw new SafetyException("Nonexistant trading pair!");
+				}
+
+				string selected;
+				string output;
+				SafeUint amt2;
+				MySqlCommand counter;
+				if(buy){
+					selected = primary;
+					output = secondary;
+					amt2 = amount.Mul(price).Div(ether);
+					counter = request.sqlCommandFactory.GetCommand("SELECT Price, Amount, InitialAmount, TotalCost, Id, PlacedBy FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 0 ORDER BY Price ASC, Id ASC FOR UPDATE;");
+				} else{
+					selected = secondary;
+					output = primary;
+					amt2 = amount;
+					counter = request.sqlCommandFactory.GetCommand("SELECT Price, Amount, InitialAmount, TotalCost, Id, PlacedBy FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 1 ORDER BY Price DESC, Id ASC FOR UPDATE;");
+				}
+
+				if(fillMode == 0){
+					CheckSafety2(amount == zero, "Zero limit order size!");
+					CheckSafety(amount < GetSafeUint(GetEnv("MinimumLimit_" + selected)), "Order is smaller than minimum limit order size!");
+				}
+				
+
+				//Partially-atomic increment
 				request.sqlCommandFactory.GetCommand("LOCK TABLES Misc WRITE;").ExecuteNonQuery();
 				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT Val FROM Misc WHERE Kei = \"OrderCounter\";"));
 				ulong orderId;
@@ -166,14 +221,136 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				request.sqlCommandFactory.GetCommand("UNLOCK TABLES;").ExecuteNonQuery();
+				ulong userid = request.GetUserID();
+				request.Debit(selected, userid, amount);
+
+				reader = request.sqlCommandFactory.SafeExecuteReader(counter);
+
+				Queue<Order> moddedOrders = new Queue<Order>();
+				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
+				SafeUint debt = zero;
+				if(reader.HasRows){
+					bool read = true;
+					while(read)
+					{
+						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
+						SafeUint temp2 = MatchOrders(instance, other, buy);
+						if(temp2 == zero){
+							break;
+						} else{
+							moddedOrders.Enqueue(other);
+							SafeUint secamt = temp2.Mul(ether).Div(other.price);
+							if (buy){
+								debt = debt.Add(secamt);
+								request.Credit(selected, other.placedby, temp2);
+							} else{
+								debt = debt.Add(temp2);
+								request.Credit(selected, other.placedby, secamt);
+							}
+							read = reader.NextResult();
+						}
+					}
+				}
+
+				while(moddedOrders.TryDequeue(out Order modded)){
+					if(modded.amount == zero){
+						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + modded.id + "\";");
+					} else{
+						request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Orders SET Amount = \"" + modded.amount + "\", TotalCost = \""+ modded.totalCost + "\"" + " WHERE Id = \"" + modded.id + "\";");
+					}
+					
+				}
+
+				request.sqlCommandFactory.SafeDestroyReader();
+				if(instance.Balance != zero)
+				{
+					//We only save the order to database if it's a limit order and it's not fully executed.
+					CheckSafety2(fillMode == 2, "Fill or kill order canceled due to insufficient liquidity!");
+					StringBuilder stringBuilder = new StringBuilder("INSERT INTO Orders (Pri, Sec, Price, Amount, InitialAmount, TotalCost, Id, PlacedBy, Buy) VALUES (@primary, @secondary, \"");
+					stringBuilder.Append(instance.price.ToString() + "\", \"");
+					stringBuilder.Append(instance.amount.ToString() + "\", \"");
+					stringBuilder.Append(amount.ToString() + "\", \"");
+					stringBuilder.Append(instance.totalCost.ToString() + "\", \"");
+					stringBuilder.Append(instance.id + "\", \"");
+					stringBuilder.Append(userid.ToString() + (buy ? "\", 1);" : "\", 0);"));
+					MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand(stringBuilder.ToString());
+					mySqlCommand.Parameters.AddWithValue("@primary", primary);
+					mySqlCommand.Parameters.AddWithValue("@secondary", secondary);
+					mySqlCommand.Prepare();
+					mySqlCommand.ExecuteNonQuery();
+				}
+
+				if (debt != zero)
+				{
+					//Credit purchased tokens
+					request.Credit(output, userid, debt);
+				}
+
 
 
 				return null;
 			}
 
+			private static SafeUint MatchOrders(Order first, Order second, bool buy){
+				SafeUint ret = first.amount.Min(second.amount);
+				if (buy){
+					if(second.price > first.price){
+						return zero;
+					} else{
+						first.Debit(ret, second.price);
+						second.Debit(ret);
+					}
+				} else{
+					if (first.price > second.price)
+					{
+						return zero;
+					} else{
+						first.Debit(ret);
+						second.Debit(ret, second.price);
+					}
+				}
+				CheckSafety2(ret == zero, "Order matched without output (should not reach here)!");
+				return ret;
+			}
+
 			protected override bool NeedSQL()
 			{
 				return true;
+			}
+
+			private class Order
+			{
+				public readonly SafeUint price;
+				public SafeUint amount;
+				public readonly SafeUint initialAmount;
+				public SafeUint totalCost;
+				public readonly ulong placedby;
+				public readonly string id;
+
+				public Order(SafeUint price, SafeUint amount, SafeUint initialAmount, SafeUint totalCost, ulong placedby, string id)
+				{
+					this.initialAmount = initialAmount ?? throw new ArgumentNullException(nameof(initialAmount));
+					this.totalCost = totalCost ?? throw new ArgumentNullException(nameof(totalCost));
+					this.price = price ?? throw new ArgumentNullException(nameof(price));
+					this.amount = amount ?? throw new ArgumentNullException(nameof(amount));
+					this.id = id ?? throw new ArgumentNullException(nameof(id));
+					this.placedby = placedby;
+				}
+				public void Debit(SafeUint amt, SafeUint price = null)
+				{
+					SafeUint temp;
+					
+					if(price == null){
+						temp = totalCost.Add(amt);
+					} else{
+						temp = totalCost.Add(amt.Mul(price).Div(ether));
+					}
+					CheckSafety2(temp > initialAmount, "Negative order size (should not reach here)!");
+					amount = amount.Sub(amt, "Negative order amount (should not reach here)!");
+					totalCost = temp;
+				}
+
+				public SafeUint Balance => initialAmount.Sub(totalCost);
 			}
 		}
 	}
