@@ -130,5 +130,47 @@ namespace jessielesbian.OpenCEX{
 				return true;
 			}
 		}
+
+		private sealed class PlaceOrder : RequestMethod
+		{
+			private PlaceOrder()
+			{
+
+			}
+
+			public static readonly RequestMethod instance = new PlaceOrder();
+
+			public override object Execute(Request request)
+			{
+				//Partially-atomic
+				request.sqlCommandFactory.GetCommand("LOCK TABLES Misc WRITE;").ExecuteNonQuery();
+				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT Val FROM Misc WHERE Kei = \"OrderCounter\";"));
+				ulong orderId;
+				if(reader.HasRows){
+					orderId = Convert.ToUInt64(reader.GetString("Val")) + 1;
+					reader.CheckSingletonResult();
+				} else{
+					orderId = 0;
+				}
+
+				request.sqlCommandFactory.SafeDestroyReader();
+
+				if(orderId == 0){
+					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Misc (Kei, Val) VALUES (\"OrderCounter\", \"0\");");
+				} else{
+					request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Misc SET Val = \"" + orderId + "\"WHERE Kei = \"OrderCounter\";");
+				}
+
+				request.sqlCommandFactory.GetCommand("UNLOCK TABLES Misc;").ExecuteNonQuery();
+
+
+				return null;
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
 	}
 }

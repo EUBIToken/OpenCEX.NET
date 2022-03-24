@@ -175,12 +175,11 @@ namespace jessielesbian.OpenCEX{
 			foreach(string meth in redirectedRequestMethods){
 				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
 			}
-			if(debug){
-				requestMethods.Add("place_order", new RedirectedRequestMethod("place_order"));
-			}
 
+			//Native request methods
 			requestMethods.Add("get_test_tokens", TestShitcoins.instance);
 			requestMethods.Add("cancel_order", CancelOrder.instance);
+			requestMethods.Add("place_order", PlaceOrder.instance);
 		}
 
 		private sealed class RedirectedRequestMethod : RequestMethod
@@ -414,6 +413,7 @@ namespace jessielesbian.OpenCEX{
 
 		private static readonly string origin = GetEnv("Origin");
 		private static readonly int maxEventQueueSize = Convert.ToInt32(GetEnv("MaxEventQueueSize"));
+		public static bool multiserver = Convert.ToBoolean(GetEnv("Multiserver"));
 
 		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
 			
