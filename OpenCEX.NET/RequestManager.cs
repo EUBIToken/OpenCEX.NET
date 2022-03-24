@@ -271,7 +271,7 @@ namespace jessielesbian.OpenCEX{
 									tmpbalances.Add(other.placedby, secamt);
 								}
 							}
-							read = reader.NextResult();
+							read = reader.Read();
 						}
 					}
 				}
