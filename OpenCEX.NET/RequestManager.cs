@@ -252,23 +252,23 @@ namespace jessielesbian.OpenCEX{
 							break;
 						} else{
 							moddedOrders.Enqueue(other);
-							SafeUint secamt = temp2.Mul(ether).Div(other.price);
+							SafeUint secamt = temp2.Mul(other.price).Div(ether);
 							if (buy){
-								debt = debt.Add(secamt);
+								debt = debt.Add(temp2);
 								if(tmpbalances.TryGetValue(other.placedby, out SafeUint temp3)){
-									tmpbalances[other.placedby] = temp3.Add(temp2);
+									tmpbalances[other.placedby] = temp3.Add(secamt);
 								} else{
-									tmpbalances.Add(other.placedby, temp2);
+									tmpbalances.Add(other.placedby, secamt);
 								}
 							} else{
-								debt = debt.Add(temp2);
+								debt = debt.Add(secamt);
 								if (tmpbalances.TryGetValue(other.placedby, out SafeUint temp3))
 								{
-									tmpbalances[other.placedby] = temp3.Add(secamt);
+									tmpbalances[other.placedby] = temp3.Add(temp2);
 								}
 								else
 								{
-									tmpbalances.Add(other.placedby, secamt);
+									tmpbalances.Add(other.placedby, temp2);
 								}
 							}
 							read = reader.Read();
