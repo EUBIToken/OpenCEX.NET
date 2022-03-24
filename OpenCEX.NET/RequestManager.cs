@@ -338,16 +338,16 @@ namespace jessielesbian.OpenCEX{
 					if(second.price > first.price){
 						return zero;
 					} else{
-						first.Debit(ret, second.price);
-						second.Debit(ret);
+						first.Debit(ret);
+						second.Debit(ret, second.price);
 					}
 				} else{
 					if (first.price > second.price)
 					{
 						return zero;
 					} else{
-						first.Debit(ret);
-						second.Debit(ret, second.price);
+						first.Debit(ret, second.price);
+						second.Debit(ret);
 					}
 				}
 				CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!");
