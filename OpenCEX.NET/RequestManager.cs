@@ -194,8 +194,11 @@ namespace jessielesbian.OpenCEX{
 					amt2 = amount;
 					counter = request.sqlCommandFactory.GetCommand("SELECT Price, Amount, InitialAmount, TotalCost, Id, PlacedBy FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 1 ORDER BY Price DESC, Id ASC FOR UPDATE;");
 				}
+				counter.Parameters.AddWithValue("@primary", primary);
+				counter.Parameters.AddWithValue("@secondary", secondary);
+				counter.Prepare();
 
-				if(fillMode == 0){
+				if (fillMode == 0){
 					CheckSafety2(amount.isZero, "Zero limit order size!");
 					CheckSafety2(amount < GetSafeUint(GetEnv("MinimumLimit_" + selected)), "Order is smaller than minimum limit order size!");
 				}
