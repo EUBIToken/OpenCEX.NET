@@ -343,7 +343,7 @@ namespace jessielesbian.OpenCEX{
 				{
 					SafeUint temp;
 					
-					if(price == null){
+					if(price is null){
 						temp = totalCost.Add(amt);
 					} else{
 						temp = totalCost.Add(amt.Mul(price).Div(ether));

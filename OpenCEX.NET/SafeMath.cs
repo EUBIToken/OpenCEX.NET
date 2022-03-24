@@ -91,12 +91,21 @@ namespace jessielesbian.OpenCEX.SafeMath{
 
 		public static bool operator ==(SafeUint x, SafeUint y)
 		{
-			return x.bigInteger == y.bigInteger;
+			if(x is null && y is null){
+				return true;
+			} else if(x is null){
+				return false;
+			} else if(y is null){
+				return false;
+			} else{
+				return x.bigInteger == y.bigInteger;
+			}
+			
 		}
 
 		public static bool operator !=(SafeUint x, SafeUint y)
 		{
-			return x.bigInteger != y.bigInteger;
+			return !(x.bigInteger == y.bigInteger);
 		}
 
 		public override bool Equals(object obj)
