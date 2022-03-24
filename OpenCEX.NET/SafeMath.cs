@@ -39,7 +39,7 @@ namespace jessielesbian.OpenCEX.SafeMath{
 		}
 
 		public SafeUint Add(SafeUint other){
-			return new SafeUint(bigInteger + other.bigInteger);
+			return new SafeUint(bigInteger + other.bigInteger, "SafeMath: Unreachable Add Error (should not reach here)!");
 		}
 
 		public SafeUint Sub(SafeUint other, string msg = "SafeMath: Subtraction Overflow!")
@@ -49,13 +49,15 @@ namespace jessielesbian.OpenCEX.SafeMath{
 
 		public SafeUint Mul(SafeUint other)
 		{
-			return new SafeUint(bigInteger * other.bigInteger);
+			return new SafeUint(bigInteger * other.bigInteger, "SafeMath: Unreachable Multiply Error (should not reach here)!");
 		}
 
 		public SafeUint Div(SafeUint other, string msg = "SafeMath: Divide by zero!")
 		{
 			StaticUtils.CheckSafety(other.isZero, msg);
-			return new SafeUint(bigInteger / other.bigInteger, msg);
+			BigInteger b = bigInteger / other.bigInteger;
+			Console.WriteLine(b.ToString());
+			return new SafeUint(b, "SafeMath: Unreachable Divide Error (should not reach here)!");
 		}
 
 		public SafeUint Max(SafeUint other){
