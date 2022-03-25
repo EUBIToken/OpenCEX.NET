@@ -171,7 +171,7 @@ namespace jessielesbian.OpenCEX{
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
 
 			//Redirected Request Methods
-			string[] redirectedRequestMethods = {"create_account", "login", "flush", "client_name", "logout", "balances", "eth_deposit_address", "withdraw", "load_active_orders", "get_chart", "bid_ask"};
+			string[] redirectedRequestMethods = {"create_account", "login", "flush", "client_name", "logout", "balances", "eth_deposit_address", "withdraw", "load_active_orders", "get_chart"};
 			foreach(string meth in redirectedRequestMethods){
 				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
 			}
@@ -180,6 +180,7 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("get_test_tokens", TestShitcoins.instance);
 			requestMethods.Add("cancel_order", CancelOrder.instance);
 			requestMethods.Add("place_order", PlaceOrder.instance);
+			requestMethods.Add("bid_ask", PlaceOrder.instance);
 		}
 
 		private sealed class RedirectedRequestMethod : RequestMethod

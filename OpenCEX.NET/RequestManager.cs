@@ -453,5 +453,43 @@ namespace jessielesbian.OpenCEX{
 				public SafeUint Balance => initialAmount.Sub(totalCost);
 			}
 		}
+
+		//Ported from PHP server
+		private static SafeUint GetBidOrAsk(SQLCommandFactory sqlCommandFactory, string pri, string sec, bool bid){
+			MySqlCommand mySqlCommand;
+			if(bid){
+				mySqlCommand = sqlCommandFactory.GetCommand("SELECT Price FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 1 ORDER BY Price DESC LIMIT 1;");
+			} else{
+				mySqlCommand = sqlCommandFactory.GetCommand("SELECT Price FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 0 ORDER BY Price ASC LIMIT 1;");
+			}
+
+			MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(mySqlCommand);
+			SafeUint returns = GetSafeUint(reader.GetString("Price"));
+			reader.CheckSingletonResult();
+			sqlCommandFactory.SafeDestroyReader();
+			return returns;
+		}
+
+		private sealed class BidAsk : RequestMethod
+		{
+			public override object Execute(Request request)
+			{
+				string pri;
+				string sec;
+				{
+					CheckSafety(request.args.TryGetValue("primary", out object temp));
+					pri = (string)temp;
+					CheckSafety(request.args.TryGetValue("secondary", out temp));
+					sec = (string)temp;
+				}
+				
+				return new string[] {GetBidOrAsk(request.sqlCommandFactory, pri, sec, true).ToString(), GetBidOrAsk(request.sqlCommandFactory, pri, sec, false).ToString()};
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
 	}
 }
