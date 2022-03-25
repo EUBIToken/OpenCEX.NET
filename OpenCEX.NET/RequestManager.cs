@@ -466,10 +466,15 @@ namespace jessielesbian.OpenCEX{
 			mySqlCommand.Parameters.AddWithValue("@primary", pri);
 			mySqlCommand.Parameters.AddWithValue("@secondary", sec);
 			mySqlCommand.Prepare();
-
 			MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(mySqlCommand);
-			SafeUint returns = GetSafeUint(reader.GetString("Price"));
-			reader.CheckSingletonResult();
+			SafeUint returns;
+			if (reader.HasRows){
+				returns = GetSafeUint(reader.GetString("Price"));
+				reader.CheckSingletonResult();
+				
+			} else{
+				returns = null;
+			}
 			sqlCommandFactory.SafeDestroyReader();
 			return returns;
 		}
