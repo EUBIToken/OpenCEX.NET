@@ -472,7 +472,7 @@ namespace jessielesbian.OpenCEX{
 
 		private sealed class BidAsk : RequestMethod
 		{
-			public static readonly RequestMethod instance;
+			public static readonly RequestMethod instance = new BidAsk();
 			private BidAsk(){
 				
 			}
