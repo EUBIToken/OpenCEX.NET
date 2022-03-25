@@ -25,7 +25,7 @@ namespace jessielesbian.OpenCEX
 
 		public static string SafeSerializeSafeUint(SafeUint stuff){
 			if(stuff is null){
-				return "null";
+				return null;
 			} else{
 				return stuff.ToString();
 			}
