@@ -113,7 +113,7 @@ namespace jessielesbian.OpenCEX.SafeMath{
 
 		public static bool operator !=(SafeUint x, SafeUint y)
 		{
-			return !(x.bigInteger == y.bigInteger);
+			return !(x == y);
 		}
 
 		public override bool Equals(object obj)
