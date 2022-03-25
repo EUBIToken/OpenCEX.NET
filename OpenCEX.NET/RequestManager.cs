@@ -414,7 +414,7 @@ namespace jessielesbian.OpenCEX{
 						return zero;
 					} else{
 						first.Debit(ret);
-						second.Debit(ret, second.price));
+						second.Debit(ret, second.price);
 					}
 				}
 				CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!");
