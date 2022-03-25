@@ -331,7 +331,7 @@ namespace jessielesbian.OpenCEX{
 				//Update charts (NOTE: this is ported from OpenCEX PHP server)
 				if(new_close != null)
 				{
-					MySqlCommand prepared = request.sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp FOR UPDATE;");
+					MySqlCommand prepared = request.sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp DESC FOR UPDATE;");
 					prepared.Parameters.AddWithValue("@primary", primary);
 					prepared.Parameters.AddWithValue("@secondary", secondary);
 					prepared.Prepare();
