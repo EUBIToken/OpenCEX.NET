@@ -31,7 +31,21 @@ namespace jessielesbian.OpenCEX{
 			if (credit){
 				balance = balance.Add(amount);
 			} else{
-				balance = balance.Sub(amount, (userid == 0) ? "Shortfall detected!" : "Insufficent balance!");
+				if (userid == 0)
+				{
+					if (balance < amount) {
+						try{
+							throw new SafetyException("SHORTFALL DETECTED: " + balance.ToString() + " - " + amount + "!");
+						} catch (Exception e){
+							Console.Error.WriteLine(e);
+							throw e;
+						}
+					}
+					balance = balance.Sub(amount);
+				} else{
+					balance = balance.Sub(amount, "Insufficent balance!");
+				}
+				
 			}
 
 			//Fill in SQL query

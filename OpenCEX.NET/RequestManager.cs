@@ -250,8 +250,9 @@ namespace jessielesbian.OpenCEX{
 							break;
 						} else{
 							moddedOrders.Enqueue(other);
-							SafeUint secamt = temp2.Mul((buy ? other : instance).price).Div(ether);
+							
 							if (buy){
+								SafeUint secamt = temp2.Mul(other.price).Div(ether);
 								debt = debt.Add(temp2);
 								if(tmpbalances.TryGetValue(other.placedby, out SafeUint temp3)){
 									tmpbalances[other.placedby] = temp3.Add(secamt);
