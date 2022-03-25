@@ -377,6 +377,14 @@ namespace jessielesbian.OpenCEX{
 						prepared = request.sqlCommandFactory.GetCommand("UPDATE HistoricalPrices SET Open = @open, High = @high, Low = @low, Close = @close WHERE Timestamp = @timestamp AND Pri = @primary AND Sec = @secondary;");
 					}
 
+					if(close > high){
+						high = close;
+					}
+
+					if(close < low){
+						low = close;
+					}
+
 					prepared.Parameters.AddWithValue("@open", open.ToString());
 					prepared.Parameters.AddWithValue("@high", high.ToString());
 					prepared.Parameters.AddWithValue("@low", low.ToString());
@@ -397,16 +405,16 @@ namespace jessielesbian.OpenCEX{
 					if(second.price > first.price){
 						return zero;
 					} else{
-						first.Debit(ret, second.price);
-						second.Debit(ret);
+						first.Debit(ret);
+						second.Debit(ret, second.price);
 					}
 				} else{
 					if (first.price > second.price)
 					{
 						return zero;
 					} else{
-						first.Debit(ret);
-						second.Debit(ret, second.price);
+						first.Debit(ret, second.price);
+						second.Debit(ret);
 					}
 				}
 				CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!");
