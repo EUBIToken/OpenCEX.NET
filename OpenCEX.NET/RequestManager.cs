@@ -472,6 +472,10 @@ namespace jessielesbian.OpenCEX{
 
 		private sealed class BidAsk : RequestMethod
 		{
+			public static readonly RequestMethod instance;
+			private BidAsk(){
+				
+			}
 			public override object Execute(Request request)
 			{
 				string pri;

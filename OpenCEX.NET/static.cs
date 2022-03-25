@@ -180,7 +180,7 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("get_test_tokens", TestShitcoins.instance);
 			requestMethods.Add("cancel_order", CancelOrder.instance);
 			requestMethods.Add("place_order", PlaceOrder.instance);
-			requestMethods.Add("bid_ask", PlaceOrder.instance);
+			requestMethods.Add("bid_ask", BidAsk.instance);
 		}
 
 		private sealed class RedirectedRequestMethod : RequestMethod
