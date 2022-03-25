@@ -329,6 +329,7 @@ namespace jessielesbian.OpenCEX{
 				SafeUint ret = first.amount.Min(second.amount);
 				if (buy){
 					if(second.price > first.price){
+						Console.WriteLine(second.price.ToString() + ">" + first.price.ToString());
 						return zero;
 					} else{
 						first.Debit(ret);
@@ -337,6 +338,7 @@ namespace jessielesbian.OpenCEX{
 				} else{
 					if (first.price > second.price)
 					{
+						Console.WriteLine(first.price.ToString() + ">" + second.price.ToString());
 						return zero;
 					} else{
 						first.Debit(ret, second.price);
