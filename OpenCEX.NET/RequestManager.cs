@@ -260,7 +260,7 @@ namespace jessielesbian.OpenCEX{
 									tmpbalances.Add(other.placedby, secamt);
 								}
 							} else{
-								debt = debt.Add(secamt);
+								debt = debt.Add(temp2.Mul(other.price).Div(ether));
 								if (tmpbalances.TryGetValue(other.placedby, out SafeUint temp3))
 								{
 									tmpbalances[other.placedby] = temp3.Add(temp2);
