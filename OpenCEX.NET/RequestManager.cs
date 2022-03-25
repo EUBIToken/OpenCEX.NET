@@ -345,7 +345,8 @@ namespace jessielesbian.OpenCEX{
 					SafeUint time;
 					bool append;
 					if(reader.HasRows){
-						append = start.Sub(GetSafeUint(reader.GetString("Timestamp"))) > day;
+						time = GetSafeUint(reader.GetString("Timestamp"));
+						append = start.Sub(time) > day;
 						if(append){
 							open = GetSafeUint(reader.GetString("Close"));
 							high = open.Max(new_close);
@@ -357,7 +358,6 @@ namespace jessielesbian.OpenCEX{
 							high = GetSafeUint(reader.GetString("High"));
 							low = GetSafeUint(reader.GetString("Low"));
 							close = GetSafeUint(reader.GetString("Close"));
-							time = GetSafeUint(reader.GetString("Timestamp"));
 						}
 						
 					} else{
