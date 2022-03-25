@@ -196,12 +196,12 @@ namespace jessielesbian.OpenCEX{
 				if(buy){
 					selected = primary;
 					output = secondary;
-					amt2 = amount;
+					amt2 = amount.Mul(price).Div(ether);
 					counter = request.sqlCommandFactory.GetCommand("SELECT Price, Amount, InitialAmount, TotalCost, Id, PlacedBy FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 0 ORDER BY Price DESC, Id ASC FOR UPDATE;");
 				} else{
 					selected = secondary;
 					output = primary;
-					amt2 = amount.Mul(price).Div(ether);
+					amt2 = amount;
 					counter = request.sqlCommandFactory.GetCommand("SELECT Price, Amount, InitialAmount, TotalCost, Id, PlacedBy FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 1 ORDER BY Price ASC, Id ASC FOR UPDATE;");
 				}
 				counter.Parameters.AddWithValue("@primary", primary);
