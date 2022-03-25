@@ -245,30 +245,22 @@ namespace jessielesbian.OpenCEX{
 					while(read)
 					{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
+						SafeUint oldamt1 = instance.Balance;
+						SafeUint oldamt2 = other.Balance;
 						SafeUint temp2 = MatchOrders(instance, other, buy);
 						if(temp2.isZero){
 							break;
 						} else{
 							moddedOrders.Enqueue(other);
-							
-							if (buy){
-								SafeUint secamt = temp2.Mul(other.price).Div(ether);
-								debt = debt.Add(temp2);
-								if(tmpbalances.TryGetValue(other.placedby, out SafeUint temp3)){
-									tmpbalances[other.placedby] = temp3.Add(secamt);
-								} else{
-									tmpbalances.Add(other.placedby, secamt);
-								}
-							} else{
-								debt = debt.Add(temp2.Mul(other.price).Div(ether));
-								if (tmpbalances.TryGetValue(other.placedby, out SafeUint temp3))
-								{
-									tmpbalances[other.placedby] = temp3.Add(temp2);
-								}
-								else
-								{
-									tmpbalances.Add(other.placedby, temp2);
-								}
+							SafeUint outamt = oldamt1.Sub(instance.Balance);
+							debt = debt.Add(oldamt2.Sub(other.Balance));
+							if (tmpbalances.TryGetValue(other.placedby, out SafeUint temp3))
+							{
+								tmpbalances[other.placedby] = temp3.Add(outamt);
+							}
+							else
+							{
+								tmpbalances.Add(other.placedby, outamt);
 							}
 							read = reader.Read();
 						}
