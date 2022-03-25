@@ -305,6 +305,9 @@ namespace jessielesbian.OpenCEX{
 						
 						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + modded.id + "\";");
 					}
+					else if(modded.Balance.isZero){
+						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + modded.id + "\";");
+					}
 					else
 					{
 						request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Orders SET Amount = \"" + modded.amount + "\", TotalCost = \"" + modded.totalCost + "\"" + " WHERE Id = \"" + modded.id + "\";");
