@@ -398,7 +398,7 @@ namespace jessielesbian.OpenCEX{
 			private static SafeUint MatchOrders(Order first, Order second, bool buy){
 				SafeUint ret = first.amount.Min(second.amount);
 				if (buy){
-					ret = ret.Min(first.Balance).Min(second.Balance.Mul(ether).Div(second.price));
+					ret = ret.Min(first.Balance.Mul(ether).Div(second.price)).Min(second.Balance);
 					if(second.price > first.price){
 						return zero;
 					} else{
@@ -406,7 +406,7 @@ namespace jessielesbian.OpenCEX{
 						second.Debit(ret);
 					}
 				} else{
-					ret = ret.Min(first.Balance.Mul(ether).Div(second.price)).Min(second.Balance);
+					ret = ret.Min(first.Balance).Min(second.Balance.Mul(ether).Div(second.price));
 					if (first.price > second.price)
 					{
 						return zero;
