@@ -241,7 +241,7 @@ namespace jessielesbian.OpenCEX{
 				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
 				Dictionary<ulong, SafeUint> tmpbalances = new Dictionary<ulong, SafeUint>();
 				SafeUint debt = zero;
-				SafeUint new_close = null;
+				SafeUint close = null;
 				if(reader.HasRows){
 					bool read = true;
 					while(read)
@@ -254,7 +254,7 @@ namespace jessielesbian.OpenCEX{
 							break;
 						} else{
 							moddedOrders.Enqueue(other);
-							new_close = other.price;
+							close = other.price;
 							SafeUint outamt = oldamt1.Sub(instance.Balance);
 							debt = debt.Add(oldamt2.Sub(other.Balance));
 							if (tmpbalances.TryGetValue(other.placedby, out SafeUint temp3))
@@ -329,7 +329,7 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				//Update charts (NOTE: this is ported from OpenCEX PHP server)
-				if(new_close != null)
+				if(close != null)
 				{
 					MySqlCommand prepared = request.sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp DESC FOR UPDATE;");
 					prepared.Parameters.AddWithValue("@primary", primary);
@@ -341,7 +341,6 @@ namespace jessielesbian.OpenCEX{
 					SafeUint high;
 					SafeUint low;
 					SafeUint open;
-					SafeUint close;
 					SafeUint time;
 					bool append;
 					if(reader.HasRows){
@@ -349,22 +348,19 @@ namespace jessielesbian.OpenCEX{
 						append = start.Sub(time) > day;
 						if(append){
 							open = GetSafeUint(reader.GetString("Close"));
-							high = open.Max(new_close);
-							low = open.Min(new_close);
-							close = new_close;
+							high = open.Max(close);
+							low = open.Min(close);
 							time = start;
 						} else{
 							open = GetSafeUint(reader.GetString("Open"));
 							high = GetSafeUint(reader.GetString("High"));
 							low = GetSafeUint(reader.GetString("Low"));
-							close = GetSafeUint(reader.GetString("Close"));
 						}
 						
 					} else{
 						open = zero;
 						low = zero;
-						high = new_close;
-						close = new_close;
+						high = close;
 						append = true;
 						time = start;
 					}
@@ -402,6 +398,7 @@ namespace jessielesbian.OpenCEX{
 			private static SafeUint MatchOrders(Order first, Order second, bool buy){
 				SafeUint ret = first.amount.Min(second.amount);
 				if (buy){
+					ret = ret.Min(first.Balance).Min(second.Balance.Mul(ether).Div(second.price));
 					if(second.price > first.price){
 						return zero;
 					} else{
@@ -409,6 +406,7 @@ namespace jessielesbian.OpenCEX{
 						second.Debit(ret);
 					}
 				} else{
+					ret = ret.Min(first.Balance.Mul(ether).Div(second.price)).Min(second.Balance);
 					if (first.price > second.price)
 					{
 						return zero;
@@ -452,10 +450,6 @@ namespace jessielesbian.OpenCEX{
 						temp = totalCost.Add(amt);
 					} else{
 						temp = totalCost.Add(amt.Mul(price).Div(ether));
-					}
-					if(temp > initialAmount){
-						Console.WriteLine(temp.ToString());
-						Console.WriteLine(initialAmount.ToString());
 					}
 					CheckSafety2(temp > initialAmount, "Negative order size (should not reach here)!");
 					amount = amount.Sub(amt, "Negative order amount (should not reach here)!");
