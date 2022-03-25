@@ -463,6 +463,10 @@ namespace jessielesbian.OpenCEX{
 				mySqlCommand = sqlCommandFactory.GetCommand("SELECT Price FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 0 ORDER BY Price ASC LIMIT 1;");
 			}
 
+			mySqlCommand.Parameters.AddWithValue("@primary", pri);
+			mySqlCommand.Parameters.AddWithValue("@secondary", sec);
+			mySqlCommand.Prepare();
+
 			MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(mySqlCommand);
 			SafeUint returns = GetSafeUint(reader.GetString("Price"));
 			reader.CheckSingletonResult();
