@@ -247,6 +247,7 @@ namespace jessielesbian.OpenCEX{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
+						Console.WriteLine(other.price.ToString());
 						SafeUint temp2 = MatchOrders(instance, other, buy);
 						if(temp2.isZero){
 							break;
@@ -329,7 +330,6 @@ namespace jessielesbian.OpenCEX{
 				SafeUint ret = first.amount.Min(second.amount);
 				if (buy){
 					if(second.price > first.price){
-						Console.WriteLine(second.price.ToString() + ">" + first.price.ToString());
 						return zero;
 					} else{
 						first.Debit(ret);
@@ -338,7 +338,6 @@ namespace jessielesbian.OpenCEX{
 				} else{
 					if (first.price > second.price)
 					{
-						Console.WriteLine(first.price.ToString() + ">" + second.price.ToString());
 						return zero;
 					} else{
 						first.Debit(ret, second.price);
