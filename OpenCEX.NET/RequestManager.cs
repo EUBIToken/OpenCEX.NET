@@ -196,12 +196,12 @@ namespace jessielesbian.OpenCEX{
 					selected = primary;
 					output = secondary;
 					amt2 = amount.Mul(price).Div(ether);
-					counter = request.sqlCommandFactory.GetCommand("SELECT Price, Amount, InitialAmount, TotalCost, Id, PlacedBy FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 0 ORDER BY Price ASC, Id ASC FOR UPDATE;");
+					counter = request.sqlCommandFactory.GetCommand("SELECT Price, Amount, InitialAmount, TotalCost, Id, PlacedBy FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 0 ORDER BY Price DESC, Id ASC FOR UPDATE;");
 				} else{
 					selected = secondary;
 					output = primary;
 					amt2 = amount;
-					counter = request.sqlCommandFactory.GetCommand("SELECT Price, Amount, InitialAmount, TotalCost, Id, PlacedBy FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 1 ORDER BY Price DESC, Id ASC FOR UPDATE;");
+					counter = request.sqlCommandFactory.GetCommand("SELECT Price, Amount, InitialAmount, TotalCost, Id, PlacedBy FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 1 ORDER BY Price ASC, Id ASC FOR UPDATE;");
 				}
 				counter.Parameters.AddWithValue("@primary", primary);
 				counter.Parameters.AddWithValue("@secondary", secondary);
@@ -247,7 +247,6 @@ namespace jessielesbian.OpenCEX{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
-						Console.WriteLine(other.price.ToString());
 						SafeUint temp2 = MatchOrders(instance, other, buy);
 						if(temp2.isZero){
 							break;
