@@ -8,10 +8,11 @@ using System.Globalization;
 namespace jessielesbian.OpenCEX
 {
 	public static partial class StaticUtils{
-		public static readonly BigInteger decParseLimit = new BigInteger(1000000000000000000UL);
+		public static readonly SafeUint day = new SafeUint(new BigInteger(86400));
 		public static readonly SafeUint ether = GetSafeUint("1000000000000000000");
 		public static readonly SafeUint zero = new SafeUint(BigInteger.Zero);
 		public static readonly SafeUint one = new SafeUint(BigInteger.One);
+
 		public static SafeUint GetSafeUint(string number){
 			if (number.StartsWith("0x"))
 			{
@@ -57,6 +58,13 @@ namespace jessielesbian.OpenCEX.SafeMath{
 			StaticUtils.CheckSafety2(other.isZero, msg);
 			BigInteger b = bigInteger / other.bigInteger;
 			return new SafeUint(b, "SafeMath: Unreachable Divide Error (should not reach here)!");
+		}
+
+		public SafeUint Mod(SafeUint other, string msg = "SafeMath: Modulo by zero!")
+		{
+			StaticUtils.CheckSafety2(other.isZero, msg);
+			BigInteger b = bigInteger % other.bigInteger;
+			return new SafeUint(b, "SafeMath: Unreachable Modulo Error (should not reach here)!");
 		}
 
 		public SafeUint Max(SafeUint other){
