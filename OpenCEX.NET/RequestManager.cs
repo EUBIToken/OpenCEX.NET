@@ -413,7 +413,7 @@ namespace jessielesbian.OpenCEX{
 					{
 						return zero;
 					} else{
-						first.Debit(ret;
+						first.Debit(ret);
 						second.Debit(ret, second.price));
 					}
 				}
