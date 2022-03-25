@@ -496,7 +496,7 @@ namespace jessielesbian.OpenCEX{
 					sec = (string)temp;
 				}
 				
-				return new string[] {GetBidOrAsk(request.sqlCommandFactory, pri, sec, true).ToString(), GetBidOrAsk(request.sqlCommandFactory, pri, sec, false).ToString()};
+				return new string[] {SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, true)), SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, false))};
 			}
 
 			protected override bool NeedSQL()

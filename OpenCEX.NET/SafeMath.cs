@@ -22,6 +22,14 @@ namespace jessielesbian.OpenCEX
 				return new SafeUint(BigInteger.Parse(number, NumberStyles.None));
 			}
 		}
+
+		public static string SafeSerializeSafeUint(SafeUint stuff){
+			if(stuff is null){
+				return "null";
+			} else{
+				return stuff.ToString();
+			}
+		}
 	}
 }
 
