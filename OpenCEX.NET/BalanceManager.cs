@@ -47,6 +47,7 @@ namespace jessielesbian.OpenCEX{
 		/// Credit funds to a customer account.
 		/// </summary>
 		public static void Credit(this SQLCommandFactory sqlCommandFactory, string coin, ulong userid, SafeUint amount, bool safe = true){
+			StaticUtils.CheckSafety2(userid == 0, "Unexpected credit to null account!");
 			if(safe){
 				//Shortfall protection: debit funds from null account
 				CreditOrDebit(sqlCommandFactory, coin, 0, amount, false);
@@ -59,7 +60,8 @@ namespace jessielesbian.OpenCEX{
 		/// </summary>
 		public static void Debit(this SQLCommandFactory sqlCommandFactory, string coin, ulong userid, SafeUint amount, bool safe = true)
 		{
-			if(safe){
+			StaticUtils.CheckSafety2(userid == 0, "Unexpected debit from null account!");
+			if (safe){
 				//Shortfall protection: credit funds to null account
 				CreditOrDebit(sqlCommandFactory, coin, 0, amount, true);
 			}

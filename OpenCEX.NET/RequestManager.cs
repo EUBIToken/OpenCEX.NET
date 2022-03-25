@@ -214,8 +214,7 @@ namespace jessielesbian.OpenCEX{
 				
 
 				//Partially-atomic increment
-				request.sqlCommandFactory.GetCommand("LOCK TABLES Misc WRITE;").ExecuteNonQuery();
-				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT Val FROM Misc WHERE Kei = \"OrderCounter\";"));
+				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT Val FROM Misc WHERE Kei = \"OrderCounter\" FOR UPDATE;"));
 				ulong orderId;
 				if(reader.HasRows){
 					orderId = Convert.ToUInt64(reader.GetString("Val")) + 1;
@@ -232,7 +231,6 @@ namespace jessielesbian.OpenCEX{
 					request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Misc SET Val = \"" + orderId + "\"WHERE Kei = \"OrderCounter\";");
 				}
 
-				request.sqlCommandFactory.GetCommand("UNLOCK TABLES;").ExecuteNonQuery();
 				ulong userid = request.GetUserID();
 				request.Debit(selected, userid, amount);
 
