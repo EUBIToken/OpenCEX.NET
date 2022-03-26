@@ -27,8 +27,8 @@ namespace jessielesbian.OpenCEX
 		public readonly ulong chainid;
 		public static readonly BlockchainManager MintME = new BlockchainManager("https://node" + ((DateTimeOffset.Now.ToUnixTimeMilliseconds() % 2) + 1).ToString() + ".mintme.com", 24734);
 
-		public static readonly BlockchainManager Polygon = new BlockchainManager("https://polygon-rpc.com", 137);
-		public static readonly BlockchainManager BinanceSmartChain = new BlockchainManager("https://bscrpc.com", 56);
+		public static readonly BlockchainManager Polygon = new BlockchainManager("https://speedy-nodes-nyc.moralis.io/41590f438df3f8018a1e84b1/bsc/mainnet", 137);
+		public static readonly BlockchainManager BinanceSmartChain = new BlockchainManager("https://speedy-nodes-nyc.moralis.io/41590f438df3f8018a1e84b1/polygon/mainnet", 56);
 		private readonly RpcClient rpc;
 		public readonly string tail1;
 		private BlockchainManager(string node, ulong chainid)
@@ -47,7 +47,7 @@ namespace jessielesbian.OpenCEX
 			return pool.GetOrAdd(hash, (string disposed) =>
 			{
 				Account account = new Account(privateKey, chainid);
-				return new WalletManager(this, new Web3(account, node).Eth, account.Address);
+				return new WalletManager(this, new Web3(account, node).Eth, string.Intern(account.Address.ToLower()));
 			});
 		}
 
