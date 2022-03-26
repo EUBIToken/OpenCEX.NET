@@ -554,19 +554,19 @@ namespace jessielesbian.OpenCEX{
 
 				//Boost gas price to reduce server waiting time.
 				gasPrice = gasPrice.Add(gasPrice.Div(ten));
-				Console.WriteLine(gasPrice.ToString());
 				string txid;
+				SafeUint amount;
 
 				if (erc20){
 					throw new SafetyException("ERC-20 deposits not supported yet!");
 				} else{
-					SafeUint amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!");
+					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!");
 					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
 					txid = walletManager.SendEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
 				}
 
 				//Re-use existing table for compartiability
-				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"" + txid + "\");");
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"" + txid + "_" + amount.ToString() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@token", token);
 				mySqlCommand.Prepare();
 				CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect!");
