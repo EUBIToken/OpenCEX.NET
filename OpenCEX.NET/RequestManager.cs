@@ -553,7 +553,8 @@ namespace jessielesbian.OpenCEX{
 				SafeUint gasPrice = walletManager.GetGasPrice();
 
 				//Boost gas price to reduce server waiting time.
-				gasPrice = gasPrice.Add(gasPrice);
+				gasPrice = gasPrice.Add(gasPrice.Div(ten));
+				Console.WriteLine(gasPrice);
 				string txid;
 				SafeUint amount;
 
