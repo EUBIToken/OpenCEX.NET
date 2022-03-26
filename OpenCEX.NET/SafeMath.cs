@@ -20,7 +20,14 @@ namespace jessielesbian.OpenCEX
 		public static SafeUint GetSafeUint(string number){
 			if (number.StartsWith("0x"))
 			{
-				return new SafeUint(BigInteger.Parse(number.Substring(2), NumberStyles.AllowHexSpecifier));
+				number = number.Substring(2);
+				if (number[0] != '0'){
+					number = '0' + number;
+				}
+				if(number.Length % 2 == 1){
+					number = '0' + number;
+				}
+				return new SafeUint(BigInteger.Parse(number, NumberStyles.AllowHexSpecifier));
 			}
 			else{
 				return new SafeUint(BigInteger.Parse(number, NumberStyles.None));
