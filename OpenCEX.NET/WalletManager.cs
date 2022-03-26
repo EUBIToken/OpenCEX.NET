@@ -21,7 +21,6 @@ namespace jessielesbian.OpenCEX
 	{
 		public static readonly string ExchangeWalletAddress = BlockchainManager.MintME.GetWalletManager(GetEnv("PrivateKey")).address;
 		public static readonly BlockParameter latestBlock = BlockParameter.CreateLatest();
-		public static readonly HttpClient httpClient = new HttpClient();
 	}
 	public sealed class BlockchainManager{
 		public readonly string node;
@@ -36,7 +35,7 @@ namespace jessielesbian.OpenCEX
 		{
 			this.node = node ?? throw new ArgumentNullException(nameof(node));
 			this.chainid = chainid;
-			rpc = new RpcClient(new Uri(node), StaticUtils.httpClient);
+			rpc = new RpcClient(new Uri(node));
 			tail1 = "\" AND Blockchain = " + chainid + " FOR UPDATE;";
 		}
 		//Wallet manager pooling
