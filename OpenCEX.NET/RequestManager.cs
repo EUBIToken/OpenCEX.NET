@@ -550,10 +550,11 @@ namespace jessielesbian.OpenCEX{
 
 				bool erc20 = false; //placehodler
 
-				SafeUint gasPrice = walletManager.GetGasPrice().Mul(gwei);
+				SafeUint gasPrice = walletManager.GetGasPrice();
 
 				//Boost gas price to reduce server waiting time.
 				gasPrice = gasPrice.Add(gasPrice.Div(ten));
+				Console.WriteLine(gasPrice.ToString());
 				string txid;
 
 				if (erc20){
