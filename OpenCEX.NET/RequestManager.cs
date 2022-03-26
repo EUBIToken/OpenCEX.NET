@@ -554,9 +554,6 @@ namespace jessielesbian.OpenCEX{
 
 				//Boost gas price to reduce server waiting time.
 				gasPrice = gasPrice.Add(gasPrice.Div(ten));
-				Console.WriteLine(gasPrice);
-				gasPrice = gasPrice.Add(gasPrice.Div(ten));
-				gasPrice = gasPrice.Add(gasPrice.Div(ten));
 				string txid;
 				SafeUint amount;
 

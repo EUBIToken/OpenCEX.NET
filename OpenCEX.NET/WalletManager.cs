@@ -96,7 +96,7 @@ namespace jessielesbian.OpenCEX
 				query = "UPDATE Nonces SET ExpectedValue = " + xnonce + tail2;
 			} else{
 				query = "INSERT INTO Nonces (ExpectedValue, Blockchain, Address) VALUES (" + nonce + tail1;
-				xnonce = nonce;
+				xnonce = nonce - 1;
 			}
 			sqlCommandFactory.SafeDestroyReader();
 			sqlCommandFactory.SafeExecuteNonQuery(query);
