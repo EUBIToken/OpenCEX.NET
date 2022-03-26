@@ -181,6 +181,7 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("cancel_order", CancelOrder.instance);
 			requestMethods.Add("place_order", PlaceOrder.instance);
 			requestMethods.Add("bid_ask", BidAsk.instance);
+			requestMethods.Add("deposit", Deposit.instance);
 		}
 
 		public static T Await2<T>(Task<T> task){
