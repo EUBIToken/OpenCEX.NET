@@ -562,7 +562,9 @@ namespace jessielesbian.OpenCEX{
 				} else{
 					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!");
 					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
+					amount = amount.Sub(amount.Div(e16)); //Rounding correction
 					txid = walletManager.SendEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
+					amount = amount.Sub(amount.Div(e16)); //Rounding correction
 				}
 
 				//Re-use existing table for compartiability
