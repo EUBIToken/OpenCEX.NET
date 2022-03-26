@@ -47,7 +47,7 @@ namespace jessielesbian.OpenCEX
 			return pool.GetOrAdd(hash, (string disposed) =>
 			{
 				Account account = new Account(privateKey, chainid);
-				return new WalletManager(this, new Web3(account, node).Eth, string.Intern(account.Address.ToLower()));
+				return new WalletManager(this, new Web3(account, node).Eth, account.Address);
 			});
 		}
 
