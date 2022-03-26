@@ -127,7 +127,7 @@ namespace jessielesbian.OpenCEX
 
 		public string SendEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas)
 		{
-			string ret = StaticUtils.Await2(etherTransferService.TransferEtherAsync(to, amount.GetAmount2(), gasPrice.Mul(StaticUtils.gwei).GetAmount2(), gas.bigInteger, nonce));
+			string ret = StaticUtils.Await2(etherTransferService.TransferEtherAsync(to, amount.GetAmount2(), gasPrice.GetAmount2(), gas.bigInteger, nonce));
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
 		}
