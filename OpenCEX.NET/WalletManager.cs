@@ -14,6 +14,7 @@ using MySql.Data.MySqlClient;
 using jessielesbian.OpenCEX.SafeMath;
 using Nethereum.Hex.HexTypes;
 using Nethereum.RPC.TransactionManagers;
+using System.Numerics;
 
 namespace jessielesbian.OpenCEX
 {
@@ -129,7 +130,7 @@ namespace jessielesbian.OpenCEX
 		public string SendEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas)
 		{
 			Console.WriteLine(gasPrice.GetAmount2().ToString());
-			string ret = StaticUtils.Await2(etherTransferService.TransferEtherAsync(to, amount.GetAmount2(), gasPrice.GetAmount2(), gas.bigInteger, nonce));
+			string ret = StaticUtils.Await2(etherTransferService.TransferEtherAsync(to, amount.GetAmount2(), gasPrice.GetAmount2(), gas.bigInteger, new BigInteger(nonce)));
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
 		}
