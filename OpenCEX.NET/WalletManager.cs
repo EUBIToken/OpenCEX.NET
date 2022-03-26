@@ -85,7 +85,7 @@ namespace jessielesbian.OpenCEX
 
 		public ulong SafeNonce(SQLCommandFactory sqlCommandFactory){
 			MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(sqlCommandFactory.GetCommand("SELECT ExpectedValue FROM Nonces WHERE Address = \"" + address.Substring(2) + blockchainManager.tail1));
-			ulong nonce = Convert.ToUInt64(blockchainManager.SendRequestSync<object>(ethApiContractService.Transactions.GetTransactionCount.BuildRequest(address, StaticUtils.latestBlock)));
+			ulong nonce = Convert.ToUInt64(StaticUtils.GetSafeUint(blockchainManager.SendRequestSync<string>(ethApiContractService.Transactions.GetTransactionCount.BuildRequest(address, StaticUtils.latestBlock))).ToString());
 
 			ulong xnonce;
 			string query;
