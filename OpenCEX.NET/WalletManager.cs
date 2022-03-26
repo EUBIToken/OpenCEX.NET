@@ -104,7 +104,14 @@ namespace jessielesbian.OpenCEX
 		}
 
 		public SafeUint GetEthBalance(){
-			return StaticUtils.GetSafeUint(blockchainManager.SendRequestSync<string>(ethApiContractService.GetBalance.BuildRequest(address, StaticUtils.latestBlock)));
+			string temp = blockchainManager.SendRequestSync<string>(ethApiContractService.GetBalance.BuildRequest(address, StaticUtils.latestBlock));
+			try
+			{
+				return StaticUtils.GetSafeUint(temp);
+			} catch{
+				Console.WriteLine(temp);
+				throw new SafetyException("should not reach here");
+			}
 		}
 
 		public SafeUint GetGasPrice()
