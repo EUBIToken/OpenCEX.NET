@@ -183,6 +183,37 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("bid_ask", BidAsk.instance);
 		}
 
+		public static T Await2<T>(Task<T> task){
+			ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim();
+			task.GetAwaiter().OnCompleted(manualResetEventSlim.Set);
+			manualResetEventSlim.Wait();
+			manualResetEventSlim.Dispose();
+			CheckSafety(task.IsCompleted, "Async task not completed (should not reach here)!");
+			Exception e = task.Exception;
+			if (e == null)
+			{
+				return task.Result;
+			}
+			else
+			{
+				throw new SafetyException("Async task request failed!", e);
+			}
+		}
+
+		public static void Await2(Task task)
+		{
+			ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim();
+			task.GetAwaiter().OnCompleted(manualResetEventSlim.Set);
+			manualResetEventSlim.Wait();
+			manualResetEventSlim.Dispose();
+			CheckSafety(task.IsCompleted, "Async task not completed (should not reach here)!");
+			Exception e = task.Exception;
+			if (e != null)
+			{
+				throw new SafetyException("Async task failed!", e);
+			}
+		}
+
 		private sealed class RedirectedRequestMethod : RequestMethod
 		{
 			private static readonly byte[] prefixData = Encoding.ASCII.GetBytes("OpenCEX_request_body=");

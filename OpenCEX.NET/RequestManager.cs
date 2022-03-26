@@ -510,5 +510,73 @@ namespace jessielesbian.OpenCEX{
 				return true;
 			}
 		}
+
+
+		private sealed class Deposit : RequestMethod
+		{
+			public static readonly RequestMethod instance = new Deposit();
+			private Deposit()
+			{
+
+			}
+			public override object Execute(Request request)
+			{
+
+				string token;
+				{
+					request.args.TryGetValue("token", out object temp);
+					token = (string)temp;
+				}
+				BlockchainManager blockchainManager;
+				switch(token){
+					case "MintME":
+						blockchainManager = BlockchainManager.MintME;
+						break;
+					case "MATIC":
+						blockchainManager = BlockchainManager.Polygon;
+						break;
+					case "BNB":
+						blockchainManager = BlockchainManager.BinanceSmartChain;
+						break;
+					default:
+						throw new SafetyException("Unknown token!");
+				}
+				ulong userid = request.GetUserID();
+
+				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT DepositPrivateKey FROM Accounts WHERE UserID = " + userid + ";"));
+				WalletManager walletManager = blockchainManager.GetWalletManager(reader.GetString("DepositPrivateKey"));
+				request.sqlCommandFactory.SafeDestroyReader();
+
+				bool erc20 = false; //placehodler
+
+				SafeUint gasPrice = walletManager.GetGasPrice();
+
+				//Boost gas price to reduce server waiting time.
+				gasPrice = gasPrice.Add(gasPrice.Div(ten));
+				string txid;
+
+				if (erc20){
+					throw new SafetyException("ERC-20 deposits not supported yet!");
+				} else{
+					SafeUint amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!");
+					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
+					txid = walletManager.SendEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
+				}
+
+				//Re-use existing table for compartiability
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"" + txid + "\");");
+				mySqlCommand.Parameters.AddWithValue("@token", token);
+				mySqlCommand.Prepare();
+				CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect!");
+
+				//NOTE: the deposits manager will do the rest of the werk for us.
+				return null;
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
 	}
 }

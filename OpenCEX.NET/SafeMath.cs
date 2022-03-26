@@ -9,6 +9,9 @@ namespace jessielesbian.OpenCEX
 {
 	public static partial class StaticUtils{
 		public static readonly SafeUint day = new SafeUint(new BigInteger(86400));
+		public static readonly SafeUint basegas = new SafeUint(new BigInteger(21000));
+		public static readonly SafeUint gwei = new SafeUint(new BigInteger(1000000000));
+		public static readonly SafeUint ten = new SafeUint(new BigInteger(10));
 		public static readonly SafeUint ether = GetSafeUint("1000000000000000000");
 		public static readonly SafeUint zero = new SafeUint(BigInteger.Zero);
 		public static readonly SafeUint one = new SafeUint(BigInteger.One);
@@ -30,12 +33,23 @@ namespace jessielesbian.OpenCEX
 				return stuff.ToString();
 			}
 		}
+		public static decimal GetAmount2(this SafeUint amount)
+		{
+			if (amount < ether)
+			{
+				return Convert.ToDecimal("0." + amount.ToString().PadLeft(18, '0'));
+			}
+			else
+			{
+				return Convert.ToDecimal(amount.Div(ether) + "." + amount.Mod(ether));
+			}
+		}
 	}
 }
 
 namespace jessielesbian.OpenCEX.SafeMath{
 	public sealed class SafeUint{
-		private readonly BigInteger bigInteger;
+		public readonly BigInteger bigInteger;
 		public readonly bool isZero;
 		public readonly bool isOne;
 
