@@ -561,7 +561,6 @@ namespace jessielesbian.OpenCEX{
 				} else{
 					SafeUint amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!");
 					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
-					Console.WriteLine(nonce);
 					txid = walletManager.SendEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
 				}
 
