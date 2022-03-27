@@ -1,6 +1,5 @@
 using MySql.Data.MySqlClient;
 using Nethereum.Hex.HexTypes;
-using Nethereum.RPC.Eth.DTOs;
 using System;
 using System.Collections.Generic;
 
@@ -42,7 +41,7 @@ namespace jessielesbian.OpenCEX{
 						mySqlConnection.Close();
 					}
 				}
-				Thread.Sleep(30000);
+				Thread.Sleep(10000);
 			}
 		}
 		private static Exception HandleDepositsIMPL(MySqlDataReader mySqlDataReader){
@@ -109,9 +108,9 @@ namespace jessielesbian.OpenCEX{
 
 				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
 				if(!(transaction is null)){
-					HexBigInteger blockNumber = transaction.BlockNumber;
-					if (!(blockNumber is null)){
-						Console.WriteLine(blockNumber.ToString());
+					object strBlockNumber = transaction.blockNumber;
+					if (!(strBlockNumber is null)){
+						Console.WriteLine(GetSafeUint(Convert.ToString(strBlockNumber)).ToString());
 					} else{
 						Console.WriteLine(misc[0]);
 					}

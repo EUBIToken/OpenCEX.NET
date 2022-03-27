@@ -5,7 +5,6 @@ using Nethereum.Web3;
 using Nethereum.Web3.Accounts;
 using System.Security.Cryptography;
 using System.Text;
-using Nethereum.RPC.Eth.DTOs;
 using Nethereum.JsonRpc.Client;
 using System.Net.Http;
 using System.Threading;
@@ -139,6 +138,12 @@ namespace jessielesbian.OpenCEX
 		{
 			return blockchainManager.SendRequestSync<TransactionReceipt>(ethApiContractService.Transactions.GetTransactionByHash.BuildRequest(txid));
 		}
+	}
+
+	public sealed class TransactionReceipt{
+		public object blockNumber = null;
+		public object transactionHash = null;
+		public object status = null;
 	}
 }
 
