@@ -80,6 +80,7 @@ namespace jessielesbian.OpenCEX{
 
 			protected override object ExecuteIMPL()
 			{
+				concurrentJobs.GetType();
 				if ((url1 is null) || (url2 is null) || userid == 0){
 					return null;
 				}
