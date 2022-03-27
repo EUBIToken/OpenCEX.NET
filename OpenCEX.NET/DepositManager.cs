@@ -51,7 +51,6 @@ namespace jessielesbian.OpenCEX{
 					queue.Enqueue(new TryProcessDeposit(mySqlDataReader.GetUInt64("LastTouched"), mySqlDataReader.GetString("URL"), mySqlDataReader.GetString("URL2")));
 				}
 				ConcurrentJob[] arr = queue.ToArray();
-				Interlocked.MemoryBarrierProcessWide();
 				Append(arr);
 				foreach(ConcurrentJob concurrentJob in arr){
 					concurrentJob.Wait();
@@ -69,11 +68,11 @@ namespace jessielesbian.OpenCEX{
 			private readonly string url1;
 			private readonly string url2;
 
-			public TryProcessDeposit(ulong userid, string url1, string url2)
+			public TryProcessDeposit(ulong userid, string URL1, string URL2)
 			{
 				this.userid = userid;
-				this.url1 = url1 ?? throw new ArgumentNullException(nameof(url1));
-				this.url2 = url2 ?? throw new ArgumentNullException(nameof(url2));
+				this.url1 = URL1 ?? throw new ArgumentNullException(nameof(URL1));
+				this.url2 = URL2 ?? throw new ArgumentNullException(nameof(URL2));
 			}
 
 			protected override object ExecuteIMPL()
