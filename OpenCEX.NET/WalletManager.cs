@@ -161,8 +161,8 @@ namespace jessielesbian.OpenCEX
 		}
 
 		private sealed class RpcResult1{
-			private object id;
-			private object jsonrpc;
+			public object id;
+			public object jsonrpc;
 			public Dictionary<string, object> result;
 		}
 	}
