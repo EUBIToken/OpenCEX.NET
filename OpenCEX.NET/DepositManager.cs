@@ -59,6 +59,7 @@ namespace jessielesbian.OpenCEX{
 			} catch (Exception e){
 				deferredThrow = new SafetyException("Exception in deposit manager core!", e);
 			}
+			mySqlDataReader.Dispose();
 			return deferredThrow;
 		}
 		private sealed class TryProcessDeposit : ConcurrentJob
