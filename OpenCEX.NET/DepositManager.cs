@@ -20,7 +20,7 @@ namespace jessielesbian.OpenCEX{
 						MySqlTransaction mySqlTransaction = mySqlConnection.BeginTransaction(); //Read-only transaction
 						try
 						{
-							delayed_throw = HandleDepositsIMPL(new MySqlCommand("SELECT LastTouched, URL, URL2 FROM WorkerTasks;", mySqlConnection, mySqlTransaction).ExecuteReader());
+							delayed_throw = HandleDepositsIMPL(new MySqlCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;", mySqlConnection, mySqlTransaction).ExecuteReader());
 						}
 						catch (Exception e)
 						{
@@ -48,7 +48,7 @@ namespace jessielesbian.OpenCEX{
 			try{
 				Queue<ConcurrentJob> queue = new Queue<ConcurrentJob>();
 				while(mySqlDataReader.Read()){
-					queue.Enqueue(new TryProcessDeposit(mySqlDataReader.GetUInt64("LastTouched"), mySqlDataReader.GetString("URL"), mySqlDataReader.GetString("URL2")));
+					queue.Enqueue(new TryProcessDeposit(mySqlDataReader.GetUInt64("LastTouched"), mySqlDataReader.GetString("URL"), mySqlDataReader.GetString("URL2"), mySqlDataReader.GetUInt64("Id")));
 				}
 				ConcurrentJob[] arr = queue.ToArray();
 				Append(arr);
@@ -67,16 +67,21 @@ namespace jessielesbian.OpenCEX{
 			private readonly ulong userid;
 			private readonly string url1;
 			private readonly string url2;
+			private readonly ulong id;
 
-			public TryProcessDeposit(ulong userid, string URL1, string URL2)
+			public TryProcessDeposit(ulong userid, string url1, string url2, ulong id)
 			{
 				this.userid = userid;
-				this.url1 = URL1 ?? throw new ArgumentNullException(nameof(URL1));
-				this.url2 = URL2 ?? throw new ArgumentNullException(nameof(URL2));
+				this.url1 = url1 ?? throw new ArgumentNullException(nameof(url1));
+				this.url2 = url2 ?? throw new ArgumentNullException(nameof(url2));
+				this.id = id;
 			}
 
 			protected override object ExecuteIMPL()
 			{
+				if (url1 is null || url2 is null || userid == 0){
+					return null;
+				}
 				//[txid, amount]
 				string[] misc = url2.Split('_');
 				WalletManager walletManager;
