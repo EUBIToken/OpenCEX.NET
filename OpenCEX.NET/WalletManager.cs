@@ -20,7 +20,7 @@ namespace jessielesbian.OpenCEX
 	public static partial class StaticUtils
 	{
 		public static readonly string ExchangeWalletAddress = BlockchainManager.MintME.GetWalletManager(GetEnv("PrivateKey")).address;
-		public static readonly BlockParameter latestBlock = BlockParameter.CreateLatest();
+		public static readonly Nethereum.RPC.Eth.DTOs.BlockParameter latestBlock = Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest();
 	}
 	public sealed class BlockchainManager{
 		public readonly string node;
