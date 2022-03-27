@@ -182,6 +182,24 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("place_order", PlaceOrder.instance);
 			requestMethods.Add("bid_ask", BidAsk.instance);
 			requestMethods.Add("deposit", Deposit.instance);
+
+			//Start threads
+			Thread thread;
+			ushort thrlimit = Convert.ToUInt16(GetEnv("ExecutionThreadCount"));
+			for (ushort i = 0; i < thrlimit;)
+			{
+				thread = new Thread(ExecutionThread);
+				thread.IsBackground = true;
+				thread.Name = "OpenCEX.NET Execution Thread #" + (++i).ToString();
+				thread.Start();
+			}
+			thread = new Thread(QOSWatchdog);
+			thread.Name = "OpenCEX.NET Quality-Of-Service Watchdog Thread";
+			thread.Start();
+
+			thread = new Thread(DepositManager);
+			thread.Name = "OpenCEX.NET deposit manager thread";
+			thread.Start();
 		}
 
 		public static T Await2<T>(Task<T> task){
@@ -336,19 +354,6 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		public static void Start(){
-			//Start threads
-			ushort thrlimit = Convert.ToUInt16(GetEnv("ExecutionThreadCount"));
-			for (ushort i = 0; i < thrlimit; )
-			{
-				Thread thread = new Thread(ExecutionThread);
-				thread.IsBackground = true;
-				thread.Name = "OpenCEX.NET Execution Thread #" + (++i).ToString();
-				thread.Start();
-			}
-			Thread watchdog1 = new Thread(QOSWatchdog);
-			watchdog1.Name = "OpenCEX.NET Quality-Of-Service Watchdog Thread";
-			watchdog1.Start();
-
 			//Start HTTP listening
 			AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 			ushort port = Convert.ToUInt16(GetEnv("PORT"));
