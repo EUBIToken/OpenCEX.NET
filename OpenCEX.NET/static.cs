@@ -197,9 +197,11 @@ namespace jessielesbian.OpenCEX{
 			thread.Name = "OpenCEX.NET Quality-Of-Service Watchdog Thread";
 			thread.Start();
 
-			thread = new Thread(DepositManager);
-			thread.Name = "OpenCEX.NET deposit manager thread";
-			thread.Start();
+			if(leadServer){
+				thread = new Thread(DepositManager);
+				thread.Name = "OpenCEX.NET deposit manager thread";
+				thread.Start();
+			}
 		}
 
 		public static T Await2<T>(Task<T> task){
@@ -463,7 +465,9 @@ namespace jessielesbian.OpenCEX{
 
 		private static readonly string origin = GetEnv("Origin");
 		private static readonly int maxEventQueueSize = Convert.ToInt32(GetEnv("MaxEventQueueSize"));
-		public static bool multiserver = Convert.ToBoolean(GetEnv("Multiserver"));
+
+		//The lead server is responsible for deposit finalization.
+		public static bool leadServer = Convert.ToBoolean(GetEnv("LeadServer"));
 
 		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
 			

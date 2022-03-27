@@ -103,10 +103,7 @@ namespace jessielesbian.OpenCEX{
 
 				Transaction transaction = walletManager.GetTransactionReceipt(misc[0]);
 				if(transaction != null){
-					HexBigInteger hexBigInteger = transaction.BlockNumber;
-					if (hexBigInteger != null){
-						Console.WriteLine(hexBigInteger.ToString());
-					}
+					Console.WriteLine(transaction.ToString());
 					
 				}
 				return null;
