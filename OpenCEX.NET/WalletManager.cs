@@ -144,9 +144,8 @@ namespace jessielesbian.OpenCEX
 		{
 			WebRequest httpWebRequest = WebRequest.Create(blockchainManager.node);
 			httpWebRequest.Method = "POST";
-			httpWebRequest.ContentType = "application/x-www-form-urlencoded";
-			Console.WriteLine("{\"jsonrpc\":\"2.0\",\"method\":\"eth_getTransactionReceipt\",\"params\":[\"" + txid + "\"],\"id\":1}");
-			byte[] bytes = HttpUtility.UrlEncodeToBytes("{\"jsonrpc\":\"2.0\",\"method\":\"eth_getTransactionReceipt\",\"params\":[\"" + txid + "\"],\"id\":1}");
+			httpWebRequest.ContentType = "application/json";
+			byte[] bytes = Encoding.UTF8.GetBytes("{\"jsonrpc\":\"2.0\",\"method\":\"eth_getTransactionReceipt\",\"params\":[\"" + txid + "\"],\"id\":1}");
 
 			using (var stream = httpWebRequest.GetRequestStream())
 			{
