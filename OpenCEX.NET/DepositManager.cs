@@ -1,4 +1,5 @@
 using MySql.Data.MySqlClient;
+using Nethereum.Hex.HexTypes;
 using Nethereum.RPC.Eth.DTOs;
 using System;
 using System.Collections.Generic;
@@ -85,7 +86,29 @@ namespace jessielesbian.OpenCEX{
 				}
 				//[txid, amount]
 				string[] misc = url2.Split('_');
+				WalletManager walletManager;
+				switch(url1){
+					case "MintME":
+						walletManager = BlockchainManager.MintME.GetWalletManager();
+						break;
+					case "BNB":
+						walletManager = BlockchainManager.BinanceSmartChain.GetWalletManager();
+						break;
+					case "MATIC":
+						walletManager = BlockchainManager.BinanceSmartChain.GetWalletManager();
+						break;
+					default:
+						throw new Exception("Unknown token!");
+				}
 
+				Transaction transaction = walletManager.GetTransactionReceipt(misc[0]);
+				if(transaction != null){
+					HexBigInteger hexBigInteger = transaction.BlockNumber;
+					if (hexBigInteger != null){
+						Console.WriteLine(hexBigInteger.ToString());
+					}
+					
+				}
 				return null;
 			}
 		}
