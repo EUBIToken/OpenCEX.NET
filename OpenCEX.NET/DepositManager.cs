@@ -10,7 +10,7 @@ namespace jessielesbian.OpenCEX{
 		private static void DepositManager(){
 			while(!abort){
 				if(watchdogSoftReboot){
-					Thread.Sleep(1);
+					Thread.Sleep(1001);
 					continue;
 				} else{
 					MySqlConnection mySqlConnection = new MySqlConnection(SQLConnectionString);
@@ -54,14 +54,20 @@ namespace jessielesbian.OpenCEX{
 				}
 				ConcurrentJob[] arr = queue.ToArray();
 				Append(arr);
-				foreach(ConcurrentJob concurrentJob in arr){
+				try {
+					mySqlDataReader.Close();
+				} finally{
+					mySqlDataReader = null;
+				}
+				foreach (ConcurrentJob concurrentJob in arr){
 					concurrentJob.Wait();
 				}
-
 			} catch (Exception e){
 				deferredThrow = new SafetyException("Exception in deposit manager core!", e);
 			}
-			mySqlDataReader.Dispose();
+			if(!(mySqlDataReader is null)){
+				mySqlDataReader.Close();
+			}
 			return deferredThrow;
 		}
 		private sealed class TryProcessDeposit : ConcurrentJob
@@ -102,8 +108,11 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				Transaction transaction = walletManager.GetTransactionReceipt(misc[0]);
-				if(transaction != null){
-					Console.WriteLine(transaction.ToString());
+				if(!(transaction is null)){
+					HexBigInteger blockNumber = transaction.BlockNumber;
+					if (!(blockNumber is null)){
+						Console.WriteLine(blockNumber.ToString());
+					}
 					
 				}
 				return null;
