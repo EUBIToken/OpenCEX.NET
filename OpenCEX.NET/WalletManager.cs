@@ -137,7 +137,7 @@ namespace jessielesbian.OpenCEX
 		}
 		public TransactionReceipt GetTransactionReceipt(string txid)
 		{
-			return blockchainManager.SendRequestSync<TransactionReceipt>(ethApiContractService.Transactions.GetTransactionReceipt.BuildRequest(txid));
+			return blockchainManager.SendRequestSync<TransactionReceipt>(ethApiContractService.Transactions.GetTransactionByHash.BuildRequest(txid));
 		}
 	}
 }
