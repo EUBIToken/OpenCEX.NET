@@ -79,7 +79,7 @@ namespace jessielesbian.OpenCEX{
 
 			protected override object ExecuteIMPL()
 			{
-				if (url1 is null || url2 is null || userid == 0){
+				if ((url1 is null) || (url2 is null) || userid == 0){
 					return null;
 				}
 				//[txid, amount]
