@@ -49,14 +49,14 @@ namespace jessielesbian.OpenCEX{
 			try{
 				Queue<ConcurrentJob> queue = new Queue<ConcurrentJob>();
 				while(mySqlDataReader.Read()){
-					queue.Enqueue(new TryProcessDeposit(mySqlDataReader.GetUInt64("LastTouched"), mySqlDataReader.GetString("URL"), mySqlDataReader.GetString("URL2"), mySqlDataReader.GetUInt64("Id")));
+					ConcurrentJob concurrentJob = new TryProcessDeposit(mySqlDataReader.GetUInt64("LastTouched"), mySqlDataReader.GetString("URL"), mySqlDataReader.GetString("URL2"), mySqlDataReader.GetUInt64("Id"));
+					Append(concurrentJob);
+					queue.Enqueue(concurrentJob);
 				}
-				ConcurrentJob[] arr = queue.ToArray();
-				Append(arr);
-				foreach(ConcurrentJob concurrentJob in arr){
-					concurrentJob.Wait();
+				
+				while(queue.TryDequeue(out ConcurrentJob concurrentJob1)){
+					concurrentJob1.Wait();
 				}
-
 			} catch (Exception e){
 				deferredThrow = new SafetyException("Exception in deposit manager core!", e);
 			}
