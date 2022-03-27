@@ -41,7 +41,8 @@ namespace jessielesbian.OpenCEX
 		}
 		//Wallet manager pooling
 		private readonly ConcurrentDictionary<string, WalletManager> pool = new ConcurrentDictionary<string, WalletManager>();
-		public WalletManager GetWalletManager(string privateKey){
+		public WalletManager GetWalletManager(string privateKey = "0x0000000000000000000000000000000000000000000000000000000000000000")
+		{
 			SHA256 sha256 = SHA256.Create();
 			string hash = Convert.ToBase64String(sha256.ComputeHash(Encoding.ASCII.GetBytes(privateKey)));
 			sha256.Dispose();
@@ -134,7 +135,10 @@ namespace jessielesbian.OpenCEX
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
 		}
-
+		public Transaction GetTransactionReceipt(string txid)
+		{
+			return blockchainManager.SendRequestSync<Transaction>(ethApiContractService.Transactions.GetTransactionByHash.BuildRequest(txid));
+		}
 	}
 }
 

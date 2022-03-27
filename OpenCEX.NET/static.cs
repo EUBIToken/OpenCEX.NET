@@ -119,13 +119,13 @@ namespace jessielesbian.OpenCEX{
 			return temp;
 		}
 
-		
+		private static string SQLConnectionString = GetEnv("SQLConnectionString");
 
 		public static SQLCommandFactory GetSQL(){
 			MySqlConnection mySqlConnection = null;
 			try
 			{
-				mySqlConnection = new MySqlConnection(GetEnv("SQLConnectionString"));
+				mySqlConnection = new MySqlConnection(SQLConnectionString);
 				mySqlConnection.Open();
 				MySqlTransaction tx = mySqlConnection.BeginTransaction();
 
@@ -311,11 +311,23 @@ namespace jessielesbian.OpenCEX{
 
 		private static volatile bool abort = false;
 
+		public static void Append(ConcurrentJob[] concurrentJobs2)
+		{
+			foreach(ConcurrentJob concurrentJob in concurrentJobs2)
+			{
+				concurrentJobs.Enqueue(concurrentJob);
+			}
+			lock (manualResetEventSlim)
+			{
+				if ((!manualResetEventSlim.IsSet) && concurrentJobs.IsEmpty)
+				{
+					manualResetEventSlim.Set();
+				}
+			}
+		}
+
 		public static void Append(ConcurrentJob concurrentJob){
 			lock(manualResetEventSlim){
-				if(abort){
-					return;
-				}
 				concurrentJobs.Enqueue(concurrentJob);
 				if(!manualResetEventSlim.IsSet){
 					manualResetEventSlim.Set();
