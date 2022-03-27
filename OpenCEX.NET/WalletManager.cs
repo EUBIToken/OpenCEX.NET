@@ -137,6 +137,7 @@ namespace jessielesbian.OpenCEX
 		}
 		public Dictionary<string, object> GetTransactionReceipt(string txid)
 		{
+			Console.WriteLine(txid);
 			RpcRequest rpcRequest = new RpcRequest("0x1", "eth_getTransactionReceipt", new object[] { txid });
 			return blockchainManager.SendRequestSync<Dictionary<string, object>>(rpcRequest);
 		}
