@@ -11,7 +11,7 @@ namespace jessielesbian.OpenCEX
 		public static readonly SafeUint day = new SafeUint(new BigInteger(86400));
 		public static readonly SafeUint basegas = new SafeUint(new BigInteger(21000));
 		public static readonly SafeUint e16 = new SafeUint(new BigInteger(65536));
-		public static readonly SafeUint gwei = new SafeUint(new BigInteger(999000000));
+		public static readonly SafeUint gwei = new SafeUint(new BigInteger(990000000));
 		public static readonly SafeUint ten = new SafeUint(new BigInteger(10));
 		public static readonly SafeUint ether = GetSafeUint("1000000000000000000");
 		public static readonly SafeUint zero = new SafeUint(BigInteger.Zero);
