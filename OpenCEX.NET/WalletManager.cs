@@ -154,9 +154,8 @@ namespace jessielesbian.OpenCEX
 			WebResponse webResponse = httpWebRequest.GetResponse();
 			string returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
 			webResponse.Close();
-			RpcResult1 rpcResult1 = JsonConvert.DeserializeObject<RpcResult1>(returns);
-			Console.WriteLine(JsonConvert.SerializeObject(rpcResult1));
-			return rpcResult1.result;
+			Console.WriteLine(returns);
+			return JsonConvert.DeserializeObject<RpcResult1>(returns).result;
 			
 		}
 
