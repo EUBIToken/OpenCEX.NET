@@ -17,7 +17,7 @@ namespace jessielesbian.OpenCEX{
 					{
 						Exception delayed_throw = null;
 						mySqlConnection.Open();
-						MySqlTransaction mySqlTransaction = mySqlConnection.BeginTransaction(System.Data.IsolationLevel.Snapshot); //Read-only transaction
+						MySqlTransaction mySqlTransaction = mySqlConnection.BeginTransaction(); //Read-only transaction
 						try
 						{
 							delayed_throw = HandleDepositsIMPL(new MySqlCommand("SELECT LastTouched, URL, URL2 FROM WorkerTasks;", mySqlConnection, mySqlTransaction).ExecuteReader());
