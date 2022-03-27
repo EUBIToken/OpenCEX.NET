@@ -15,6 +15,11 @@ using Nethereum.Hex.HexTypes;
 using Nethereum.RPC.TransactionManagers;
 using System.Numerics;
 using System.Collections.Generic;
+using System.Net;
+using System.Web;
+using System.IO;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace jessielesbian.OpenCEX
 {
@@ -137,8 +142,26 @@ namespace jessielesbian.OpenCEX
 		}
 		public Dictionary<string, object> GetTransactionReceipt(string txid)
 		{
-			RpcRequest rpcRequest = new RpcRequest(13, "eth_getTransactionReceipt", txid);
-			return blockchainManager.SendRequestSync<Dictionary<string, object>>(rpcRequest);
+			WebRequest httpWebRequest = WebRequest.Create(blockchainManager.node);
+			httpWebRequest.Method = "POST";
+			httpWebRequest.ContentType = "application/x-www-form-urlencoded";
+			byte[] bytes = HttpUtility.UrlEncodeToBytes("\"jsonrpc\":\"2.0\",\"method\":\"eth_getTransactionReceipt\",\"params\":[\"" + txid + "\"],\"id\":1}\"");
+
+			using (var stream = httpWebRequest.GetRequestStream())
+			{
+				stream.Write(bytes, 0, bytes.Length);
+			}
+			WebResponse webResponse = httpWebRequest.GetResponse();
+			string returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
+			webResponse.Close();
+			return JsonConvert.DeserializeObject<RpcResult1>(returns).result;
+			
+		}
+
+		private sealed class RpcResult1{
+			private object id;
+			private object jsonrpc;
+			public Dictionary<string, object> result;
 		}
 	}
 
