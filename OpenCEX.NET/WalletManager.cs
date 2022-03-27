@@ -14,6 +14,7 @@ using jessielesbian.OpenCEX.SafeMath;
 using Nethereum.Hex.HexTypes;
 using Nethereum.RPC.TransactionManagers;
 using System.Numerics;
+using System.Collections.Generic;
 
 namespace jessielesbian.OpenCEX
 {
@@ -134,9 +135,9 @@ namespace jessielesbian.OpenCEX
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
 		}
-		public TransactionReceipt GetTransactionReceipt(string txid)
+		public Dictionary<string, object> GetTransactionReceipt(string txid)
 		{
-			return blockchainManager.SendRequestSync<TransactionReceipt>(ethApiContractService.Transactions.GetTransactionByHash.BuildRequest(txid));
+			return blockchainManager.SendRequestSync<Dictionary<string, object>>(ethApiContractService.Transactions.GetTransactionByHash.BuildRequest(txid));
 		}
 	}
 

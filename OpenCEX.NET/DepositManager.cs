@@ -1,5 +1,6 @@
 using MySql.Data.MySqlClient;
 using Nethereum.Hex.HexTypes;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
@@ -106,15 +107,10 @@ namespace jessielesbian.OpenCEX{
 						throw new Exception("Unknown token!");
 				}
 
-				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
+				Dictionary<string, object> transaction = walletManager.GetTransactionReceipt(misc[0]);
 				if(!(transaction is null)){
-					object strBlockNumber = transaction.blockNumber;
-					if (!(strBlockNumber is null)){
-						Console.WriteLine(GetSafeUint(Convert.ToString(strBlockNumber)).ToString());
-					} else{
-						Console.WriteLine(misc[0]);
-					}
-					
+					Console.WriteLine(JsonConvert.SerializeObject(transaction));
+
 				}
 				return null;
 			}
