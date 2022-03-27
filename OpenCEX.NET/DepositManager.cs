@@ -107,7 +107,7 @@ namespace jessielesbian.OpenCEX{
 						throw new Exception("Unknown token!");
 				}
 
-				Transaction transaction = walletManager.GetTransactionReceipt(misc[0]);
+				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
 				if(!(transaction is null)){
 					HexBigInteger blockNumber = transaction.BlockNumber;
 					if (!(blockNumber is null)){

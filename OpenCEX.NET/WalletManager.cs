@@ -135,9 +135,9 @@ namespace jessielesbian.OpenCEX
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
 		}
-		public Transaction GetTransactionReceipt(string txid)
+		public TransactionReceipt GetTransactionReceipt(string txid)
 		{
-			return blockchainManager.SendRequestSync<Transaction>(ethApiContractService.Transactions.GetTransactionByHash.BuildRequest(txid));
+			return blockchainManager.SendRequestSync<TransactionReceipt>(ethApiContractService.Transactions.GetTransactionReceipt.BuildRequest(txid));
 		}
 	}
 }
