@@ -77,28 +77,7 @@ namespace jessielesbian.OpenCEX{
 
 			protected override object ExecuteIMPL()
 			{
-				//[txid, amount]
-				Console.WriteLine(Convert.ToString(url2));
-				string[] misc = url2.Split('_');
-				WalletManager walletManager;
-				switch(url1){
-					case "MintME":
-						walletManager = BlockchainManager.MintME.GetWalletManager();
-						break;
-					case "BNB":
-						walletManager = BlockchainManager.BinanceSmartChain.GetWalletManager();
-						break;
-					case "MATIC":
-						walletManager = BlockchainManager.BinanceSmartChain.GetWalletManager();
-						break;
-					default:
-						throw new Exception("Unknown token!");
-				}
-
-				Transaction transaction = walletManager.GetTransactionReceipt(misc[0]);
-				if(transaction != null){
-					Console.WriteLine(transaction.BlockNumber.ToString());
-				}
+				
 				return null;
 			}
 		}
