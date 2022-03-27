@@ -108,7 +108,10 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				Dictionary<string, object> transaction = walletManager.GetTransactionReceipt(misc[0]);
-				Console.WriteLine(JsonConvert.SerializeObject(transaction));
+				if(!(transaction is null)){
+					Console.WriteLine(JsonConvert.SerializeObject(transaction));
+
+				}
 				return null;
 			}
 		}
