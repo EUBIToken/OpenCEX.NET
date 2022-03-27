@@ -41,7 +41,7 @@ namespace jessielesbian.OpenCEX
 		}
 		//Wallet manager pooling
 		private readonly ConcurrentDictionary<string, WalletManager> pool = new ConcurrentDictionary<string, WalletManager>();
-		public WalletManager GetWalletManager(string privateKey = "0x0000000000000000000000000000000000000000000000000000000000000000")
+		public WalletManager GetWalletManager(string privateKey = "0xa85d57fd36432b0e6022d333f3e81b31c67e6afcdb0fa11caf106ff8c29952a9")
 		{
 			SHA256 sha256 = SHA256.Create();
 			string hash = Convert.ToBase64String(sha256.ComputeHash(Encoding.ASCII.GetBytes(privateKey)));
