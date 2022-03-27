@@ -42,7 +42,7 @@ namespace jessielesbian.OpenCEX{
 						mySqlConnection.Close();
 					}
 				}
-				Thread.Sleep(2000);
+				Thread.Sleep(30000);
 			}
 		}
 		private static Exception HandleDepositsIMPL(MySqlDataReader mySqlDataReader){
@@ -112,6 +112,8 @@ namespace jessielesbian.OpenCEX{
 					HexBigInteger blockNumber = transaction.BlockNumber;
 					if (!(blockNumber is null)){
 						Console.WriteLine(blockNumber.ToString());
+					} else{
+						Console.WriteLine(misc[0]);
 					}
 					
 				}
