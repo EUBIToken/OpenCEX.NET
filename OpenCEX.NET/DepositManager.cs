@@ -78,7 +78,7 @@ namespace jessielesbian.OpenCEX{
 			protected override object ExecuteIMPL()
 			{
 				//[txid, amount]
-				Console.WriteLine(url2);
+				Console.WriteLine(Convert.ToString(url2));
 				string[] misc = url2.Split('_');
 				WalletManager walletManager;
 				switch(url1){
