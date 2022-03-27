@@ -41,6 +41,7 @@ namespace jessielesbian.OpenCEX{
 						mySqlConnection.Close();
 					}
 				}
+				Thread.Sleep(2000);
 			}
 		}
 		private static Exception HandleDepositsIMPL(MySqlDataReader mySqlDataReader){
@@ -65,8 +66,8 @@ namespace jessielesbian.OpenCEX{
 		private sealed class TryProcessDeposit : ConcurrentJob
 		{
 			private readonly ulong userid;
-			private string url1 = null;
-			private string url2 = null;
+			private readonly string url1;
+			private readonly string url2;
 			private readonly ulong id;
 
 			public TryProcessDeposit(ulong userid, string url1, string url2, ulong id)
