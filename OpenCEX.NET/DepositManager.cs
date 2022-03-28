@@ -136,6 +136,7 @@ namespace jessielesbian.OpenCEX{
 							}
 							catch (Exception e)
 							{
+								Console.WriteLine(e);
 								deferred = new SafetyException("Exception in deposit crediting function!", e);
 							}
 							sqlCommandFactory.Dispose();
