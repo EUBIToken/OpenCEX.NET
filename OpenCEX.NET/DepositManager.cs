@@ -20,7 +20,6 @@ namespace jessielesbian.OpenCEX{
 					Append(updates);
 					try
 					{
-						Exception delayed_throw = null;
 						SQLCommandFactory sqlCommandFactory = GetSQL();
 						try
 						{
@@ -29,9 +28,8 @@ namespace jessielesbian.OpenCEX{
 						}
 						catch (Exception e)
 						{
-							delayed_throw = new SafetyException("Unable to get pending deposits handle!", e);
 							sqlCommandFactory.Dispose();
-							throw e;
+							throw new SafetyException("Unable to get pending deposits handle!", e);
 						}
 					}
 					catch (Exception e)
