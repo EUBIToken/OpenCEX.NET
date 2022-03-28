@@ -75,7 +75,7 @@ namespace jessielesbian.OpenCEX{
 						concurrentJob.Wait();
 					}
 				} catch (Exception e){
-					throw e;
+					throw new SafetyException("Exception while finalizing deposits", e);
 				}
 			} else{
 				throw deferredThrow;
