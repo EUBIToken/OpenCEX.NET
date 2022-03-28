@@ -122,17 +122,24 @@ namespace jessielesbian.OpenCEX{
 				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
 				if(!(transaction is null)){
 					if(!(transaction.blockNumber is null)){
-						Console.WriteLine(Convert.ToString(transaction.blockNumber));
 						if(Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()) > walletManager.SafeBlockheight)
 						{
 							SQLCommandFactory sqlCommandFactory = GetSQL();
-							try{
+							Exception deferred = null;
+							try
+							{
 								sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM WorkerTasks WHERE Id = " + id + ";");
 								//UNSAFE credit, since we are adding newly-deposited funds
 								sqlCommandFactory.Credit(url1, userid, GetSafeUint(misc[1]), false);
 								sqlCommandFactory.DestroyTransaction(true, true);
-							} finally{
-								sqlCommandFactory.Dispose();
+							}
+							catch (Exception e)
+							{
+								deferred = e;
+							}
+							sqlCommandFactory.Dispose();
+							if(!(deferred is null)){
+								throw deferred;
 							}
 						}
 					}
