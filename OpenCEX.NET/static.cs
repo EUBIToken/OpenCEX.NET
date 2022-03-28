@@ -38,38 +38,24 @@ namespace jessielesbian.OpenCEX{
 		public readonly ManualResetEventSlim sync = new ManualResetEventSlim();
 		public Exception exception = null;
 		public object returns = null;
-		private volatile int incomplete = 1;
-		private volatile int not_started = 1;
 		public object Wait(){
-			if(Interlocked.Exchange(ref incomplete, 0) == 1)
-			{
-				sync.Wait();
-				sync.Dispose();
-			}
-			if (exception == null)
-			{
+			sync.Wait();
+			sync.Dispose();
+			if(exception == null){
 				return returns;
-			}
-			else
-			{
-				if (StaticUtils.debug)
-				{
+			} else{
+				if(StaticUtils.debug){
 					throw new SafetyException("Concurrent job failed!", exception);
-				}
-				else
-				{
+				} else{
 					throw exception;
 				}
 			}
-
 		}
 
 		public void Execute(){
 			try{
-				if(Interlocked.Exchange(ref not_started, 0) == 1){
-					returns = ExecuteIMPL();
-					incomplete = 0;
-				}
+				StaticUtils.CheckSafety2(sync.IsSet, "Job already executed!");
+				returns = ExecuteIMPL();
 			} catch(Exception e){
 				exception = e;
 			} finally{

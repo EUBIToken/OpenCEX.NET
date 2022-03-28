@@ -16,7 +16,7 @@ namespace jessielesbian.OpenCEX{
 					Thread.Sleep(1001);
 					continue;
 				} else{
-					ConcurrentJob[] updates = new ConcurrentJob[] { defaultMintMEWallet.update, defaultBSCWallet.update, defaultPolyWallet.update };
+					ConcurrentJob[] updates = new ConcurrentJob[] { defaultMintMEWallet.getUpdate(), defaultBSCWallet.getUpdate(), defaultPolyWallet.getUpdate() };
 					Append(updates);
 					try
 					{

@@ -92,7 +92,9 @@ namespace jessielesbian.OpenCEX
 			}
 		}
 
-		public readonly ConcurrentJob update;
+		public ConcurrentJob getUpdate(){
+			return new UpdateChainInfo(this);
+		}
 
 		/// <summary>
 		/// DO NOT USE!
@@ -106,7 +108,6 @@ namespace jessielesbian.OpenCEX
 			etherTransferService = ethApiContractService.GetEtherTransferService();
 			tail1 = ", " + blockchainManager.chainid + ", \"" + trimmedAddress + "\");";
 			tail2 = " WHERE Blockchain = " + blockchainManager.chainid + " AND Address = \"" + trimmedAddress + "\";";
-			update = new UpdateChainInfo(this);
 		}
 
 		public ulong SafeNonce(SQLCommandFactory sqlCommandFactory){
