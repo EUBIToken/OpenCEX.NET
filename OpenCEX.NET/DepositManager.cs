@@ -122,7 +122,7 @@ namespace jessielesbian.OpenCEX{
 				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
 				if(!(transaction is null)){
 					if(!(transaction.blockNumber is null)){
-						if(Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()) > walletManager.SafeBlockheight)
+						if(walletManager.SafeBlockheight > Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()))
 						{
 							SQLCommandFactory sqlCommandFactory = GetSQL();
 							Exception deferred = null;
@@ -141,8 +141,6 @@ namespace jessielesbian.OpenCEX{
 							if(!(deferred is null)){
 								throw deferred;
 							}
-						} else{
-							Console.WriteLine(Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()) + "|" + walletManager.SafeBlockheight);
 						}
 					}
 				}
