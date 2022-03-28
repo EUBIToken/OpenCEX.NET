@@ -107,12 +107,15 @@ namespace jessielesbian.OpenCEX{
 				WalletManager walletManager;
 				switch(url1){
 					case "MintME":
+					case "EUBI":
+					case "1000x":
 						walletManager = BlockchainManager.MintME.GetWalletManager();
 						break;
 					case "BNB":
 						walletManager = BlockchainManager.BinanceSmartChain.GetWalletManager();
 						break;
 					case "MATIC":
+					case "PolyEUBI":
 						walletManager = BlockchainManager.BinanceSmartChain.GetWalletManager();
 						break;
 					default:

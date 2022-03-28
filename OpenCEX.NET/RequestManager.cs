@@ -530,9 +530,12 @@ namespace jessielesbian.OpenCEX{
 				BlockchainManager blockchainManager;
 				switch(token){
 					case "MintME":
+					case "EUBI":
+					case "1000x":
 						blockchainManager = BlockchainManager.MintME;
 						break;
 					case "MATIC":
+					case "PolyEUBI":
 						blockchainManager = BlockchainManager.Polygon;
 						break;
 					case "BNB":
@@ -548,7 +551,22 @@ namespace jessielesbian.OpenCEX{
 				reader.CheckSingletonResult();
 				request.sqlCommandFactory.SafeDestroyReader();
 
-				bool erc20 = false; //placehodler
+				string token_address;
+				switch(token){
+					case "1000x":
+						token_address = "0x7b535379bbafd9cd12b35d91addabf617df902b2";
+						break;
+					case "EUBI":
+						token_address = "0x8afa1b7a8534d519cb04f4075d3189df8a6738c1";
+						break;
+					case "PolyEUBI":
+						token_address = "0x553e77f7f71616382b1545d4457e2c1ee255fa7a";
+						break;
+					default:
+						token_address = string.Empty;
+						break;
+				}
+				bool erc20 = token_address != string.Empty;
 
 				SafeUint gasPrice = walletManager.GetGasPrice();
 
