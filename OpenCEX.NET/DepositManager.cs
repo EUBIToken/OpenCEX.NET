@@ -25,12 +25,14 @@ namespace jessielesbian.OpenCEX{
 						try
 						{
 							delayed_throw = HandleDepositsIMPL(sqlCommandFactory.GetCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;").ExecuteReader(), updates);
+							sqlCommandFactory.Dispose();
 						}
 						catch (Exception e)
 						{
 							delayed_throw = new SafetyException("Unable to get pending deposits handle!", e);
+							sqlCommandFactory.Dispose();
 						}
-						sqlCommandFactory.Dispose();
+							
 						if (delayed_throw != null)
 						{
 							throw delayed_throw;
