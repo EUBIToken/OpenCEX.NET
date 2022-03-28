@@ -38,17 +38,13 @@ namespace jessielesbian.OpenCEX{
 		public readonly ManualResetEventSlim sync = new ManualResetEventSlim();
 		public Exception exception = null;
 		public object returns = null;
-		private readonly object lock2 = new object();
-		private volatile bool incomplete = true;
+		private volatile int incomplete = 1;
 		private volatile int not_started = 1;
 		public object Wait(){
-			lock(lock2){
-				if(incomplete)
-				{
-					sync.Wait();
-					sync.Dispose();
-					incomplete = false;
-				}
+			if(Interlocked.Exchange(ref incomplete, 0) == 1)
+			{
+				sync.Wait();
+				sync.Dispose();
 			}
 			if (exception == null)
 			{
