@@ -132,17 +132,17 @@ namespace jessielesbian.OpenCEX{
 								//UNSAFE credit, since we are adding newly-deposited funds
 								sqlCommandFactory.Credit(url1, userid, GetSafeUint(misc[1]), false);
 								sqlCommandFactory.DestroyTransaction(true, true);
-								Console.WriteLine(walletManager.SafeBlockheight.ToString());
 							}
 							catch (Exception e)
 							{
-								Console.WriteLine(e);
 								deferred = new SafetyException("Exception in deposit crediting function!", e);
 							}
 							sqlCommandFactory.Dispose();
 							if(!(deferred is null)){
 								throw deferred;
 							}
+						} else{
+							Console.WriteLine(Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()) + "|" + walletManager.SafeBlockheight);
 						}
 					}
 				}
