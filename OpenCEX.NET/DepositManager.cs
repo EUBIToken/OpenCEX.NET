@@ -18,22 +18,19 @@ namespace jessielesbian.OpenCEX{
 				} else{
 					ConcurrentJob[] updates = new ConcurrentJob[] { defaultMintMEWallet.update, defaultBSCWallet.update, defaultPolyWallet.update };
 					Append(updates);
-					MySqlConnection mySqlConnection = new MySqlConnection(SQLConnectionString);
 					try
 					{
 						Exception delayed_throw = null;
-						mySqlConnection.Open();
-						MySqlTransaction mySqlTransaction = mySqlConnection.BeginTransaction(); //Read-only transaction
+						SQLCommandFactory sqlCommandFactory = GetSQL();
 						try
 						{
-							delayed_throw = HandleDepositsIMPL(new MySqlCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;", mySqlConnection, mySqlTransaction).ExecuteReader(), updates);
+							delayed_throw = HandleDepositsIMPL(sqlCommandFactory.GetCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;").ExecuteReader(), updates);
 						}
 						catch (Exception e)
 						{
 							delayed_throw = new SafetyException("Unable to get pending deposits handle!", e);
 						}
-						mySqlTransaction.Rollback();
-						mySqlTransaction.Dispose();
+						sqlCommandFactory.Dispose();
 						if (delayed_throw != null)
 						{
 							throw delayed_throw;
@@ -42,10 +39,6 @@ namespace jessielesbian.OpenCEX{
 					catch (Exception e)
 					{
 						Console.Error.WriteLine("Exception in deposit manager thread: " + e.ToString());
-					}
-					finally
-					{
-						mySqlConnection.Close();
 					}
 				}
 				Thread.Sleep(10000);
