@@ -133,6 +133,7 @@ namespace jessielesbian.OpenCEX{
 				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
 				if(!(transaction is null)){
 					if(!(transaction.blockNumber is null)){
+						Console.WriteLine(Convert.ToString(transaction.blockNumber));
 						if(Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()) > walletManager.SafeBlockheight)
 						{
 							SQLCommandFactory sqlCommandFactory = GetSQL();
