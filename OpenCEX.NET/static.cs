@@ -66,8 +66,9 @@ namespace jessielesbian.OpenCEX{
 
 		public void Execute(){
 			try{
-				StaticUtils.CheckSafety2(Interlocked.Exchange(ref not_started, 0) == 0, "Job already executed!");
-				returns = ExecuteIMPL();
+				if(Interlocked.Exchange(ref not_started, 0) == 1){
+					returns = ExecuteIMPL();
+				}
 			} catch(Exception e){
 				exception = e;
 			} finally{
