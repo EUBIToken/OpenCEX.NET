@@ -129,8 +129,11 @@ namespace jessielesbian.OpenCEX{
 							try
 							{
 								sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM WorkerTasks WHERE Id = " + id + ";");
-								//UNSAFE credit, since we are adding newly-deposited funds
-								sqlCommandFactory.Credit(url1, userid, GetSafeUint(misc[1]), false);
+								if (GetSafeUint(Convert.ToString(transaction.status)) == one)
+								{
+									//UNSAFE credit, since we are adding newly-deposited funds
+									sqlCommandFactory.Credit(url1, userid, GetSafeUint(misc[1]), false);
+								}
 								sqlCommandFactory.DestroyTransaction(true, true);
 							}
 							catch (Exception e)
