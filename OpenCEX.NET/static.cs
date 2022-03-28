@@ -68,6 +68,7 @@ namespace jessielesbian.OpenCEX{
 			try{
 				if(Interlocked.Exchange(ref not_started, 0) == 1){
 					returns = ExecuteIMPL();
+					incomplete = 0;
 				}
 			} catch(Exception e){
 				exception = e;

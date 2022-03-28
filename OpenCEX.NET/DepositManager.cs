@@ -66,13 +66,13 @@ namespace jessielesbian.OpenCEX{
 			}
 			if(deferredThrow == null){
 				try{
-					foreach (ConcurrentJob concurrentJob in updates)
+					foreach (ConcurrentJob concurrentJob3 in updates)
 					{
-						concurrentJob.Wait();
+						concurrentJob3.Wait();
 					}
-					foreach (ConcurrentJob concurrentJob in arr)
+					foreach (ConcurrentJob concurrentJob4 in arr)
 					{
-						concurrentJob.Wait();
+						concurrentJob4.Wait();
 					}
 				} catch (Exception e){
 					throw new SafetyException("Exception while finalizing deposits", e);
