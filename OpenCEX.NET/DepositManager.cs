@@ -26,13 +26,14 @@ namespace jessielesbian.OpenCEX{
 						MySqlTransaction mySqlTransaction = mySqlConnection.BeginTransaction(); //Read-only transaction
 						try
 						{
-							delayed_throw = HandleDepositsIMPL(new MySqlCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;", mySqlConnection, mySqlTransaction).ExecuteReader(), mySqlConnection, updates);
+							delayed_throw = HandleDepositsIMPL(new MySqlCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;", mySqlConnection, mySqlTransaction).ExecuteReader(), updates);
 						}
 						catch (Exception e)
 						{
 							delayed_throw = new SafetyException("Unable to get pending deposits handle!", e);
 						}
 						mySqlTransaction.Rollback();
+						mySqlTransaction.Dispose();
 						if (delayed_throw != null)
 						{
 							throw delayed_throw;
@@ -52,7 +53,7 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private static ConcurrentJob[] empty = new ConcurrentJob[0];
-		private static Exception HandleDepositsIMPL(MySqlDataReader mySqlDataReader, IDisposable connection, ConcurrentJob[] updates)
+		private static Exception HandleDepositsIMPL(MySqlDataReader mySqlDataReader, ConcurrentJob[] updates)
 		{
 			ConcurrentJob[] arr = empty;
 			Exception deferredThrow = null;
