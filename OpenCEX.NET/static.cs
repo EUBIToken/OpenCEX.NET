@@ -40,6 +40,7 @@ namespace jessielesbian.OpenCEX{
 		public object returns = null;
 		private readonly object lock2 = new object();
 		private volatile bool incomplete = true;
+		private volatile int not_started = 1;
 		public object Wait(){
 			lock(lock2){
 				if(incomplete)
@@ -69,7 +70,7 @@ namespace jessielesbian.OpenCEX{
 
 		public void Execute(){
 			try{
-				StaticUtils.CheckSafety2(sync.IsSet, "Job already executed!");
+				StaticUtils.CheckSafety2(Interlocked.Exchange(ref not_started, 0) == 0, "Job already executed!");
 				returns = ExecuteIMPL();
 			} catch(Exception e){
 				exception = e;
