@@ -24,18 +24,14 @@ namespace jessielesbian.OpenCEX{
 						SQLCommandFactory sqlCommandFactory = GetSQL();
 						try
 						{
-							delayed_throw = HandleDepositsIMPL(sqlCommandFactory.GetCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;").ExecuteReader(), updates);
+							HandleDepositsIMPL(sqlCommandFactory.GetCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;").ExecuteReader(), updates);
 							sqlCommandFactory.Dispose();
 						}
 						catch (Exception e)
 						{
 							delayed_throw = new SafetyException("Unable to get pending deposits handle!", e);
 							sqlCommandFactory.Dispose();
-						}
-							
-						if (delayed_throw != null)
-						{
-							throw delayed_throw;
+							throw e;
 						}
 					}
 					catch (Exception e)
@@ -48,7 +44,7 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private static ConcurrentJob[] empty = new ConcurrentJob[0];
-		private static Exception HandleDepositsIMPL(MySqlDataReader mySqlDataReader, ConcurrentJob[] updates)
+		private static void HandleDepositsIMPL(MySqlDataReader mySqlDataReader, ConcurrentJob[] updates)
 		{
 			ConcurrentJob[] arr = empty;
 			Exception deferredThrow = null;
@@ -81,11 +77,11 @@ namespace jessielesbian.OpenCEX{
 						concurrentJob.Wait();
 					}
 				} catch (Exception e){
-					return e;
+					throw e;
 				}
+			} else{
+				throw deferredThrow;
 			}
-			
-			return deferredThrow;
 		}
 		private sealed class TryProcessDeposit : ConcurrentJob
 		{
