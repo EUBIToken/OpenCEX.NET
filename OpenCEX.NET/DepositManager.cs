@@ -101,7 +101,7 @@ namespace jessielesbian.OpenCEX{
 
 			public TryProcessDeposit(ulong userid, string url1, string url2, ulong id)
 			{
-				StaticUtils.CheckSafety2(userid == 0, "Deposit to illegal UserID!");
+				CheckSafety2(userid == 0, "Deposit to illegal UserID!");
 				this.userid = userid;
 				this.url1 = url1 ?? throw new ArgumentNullException(nameof(url1));
 				this.url2 = url2 ?? throw new ArgumentNullException(nameof(url2));
@@ -133,7 +133,7 @@ namespace jessielesbian.OpenCEX{
 				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
 				if(!(transaction is null)){
 					if(!(transaction.blockNumber is null)){
-						if(Convert.ToUInt64(Convert.ToString(transaction.blockNumber)) > walletManager.SafeBlockheight)
+						if(Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()) > walletManager.SafeBlockheight)
 						{
 							SQLCommandFactory sqlCommandFactory = GetSQL();
 							try{
