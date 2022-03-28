@@ -75,6 +75,24 @@ namespace jessielesbian.OpenCEX
 		private readonly string tail1;
 		private readonly string tail2;
 		private readonly IEtherTransferService etherTransferService;
+		public ulong SafeBlockheight { get; private set; } = 0;
+		private sealed class UpdateChainInfo : ConcurrentJob
+		{
+			private readonly WalletManager parent;
+
+			public UpdateChainInfo(WalletManager parent)
+			{
+				this.parent = parent ?? throw new ArgumentNullException(nameof(parent));
+			}
+
+			protected override object ExecuteIMPL()
+			{
+				parent.SafeBlockheight = Convert.ToUInt64(StaticUtils.Await2(parent.ethApiContractService.Blocks.GetBlockNumber.SendRequestAsync()).ToString()) + 10;
+				return null;
+			}
+		}
+
+		public readonly ConcurrentJob update;
 
 		/// <summary>
 		/// DO NOT USE!
@@ -88,6 +106,7 @@ namespace jessielesbian.OpenCEX
 			etherTransferService = ethApiContractService.GetEtherTransferService();
 			tail1 = ", " + blockchainManager.chainid + ", \"" + trimmedAddress + "\");";
 			tail2 = " WHERE Blockchain = " + blockchainManager.chainid + " AND Address = \"" + trimmedAddress + "\";";
+			update = new UpdateChainInfo(this);
 		}
 
 		public ulong SafeNonce(SQLCommandFactory sqlCommandFactory){
@@ -140,23 +159,9 @@ namespace jessielesbian.OpenCEX
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
 		}
-		public Dictionary<string, object> GetTransactionReceipt(string txid)
+		public TransactionReceipt GetTransactionReceipt(string txid)
 		{
-			WebRequest httpWebRequest = WebRequest.Create(blockchainManager.node);
-			httpWebRequest.Method = "POST";
-			httpWebRequest.ContentType = "application/json";
-			byte[] bytes = Encoding.UTF8.GetBytes("{\"jsonrpc\":\"2.0\",\"method\":\"eth_getTransactionReceipt\",\"params\":[\"" + txid + "\"],\"id\":1}");
-
-			using (var stream = httpWebRequest.GetRequestStream())
-			{
-				stream.Write(bytes, 0, bytes.Length);
-			}
-			WebResponse webResponse = httpWebRequest.GetResponse();
-			string returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
-			webResponse.Close();
-			Console.WriteLine(returns);
-			return JsonConvert.DeserializeObject<RpcResult1>(returns).result;
-			
+			return blockchainManager.SendRequestSync<TransactionReceipt>(ethApiContractService.Transactions.GetTransactionReceipt.BuildRequest(txid));
 		}
 
 		private sealed class RpcResult1{

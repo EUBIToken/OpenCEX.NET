@@ -7,12 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 namespace jessielesbian.OpenCEX{
 	public static partial class StaticUtils{
+		public static readonly WalletManager defaultMintMEWallet = BlockchainManager.MintME.GetWalletManager();
+		public static readonly WalletManager defaultBSCWallet = BlockchainManager.BinanceSmartChain.GetWalletManager();
+		public static readonly WalletManager defaultPolyWallet = BlockchainManager.Polygon.GetWalletManager();
 		private static void DepositManager(){
 			while(!abort){
 				if(watchdogSoftReboot){
 					Thread.Sleep(1001);
 					continue;
 				} else{
+					ConcurrentJob[] updates = new ConcurrentJob[] { defaultMintMEWallet.update, defaultBSCWallet.update, defaultPolyWallet.update };
+					Append(updates);
 					MySqlConnection mySqlConnection = new MySqlConnection(SQLConnectionString);
 					try
 					{
@@ -21,7 +26,7 @@ namespace jessielesbian.OpenCEX{
 						MySqlTransaction mySqlTransaction = mySqlConnection.BeginTransaction(); //Read-only transaction
 						try
 						{
-							delayed_throw = HandleDepositsIMPL(new MySqlCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;", mySqlConnection, mySqlTransaction).ExecuteReader());
+							delayed_throw = HandleDepositsIMPL(new MySqlCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;", mySqlConnection, mySqlTransaction).ExecuteReader(), mySqlConnection, updates);
 						}
 						catch (Exception e)
 						{
@@ -45,22 +50,23 @@ namespace jessielesbian.OpenCEX{
 				Thread.Sleep(10000);
 			}
 		}
-		private static Exception HandleDepositsIMPL(MySqlDataReader mySqlDataReader){
+
+		private static ConcurrentJob[] empty = new ConcurrentJob[0];
+		private static Exception HandleDepositsIMPL(MySqlDataReader mySqlDataReader, IDisposable connection, ConcurrentJob[] updates)
+		{
+			ConcurrentJob[] arr = empty;
 			Exception deferredThrow = null;
 			try{
 				Queue<ConcurrentJob> queue = new Queue<ConcurrentJob>();
 				while(mySqlDataReader.Read()){
 					queue.Enqueue(new TryProcessDeposit(mySqlDataReader.GetUInt64("LastTouched"), mySqlDataReader.GetString("URL"), mySqlDataReader.GetString("URL2"), mySqlDataReader.GetUInt64("Id")));
 				}
-				ConcurrentJob[] arr = queue.ToArray();
+				arr = queue.ToArray();
 				Append(arr);
 				try {
 					mySqlDataReader.Close();
 				} finally{
 					mySqlDataReader = null;
-				}
-				foreach (ConcurrentJob concurrentJob in arr){
-					concurrentJob.Wait();
 				}
 			} catch (Exception e){
 				deferredThrow = new SafetyException("Exception in deposit manager core!", e);
@@ -68,6 +74,21 @@ namespace jessielesbian.OpenCEX{
 			if(!(mySqlDataReader is null)){
 				mySqlDataReader.Close();
 			}
+			if(deferredThrow == null){
+				try{
+					foreach (ConcurrentJob concurrentJob in updates)
+					{
+						concurrentJob.Wait();
+					}
+					foreach (ConcurrentJob concurrentJob in arr)
+					{
+						concurrentJob.Wait();
+					}
+				} catch (Exception e){
+					return e;
+				}
+			}
+			
 			return deferredThrow;
 		}
 		private sealed class TryProcessDeposit : ConcurrentJob
@@ -79,6 +100,7 @@ namespace jessielesbian.OpenCEX{
 
 			public TryProcessDeposit(ulong userid, string url1, string url2, ulong id)
 			{
+				StaticUtils.CheckSafety2(userid == 0, "Deposit to illegal UserID!");
 				this.userid = userid;
 				this.url1 = url1 ?? throw new ArgumentNullException(nameof(url1));
 				this.url2 = url2 ?? throw new ArgumentNullException(nameof(url2));
@@ -107,10 +129,22 @@ namespace jessielesbian.OpenCEX{
 						throw new Exception("Unknown token!");
 				}
 
-				Dictionary<string, object> transaction = walletManager.GetTransactionReceipt(misc[0]);
+				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
 				if(!(transaction is null)){
-					Console.WriteLine(JsonConvert.SerializeObject(transaction));
-
+					if(!(transaction.blockNumber is null)){
+						if(Convert.ToUInt64(Convert.ToString(transaction.blockNumber)) > walletManager.SafeBlockheight)
+						{
+							SQLCommandFactory sqlCommandFactory = GetSQL();
+							try{
+								sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM WorkerTasks WHERE Id = " + id + ";");
+								//UNSAFE credit, since we are adding newly-deposited funds
+								sqlCommandFactory.Credit(url1, userid, GetSafeUint(misc[1]), false);
+								sqlCommandFactory.DestroyTransaction(true, true);
+							} finally{
+								sqlCommandFactory.Dispose();
+							}
+						}
+					}
 				}
 				return null;
 			}
