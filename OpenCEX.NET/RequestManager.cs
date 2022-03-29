@@ -596,9 +596,9 @@ namespace jessielesbian.OpenCEX{
 						default:
 							throw new SafetyException("Unsupported blockchain!");
 					}
-					amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, gasPrice, "0x0", abi2));
+					amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, gasPrice, zero, abi2));
 					string abi = "0x64d7cd50" + postfix + amount.ToHex(false);
-					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, "0x0", abi);
+					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi);
 					ulong ulgas = Convert.ToUInt64(gas.ToString());
 					txid = "";
 				} else{

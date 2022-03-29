@@ -201,16 +201,16 @@ namespace jessielesbian.OpenCEX
 				this.data = data ?? throw new ArgumentNullException(nameof(data));
 			}
 		}
-		private string Vcall2(string to, SafeUint gasprice, string value, string data, string method)
+		private string Vcall2(string to, SafeUint gasprice, SafeUint value, string data, string method)
 		{
-			RpcRequest rpcRequest = new RpcRequest(1, method, new EthCall(address, to, gasprice.ToHex(true, false), value, data), "latest");
+			RpcRequest rpcRequest = new RpcRequest(1, method, new EthCall(address, to, gasprice.ToHex(true, false), value.ToHex(true, false), data), "latest");
 			return blockchainManager.SendRequestSync<string>(rpcRequest);
 		}
-		public string Vcall(string to, SafeUint gasprice, string value, string data)
+		public string Vcall(string to, SafeUint gasprice, SafeUint value, string data)
 		{
 			return Vcall2(to, gasprice, value, data, "eth_call");
 		}
-		public SafeUint EstimateGas(string to, SafeUint gasprice, string value, string data)
+		public SafeUint EstimateGas(string to, SafeUint gasprice, SafeUint value, string data)
 		{
 			return StaticUtils.GetSafeUint(Vcall2(to, gasprice, value, data, "eth_estimateGas"));
 		}
