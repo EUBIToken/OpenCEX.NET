@@ -154,15 +154,31 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
+				ulong safeheight = walletManager.SafeBlockheight;
+				if (safeheight == 0){
+					if(!Multiserver){
+						lock(depositBlocker){
+							if(!depositBlocker.IsSet){
+								depositBlocker.Set();
+							}
+						}
+					}
+					return null; //Later
+				}
 				if(!(transaction is null)){
 					if(!(transaction.blockNumber is null)){
-						if(walletManager.SafeBlockheight > Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()))
+						if(safeheight > Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()))
 						{
 							SQLCommandFactory sqlCommandFactory = GetSQL();
 							Exception deferred = null;
 							try
 							{
-								sqlCommandFactory.GetCommand("SELECT NULL FROM WorkerTasks WHERE Id = " + id + " FOR UPDATE;").ExecuteNonQuery();
+								try{
+									sqlCommandFactory.GetCommand("SELECT NULL FROM WorkerTasks WHERE Id = " + id + " FOR UPDATE NOWAIT;").ExecuteNonQuery();
+								} catch{
+									return null;
+								}
+								
 								sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM WorkerTasks WHERE Id = " + id + ";");
 								if (GetSafeUint(Convert.ToString(transaction.status)) == one)
 								{
