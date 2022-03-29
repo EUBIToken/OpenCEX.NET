@@ -28,7 +28,7 @@ namespace jessielesbian.OpenCEX
 	public static partial class StaticUtils
 	{
 		public static readonly string ExchangeWalletAddress = BlockchainManager.MintME.ExchangeWalletManager.address;
-		public static readonly Nethereum.RPC.Eth.DTOs.BlockParameter latestBlock = Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest();
+		public static readonly BlockParameter latestBlock = BlockParameter.CreateLatest();
 	}
 	public sealed class BlockchainManager{
 		public readonly string node;
@@ -159,7 +159,7 @@ namespace jessielesbian.OpenCEX
 
 		public string SendEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas)
 		{
-			string ret = StaticUtils.Await2(ethApiContractService.Transactions.SendTransaction.SendRequestAsync(new TransactionInput("", to, address, gas.bigInteger.ToHexBigInteger(), gas.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger())));
+			string ret = StaticUtils.Await2(ethApiContractService.TransactionManager.SendTransaction.SendRequestAsync(new TransactionInput("", to, address, gas.bigInteger.ToHexBigInteger(), gas.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger())));
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
 		}
