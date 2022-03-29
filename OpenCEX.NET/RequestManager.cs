@@ -572,18 +572,40 @@ namespace jessielesbian.OpenCEX{
 
 				//Boost gas price to reduce server waiting time.
 				gasPrice = gasPrice.Add(gasPrice.Div(ten));
-				Console.WriteLine(gasPrice);
 				string txid;
 				SafeUint amount;
 
 				if (erc20){
-					throw new SafetyException("ERC-20 deposits not supported yet!");
+					string formattedTokenAddress = ExpandABIAddress(token_address);
+					string postfix = formattedTokenAddress + ExpandABIAddress(walletManager.address);
+					walletManager = blockchainManager.ExchangeWalletManager;
+					string abi2 = "0xaec6ed90" + ExpandABIAddress(walletManager.address) + postfix;
+					
+					string ERC20DepositManager;
+					string gastoken;
+					switch(blockchainManager.chainid)
+					{
+						case 24734:
+							gastoken = "MintME";
+							ERC20DepositManager = "0x9f46db28f5d7ef3c5b8f03f19eea5b7aa8621349";
+							break;
+						case 137:
+							gastoken = "MATIC";
+							ERC20DepositManager = "0xed91faa6efa532b40f6a1bff3cab29260ebabd21";
+							break;
+						default:
+							throw new SafetyException("Unsupported blockchain!");
+					}
+					amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, gasPrice, "0x0", abi2));
+					string abi = "0x64d7cd50" + postfix + amount.ToHex256(false);
+					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, "0x0", abi);
+					ulong ulgas = Convert.ToUInt64(gas.ToString());
+					txid = "";
 				} else{
 					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!");
 					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
-					amount = amount.Sub(amount.Div(e16)); //Rounding correction
+					SafeUint subtract = amount.Div(e16).Add(one);
 					txid = walletManager.SendEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
-					amount = amount.Sub(amount.Div(e16)); //Rounding correction
 				}
 
 				//Re-use existing table for compartiability

@@ -4,12 +4,14 @@ using System.Collections;
 using System.Linq;
 using System;
 using System.Globalization;
+using Nethereum.Hex.HexTypes;
 
 namespace jessielesbian.OpenCEX
 {
 	public static partial class StaticUtils{
 		public static readonly SafeUint day = new SafeUint(new BigInteger(86400));
 		public static readonly SafeUint basegas = new SafeUint(new BigInteger(21000));
+		public static readonly SafeUint basegas2 = new SafeUint(new BigInteger(1000000));
 		public static readonly SafeUint e16 = new SafeUint(new BigInteger(65536));
 		public static readonly SafeUint gwei = new SafeUint(new BigInteger(990000000));
 		public static readonly SafeUint ten = new SafeUint(new BigInteger(10));
@@ -163,6 +165,18 @@ namespace jessielesbian.OpenCEX.SafeMath{
 		public override int GetHashCode()
 		{
 			return bigInteger.GetHashCode();
+		}
+
+		public string ToHex256(bool prefix = true){
+			string postfix = new HexBigInteger(bigInteger).HexValue.ToLower();
+			StaticUtils.CheckSafety2(postfix.Length > 64, "256-bit integer overflow!");
+			postfix = postfix.PadLeft(64, '0');
+			if (prefix){
+				return "0x" + postfix;
+			} else{
+				return postfix;
+			}
+			
 		}
 	}
 }

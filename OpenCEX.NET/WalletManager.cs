@@ -20,12 +20,14 @@ using System.Web;
 using System.IO;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
+using Nethereum.Contracts.ContractHandlers;
+using Nethereum.RPC.Eth.DTOs;
 
 namespace jessielesbian.OpenCEX
 {
 	public static partial class StaticUtils
 	{
-		public static readonly string ExchangeWalletAddress = BlockchainManager.MintME.GetWalletManager(GetEnv("PrivateKey")).address;
+		public static readonly string ExchangeWalletAddress = BlockchainManager.MintME.ExchangeWalletManager.address;
 		public static readonly Nethereum.RPC.Eth.DTOs.BlockParameter latestBlock = Nethereum.RPC.Eth.DTOs.BlockParameter.CreateLatest();
 	}
 	public sealed class BlockchainManager{
@@ -35,14 +37,17 @@ namespace jessielesbian.OpenCEX
 
 		public static readonly BlockchainManager Polygon = new BlockchainManager("https://polygon-rpc.com", 137);
 		public static readonly BlockchainManager BinanceSmartChain = new BlockchainManager("https://bscrpc.com", 56);
-		private readonly RpcClient rpc;
+		private static readonly string PrivateKey = StaticUtils.GetEnv("PrivateKey");
+		public readonly RpcClient rpc;
 		public readonly string tail1;
+		public readonly WalletManager ExchangeWalletManager;
 		private BlockchainManager(string node, ulong chainid)
 		{
 			this.node = node ?? throw new ArgumentNullException(nameof(node));
 			this.chainid = chainid;
 			rpc = new RpcClient(new Uri(node));
 			tail1 = "\" AND Blockchain = " + chainid + " FOR UPDATE;";
+			ExchangeWalletManager = GetWalletManager(PrivateKey);
 		}
 		//Wallet manager pooling
 		private readonly ConcurrentDictionary<string, WalletManager> pool = new ConcurrentDictionary<string, WalletManager>();
@@ -155,10 +160,57 @@ namespace jessielesbian.OpenCEX
 
 		public string SendEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas)
 		{
-			Console.WriteLine(gasPrice.GetAmount2().ToString());
-			string ret = StaticUtils.Await2(etherTransferService.TransferEtherAsync(to, amount.GetAmount2(), gasPrice.Mul(StaticUtils.gwei).GetAmount2(), gas.bigInteger, new BigInteger(nonce)));
+			string ret = StaticUtils.Await2(ethApiContractService.Transactions.SendTransaction.SendRequestAsync(new TransactionInput("", to, address, gas.bigInteger.ToHexBigInteger(), gas.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger())));
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
+		}
+
+		private readonly ConcurrentDictionary<string, ContractHandler> pooledContractHandlers = new ConcurrentDictionary<string, ContractHandler>();
+
+		public ContractHandler GetContractHandler(string address){
+			StaticUtils.VerifyAddress(address);
+			address = address.ToLower();
+			return pooledContractHandlers.GetOrAdd(address, ethApiContractService.GetContractHandler);
+		}
+
+		public string SendData(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas, string data)
+		{
+			ContractHandler contractHandler = GetContractHandler(to);
+			
+			string ret = StaticUtils.Await2(ethApiContractService.TransactionManager.SendTransactionAsync(new TransactionInput(data, to, address, gas.bigInteger.ToHexBigInteger(), gasPrice.bigInteger.ToHexBigInteger(), BigInteger.Zero.ToHexBigInteger())));
+			StaticUtils.CheckSafety(ret, "Null transaction id!");
+			return ret;
+		}
+
+		[JsonObject(MemberSerialization.Fields)]
+		private sealed class EthCall{
+			public readonly string from;
+			public readonly string to;
+			public readonly string gasprice;
+			public readonly string value;
+			public readonly string data;
+
+			public EthCall(string from, string to, string gasprice, string value, string data)
+			{
+				this.from = from ?? throw new ArgumentNullException(nameof(from));
+				this.to = to ?? throw new ArgumentNullException(nameof(to));
+				this.gasprice = gasprice ?? throw new ArgumentNullException(nameof(gasprice));
+				this.value = value ?? throw new ArgumentNullException(nameof(value));
+				this.data = data ?? throw new ArgumentNullException(nameof(data));
+			}
+		}
+		private string Vcall2(string to, SafeUint gasprice, string value, string data, string method)
+		{
+			RpcRequest rpcRequest = new RpcRequest(1, method, new EthCall(address, to, gasprice.ToString(), value, data), "latest");
+			return blockchainManager.SendRequestSync<string>(rpcRequest);
+		}
+		public string Vcall(string to, SafeUint gasprice, string value, string data)
+		{
+			return Vcall2(to, gasprice, value, data, "eth_call");
+		}
+		public SafeUint EstimateGas(string to, SafeUint gasprice, string value, string data)
+		{
+			return StaticUtils.GetSafeUint(Vcall2(to, gasprice, value, data, "eth_estimateGas"));
 		}
 		public TransactionReceipt GetTransactionReceipt(string txid)
 		{
