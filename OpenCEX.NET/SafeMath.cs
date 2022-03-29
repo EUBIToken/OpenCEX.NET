@@ -168,11 +168,18 @@ namespace jessielesbian.OpenCEX.SafeMath{
 		}
 
 		public string ToHex(bool prefix = true, bool pad256 = true){
-			string postfix = new HexBigInteger(bigInteger).HexValue.ToLower();
+			string postfix = new HexBigInteger(bigInteger).HexValue.ToLower().Substring(2);
 			if(pad256)
 			{
 				StaticUtils.CheckSafety2(postfix.Length > 64, "256-bit integer overflow!");
 				postfix = postfix.PadLeft(64, '0');
+			} else{
+				while(postfix.StartsWith('0')){
+					postfix = postfix.Substring(1);
+				}
+				if (postfix == string.Empty){
+					postfix = "0";
+				}
 			}
 			
 			if (prefix){
