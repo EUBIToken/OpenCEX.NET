@@ -167,10 +167,14 @@ namespace jessielesbian.OpenCEX.SafeMath{
 			return bigInteger.GetHashCode();
 		}
 
-		public string ToHex256(bool prefix = true){
+		public string ToHex(bool prefix = true, bool pad256 = true){
 			string postfix = new HexBigInteger(bigInteger).HexValue.ToLower();
-			StaticUtils.CheckSafety2(postfix.Length > 64, "256-bit integer overflow!");
-			postfix = postfix.PadLeft(64, '0');
+			if(pad256)
+			{
+				StaticUtils.CheckSafety2(postfix.Length > 64, "256-bit integer overflow!");
+				postfix = postfix.PadLeft(64, '0');
+			}
+			
 			if (prefix){
 				return "0x" + postfix;
 			} else{

@@ -203,7 +203,7 @@ namespace jessielesbian.OpenCEX
 		}
 		private string Vcall2(string to, SafeUint gasprice, string value, string data, string method)
 		{
-			RpcRequest rpcRequest = new RpcRequest(1, method, new EthCall(address, to, gasprice.ToString(), value, data), "latest");
+			RpcRequest rpcRequest = new RpcRequest(1, method, new EthCall(address, to, gasprice.ToHex(true, false), value, data), "latest");
 			return blockchainManager.SendRequestSync<string>(rpcRequest);
 		}
 		public string Vcall(string to, SafeUint gasprice, string value, string data)
