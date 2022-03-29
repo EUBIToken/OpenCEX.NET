@@ -159,7 +159,7 @@ namespace jessielesbian.OpenCEX
 
 		public string SendEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas)
 		{
-			string ret = StaticUtils.Await2(ethApiContractService.TransactionManager.SendTransaction.SendRequestAsync(new TransactionInput("", to, address, gas.bigInteger.ToHexBigInteger(), gas.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger())));
+			string ret = StaticUtils.Await2(ethApiContractService.TransactionManager.SendTransactionAsync(new TransactionInput("", to, address, gas.bigInteger.ToHexBigInteger(), gas.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger())));
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
 		}
