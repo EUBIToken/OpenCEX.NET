@@ -164,7 +164,7 @@ namespace jessielesbian.OpenCEX{
 							{
 								sqlCommandFactory.GetCommand("SELECT NULL FROM WorkerTasks WHERE Id = " + id + " FOR UPDATE;").ExecuteNonQuery();
 								sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM WorkerTasks WHERE Id = " + id + ";");
-								if (GetSafeUint(Convert.ToString(transaction.status)) == one)
+								if (GetSafeUint(Convert.ToString(transaction.status)) > zero)
 								{
 									//UNSAFE credit, since we are adding newly-deposited funds
 									sqlCommandFactory.Credit(url1, userid, GetSafeUint(misc[1]), false);
