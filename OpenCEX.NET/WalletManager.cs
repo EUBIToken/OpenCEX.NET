@@ -157,29 +157,12 @@ namespace jessielesbian.OpenCEX
 			}
 		}
 
-		public string SendEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas)
+		public string SendEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas, string data = "")
 		{
-			TransactionInput transactionInput = new TransactionInput("", to, address, gas.bigInteger.ToHexBigInteger(), gasPrice.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger());
+			TransactionInput transactionInput = new TransactionInput(data, to, address, gas.bigInteger.ToHexBigInteger(), gasPrice.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger());
 			transactionInput.Nonce = nonce.ToHexBigInteger();
 
 			string ret = StaticUtils.Await2(ethApiContractService.TransactionManager.SendTransactionAsync(transactionInput));
-			StaticUtils.CheckSafety(ret, "Null transaction id!");
-			return ret;
-		}
-
-		private readonly ConcurrentDictionary<string, ContractHandler> pooledContractHandlers = new ConcurrentDictionary<string, ContractHandler>();
-
-		public ContractHandler GetContractHandler(string address){
-			StaticUtils.VerifyAddress(address);
-			address = address.ToLower();
-			return pooledContractHandlers.GetOrAdd(address, ethApiContractService.GetContractHandler);
-		}
-
-		public string SendData(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas, string data)
-		{
-			ContractHandler contractHandler = GetContractHandler(to);
-			
-			string ret = StaticUtils.Await2(ethApiContractService.TransactionManager.SendTransactionAsync(new TransactionInput(data, to, address, gas.bigInteger.ToHexBigInteger(), gasPrice.bigInteger.ToHexBigInteger(), BigInteger.Zero.ToHexBigInteger())));
 			StaticUtils.CheckSafety(ret, "Null transaction id!");
 			return ret;
 		}

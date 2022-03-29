@@ -599,8 +599,7 @@ namespace jessielesbian.OpenCEX{
 					amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, gasPrice, zero, abi2));
 					string abi = "0x64d7cd50" + postfix + amount.ToHex(false);
 					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi);
-					ulong ulgas = Convert.ToUInt64(gas.ToString());
-					txid = "";
+					txid = walletManager.SendEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, abi);
 				} else{
 					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!");
 					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
