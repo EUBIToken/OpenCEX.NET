@@ -37,7 +37,6 @@ namespace jessielesbian.OpenCEX
 
 		public static readonly BlockchainManager Polygon = new BlockchainManager("https://polygon-rpc.com", 137);
 		public static readonly BlockchainManager BinanceSmartChain = new BlockchainManager("https://bscrpc.com", 56);
-		private static readonly string PrivateKey = StaticUtils.GetEnv("PrivateKey");
 		public readonly RpcClient rpc;
 		public readonly string tail1;
 		public readonly WalletManager ExchangeWalletManager;
@@ -47,7 +46,7 @@ namespace jessielesbian.OpenCEX
 			this.chainid = chainid;
 			rpc = new RpcClient(new Uri(node));
 			tail1 = "\" AND Blockchain = " + chainid + " FOR UPDATE;";
-			ExchangeWalletManager = GetWalletManager(PrivateKey);
+			ExchangeWalletManager = GetWalletManager(StaticUtils.GetEnv("PrivateKey"));
 		}
 		//Wallet manager pooling
 		private readonly ConcurrentDictionary<string, WalletManager> pool = new ConcurrentDictionary<string, WalletManager>();
