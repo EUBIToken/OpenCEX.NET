@@ -46,7 +46,7 @@ namespace jessielesbian.OpenCEX
 			this.chainid = chainid;
 			rpc = new RpcClient(new Uri(node));
 			tail1 = "\" AND Blockchain = " + chainid + " FOR UPDATE;";
-			ExchangeWalletManager = GetWalletManager(StaticUtils.GetEnv("PrivateKey"));
+			ExchangeWalletManager = GetWalletManager(Environment.GetEnvironmentVariable("OpenCEX_PrivateKey"));
 		}
 		//Wallet manager pooling
 		private readonly ConcurrentDictionary<string, WalletManager> pool = new ConcurrentDictionary<string, WalletManager>();
