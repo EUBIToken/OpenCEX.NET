@@ -188,11 +188,11 @@ namespace jessielesbian.OpenCEX
 		private sealed class EthCall{
 			public readonly string from;
 			public readonly string to;
-			public readonly string gasprice;
-			public readonly string value;
+			public readonly HexBigInteger gasprice;
+			public readonly HexBigInteger value;
 			public readonly string data;
 
-			public EthCall(string from, string to, string gasprice, string value, string data)
+			public EthCall(string from, string to, HexBigInteger gasprice, HexBigInteger value, string data)
 			{
 				this.from = from ?? throw new ArgumentNullException(nameof(from));
 				this.to = to ?? throw new ArgumentNullException(nameof(to));
@@ -203,7 +203,7 @@ namespace jessielesbian.OpenCEX
 		}
 		private string Vcall2(string to, SafeUint gasprice, SafeUint value, string data, string method)
 		{
-			RpcRequest rpcRequest = new RpcRequest(1, method, new EthCall(address, to, gasprice.ToHex(true, false), value.ToHex(true, false), data), "latest");
+			RpcRequest rpcRequest = new RpcRequest(1, method, new EthCall(address, to, gasprice.bigInteger.ToHexBigInteger(), value.bigInteger.ToHexBigInteger(), data), "latest");
 			return blockchainManager.SendRequestSync<string>(rpcRequest);
 		}
 		public string Vcall(string to, SafeUint gasprice, SafeUint value, string data)
