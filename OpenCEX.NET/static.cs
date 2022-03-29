@@ -119,6 +119,10 @@ namespace jessielesbian.OpenCEX{
 			return temp;
 		}
 
+		public static bool Multiserver = Convert.ToBoolean(GetEnv("Multiserver"));
+
+		private static ManualResetEventSlim depositBlocker = new ManualResetEventSlim();
+
 		private static string SQLConnectionString = GetEnv("SQLConnectionString");
 
 		public static SQLCommandFactory GetSQL(){
@@ -393,6 +397,12 @@ namespace jessielesbian.OpenCEX{
 				Append(concurrentJob);
 				concurrentJob.Wait();
 			}
+
+			lock(depositBlocker){
+				if(!depositBlocker.IsSet){
+					depositBlocker.Set();
+				}
+			}
 		}
 
 		private static bool watchdogSoftReboot = false;
@@ -541,6 +551,15 @@ namespace jessielesbian.OpenCEX{
 					{
 						Request request = requests.Dequeue();
 						returns.Enqueue(request.Wait());
+						if(request.method is Deposit && !Multiserver){
+							lock (depositBlocker)
+							{
+								if (!depositBlocker.IsSet)
+								{
+									depositBlocker.Set();
+								}
+							}
+						}
 					}
 
 					streamWriter.Write("{\"status\": \"success\", \"returns\": " + JsonConvert.SerializeObject(returns.ToArray()) + "}");

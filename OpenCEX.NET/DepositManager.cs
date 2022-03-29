@@ -37,7 +37,11 @@ namespace jessielesbian.OpenCEX{
 						Console.Error.WriteLine("Exception in deposit manager thread: " + e.ToString());
 					}
 				}
-				Thread.Sleep(10000);
+				if(Multiserver){
+					Thread.Sleep(10000);
+				} else{
+					depositBlocker.Wait();
+				}
 			}
 		}
 
@@ -51,13 +55,36 @@ namespace jessielesbian.OpenCEX{
 				while(mySqlDataReader.Read()){
 					queue.Enqueue(new TryProcessDeposit(mySqlDataReader.GetUInt64("LastTouched"), mySqlDataReader.GetString("URL"), mySqlDataReader.GetString("URL2"), mySqlDataReader.GetUInt64("Id")));
 				}
-				arr = queue.ToArray();
-				Append(arr);
-				try {
+				if(queue.Count == 0){
+					if(!Multiserver){
+						lock (depositBlocker)
+						{
+							if (depositBlocker.IsSet)
+							{
+								depositBlocker.Reset();
+							}
+						}
+					}
+
+					//Fast reset
 					mySqlDataReader.Close();
-				} finally{
-					mySqlDataReader = null;
+					return;
+				} else{
+					arr = queue.ToArray();
+					if(Multiserver){
+						Append(arr);
+					}
+					
+					try
+					{
+						mySqlDataReader.Close();
+					}
+					finally
+					{
+						mySqlDataReader = null;
+					}
 				}
+				
 			} catch (Exception e){
 				deferredThrow = new SafetyException("Exception in deposit manager core!", e);
 			}
@@ -69,6 +96,10 @@ namespace jessielesbian.OpenCEX{
 					foreach (ConcurrentJob concurrentJob3 in updates)
 					{
 						concurrentJob3.Wait();
+					}
+					if (!Multiserver)
+					{
+						Append(arr);
 					}
 					foreach (ConcurrentJob concurrentJob4 in arr)
 					{
@@ -131,6 +162,7 @@ namespace jessielesbian.OpenCEX{
 							Exception deferred = null;
 							try
 							{
+								sqlCommandFactory.GetCommand("SELECT NULL FROM WorkerTasks WHERE Id = " + id + " FOR UPDATE;").ExecuteNonQuery();
 								sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM WorkerTasks WHERE Id = " + id + ";");
 								if (GetSafeUint(Convert.ToString(transaction.status)) == one)
 								{
