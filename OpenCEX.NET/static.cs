@@ -105,7 +105,7 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		public static string GetEnv(string temp){
-			if (temp != "PORT")
+			if (!(temp == "PORT" || temp == "DYNO"))
 			{
 				temp = "OpenCEX_" + temp;
 			}
@@ -477,7 +477,7 @@ namespace jessielesbian.OpenCEX{
 		private static readonly int maxEventQueueSize = Convert.ToInt32(GetEnv("MaxEventQueueSize"));
 
 		//The lead server is responsible for deposit finalization.
-		public static bool leadServer = Convert.ToBoolean(GetEnv("LeadServer"));
+		public static bool leadServer = GetEnv("DYNO") == "web.1";
 
 		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
 			
