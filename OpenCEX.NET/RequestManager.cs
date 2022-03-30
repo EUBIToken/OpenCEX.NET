@@ -280,7 +280,6 @@ namespace jessielesbian.OpenCEX{
 						request.Credit(selected, userid, instance.Balance);
 						goto admitted;
 					} else{
-						Console.WriteLine(instance.amount.ToString() + "|" + instance.Balance.ToString());
 						CheckSafety2(fillMode == 2, "Fill or kill order canceled due to insufficient liquidity!");
 					}
 					StringBuilder stringBuilder = new StringBuilder("INSERT INTO Orders (Pri, Sec, Price, Amount, InitialAmount, TotalCost, Id, PlacedBy, Buy) VALUES (@primary, @secondary, \"");
