@@ -84,10 +84,18 @@ namespace jessielesbian.OpenCEX
 					manualResetEventSlim.Set();
 				}
 
+
+				bool dispose;
 				lock(sync2){
-					if(manualResetEventSlims.Count < 1000){
+					if(manualResetEventSlims.Count < 10000){
 						manualResetEventSlims.Add(manualResetEventSlim);
+						dispose = false;
+					} else{
+						dispose = true;
 					}
+				}
+				if(dispose){
+					manualResetEventSlim.Dispose();
 				}
 			}
 		}
