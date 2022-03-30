@@ -56,13 +56,7 @@ namespace jessielesbian.OpenCEX{
 				}
 				if(queue.Count == 0){
 					if(!Multiserver){
-						lock (depositBlocker)
-						{
-							if (depositBlocker.IsSet)
-							{
-								depositBlocker.Reset();
-							}
-						}
+						depositBlocker.Reset();
 					}
 
 					//Fast reset

@@ -35,7 +35,7 @@ namespace jessielesbian.OpenCEX{
 	}
 
 	public abstract class ConcurrentJob{
-		public readonly ManualResetEventSlim sync = new ManualResetEventSlim();
+		public readonly PooledManualResetEvent sync = PooledManualResetEvent.GetInstance(false);
 		public Exception exception = null;
 		public object returns = null;
 		public object Wait(){
@@ -121,7 +121,7 @@ namespace jessielesbian.OpenCEX{
 
 		public static bool Multiserver = Convert.ToBoolean(GetEnv("Multiserver"));
 
-		private static ManualResetEventSlim depositBlocker = new ManualResetEventSlim();
+		private static PooledManualResetEvent depositBlocker = PooledManualResetEvent.GetInstance(false);
 
 		private static string SQLConnectionString = GetEnv("SQLConnectionString");
 
@@ -209,7 +209,7 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		public static T Await2<T>(Task<T> task){
-			ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim();
+			PooledManualResetEvent manualResetEventSlim = PooledManualResetEvent.GetInstance(false);
 			task.GetAwaiter().OnCompleted(manualResetEventSlim.Set);
 			manualResetEventSlim.Wait();
 			manualResetEventSlim.Dispose();
@@ -227,7 +227,7 @@ namespace jessielesbian.OpenCEX{
 
 		public static void Await2(Task task)
 		{
-			ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim();
+			PooledManualResetEvent manualResetEventSlim = PooledManualResetEvent.GetInstance(false);
 			task.GetAwaiter().OnCompleted(manualResetEventSlim.Set);
 			manualResetEventSlim.Wait();
 			manualResetEventSlim.Dispose();
@@ -299,19 +299,13 @@ namespace jessielesbian.OpenCEX{
 
 		private static readonly ConcurrentQueue<ConcurrentJob> concurrentJobs = new ConcurrentQueue<ConcurrentJob>();
 
-		private static readonly ManualResetEventSlim manualResetEventSlim = new ManualResetEventSlim();
+		private static readonly PooledManualResetEvent manualResetEventSlim = PooledManualResetEvent.GetInstance(false);
 		private static void ExecutionThread(){
 			while(true){
 				if(concurrentJobs.TryDequeue(out ConcurrentJob concurrentJob)){
 					concurrentJob.Execute();
 				} else{
-					lock (manualResetEventSlim)
-					{
-						if (concurrentJobs.IsEmpty && manualResetEventSlim.IsSet)
-						{
-							manualResetEventSlim.Reset();
-						}
-					}
+					manualResetEventSlim.Reset();
 					manualResetEventSlim.Wait(1);
 				}
 			}
@@ -341,22 +335,15 @@ namespace jessielesbian.OpenCEX{
 			{
 				concurrentJobs.Enqueue(concurrentJob);
 			}
-			lock (manualResetEventSlim)
+			if ((!manualResetEventSlim.IsSet) && concurrentJobs.IsEmpty)
 			{
-				if ((!manualResetEventSlim.IsSet) && concurrentJobs.IsEmpty)
-				{
-					manualResetEventSlim.Set();
-				}
+				manualResetEventSlim.Set();
 			}
 		}
 
 		public static void Append(ConcurrentJob concurrentJob){
-			lock(manualResetEventSlim){
-				concurrentJobs.Enqueue(concurrentJob);
-				if(!manualResetEventSlim.IsSet){
-					manualResetEventSlim.Set();
-				}
-			}
+			concurrentJobs.Enqueue(concurrentJob);
+			manualResetEventSlim.Set();
 		}
 
 		public static void Start(){
@@ -398,11 +385,7 @@ namespace jessielesbian.OpenCEX{
 				concurrentJob.Wait();
 			}
 
-			lock(depositBlocker){
-				if(!depositBlocker.IsSet){
-					depositBlocker.Set();
-				}
-			}
+			depositBlocker.Set();
 		}
 
 		private static bool watchdogSoftReboot = false;
@@ -540,25 +523,14 @@ namespace jessielesbian.OpenCEX{
 					}
 					requests = secondExecute;
 					secondExecute = null;
-					lock(manualResetEventSlim){
-						if(!(manualResetEventSlim.IsSet || concurrentJobs.IsEmpty)){
-							manualResetEventSlim.Set();
-						}
-					}
-
+					manualResetEventSlim.Set();
 					Queue<object> returns = new Queue<object>();
 					while (requests.Count != 0)
 					{
 						Request request = requests.Dequeue();
 						returns.Enqueue(request.Wait());
 						if(request.method is Deposit && !Multiserver){
-							lock (depositBlocker)
-							{
-								if (!depositBlocker.IsSet)
-								{
-									depositBlocker.Set();
-								}
-							}
+							depositBlocker.Set();
 						}
 					}
 
