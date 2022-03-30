@@ -249,10 +249,10 @@ namespace jessielesbian.OpenCEX{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
-						SafeUint temp2 = MatchOrders(instance, other, buy);
-						if(temp2.isZero){
+						if(oldamt1.isZero || instance.amount.isZero){
 							break;
-						} else{
+						} else if(MatchOrders(instance, other, buy))
+						{
 							moddedOrders.Enqueue(other);
 							close = other.price;
 							SafeUint outamt = oldamt1.Sub(instance.Balance);
@@ -266,6 +266,8 @@ namespace jessielesbian.OpenCEX{
 								tmpbalances.Add(other.placedby, outamt);
 							}
 							read = reader.Read();
+						} else{
+							break;
 						}
 					}
 				}
@@ -396,12 +398,12 @@ namespace jessielesbian.OpenCEX{
 				return null;
 			}
 
-			private static SafeUint MatchOrders(Order first, Order second, bool buy){
+			private static bool MatchOrders(Order first, Order second, bool buy){
 				SafeUint ret = first.amount.Min(second.amount);
 				if (buy){
 					ret = ret.Min(first.Balance.Mul(ether).Div(second.price)).Min(second.Balance);
 					if(second.price > first.price){
-						return zero;
+						return false;
 					} else{
 						first.Debit(ret, second.price);
 						second.Debit(ret);
@@ -410,14 +412,14 @@ namespace jessielesbian.OpenCEX{
 					ret = ret.Min(first.Balance).Min(second.Balance.Mul(ether).Div(second.price));
 					if (first.price > second.price)
 					{
-						return zero;
+						return false;
 					} else{
 						first.Debit(ret);
 						second.Debit(ret, second.price);
 					}
 				}
 				CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!");
-				return ret;
+				return true;
 			}
 
 			protected override bool NeedSQL()
