@@ -37,9 +37,8 @@ namespace jessielesbian.OpenCEX{
 						Console.Error.WriteLine("Exception in deposit manager thread: " + e.ToString());
 					}
 				}
-				if(Multiserver){
-					Thread.Sleep(10000);
-				} else{
+				Thread.Sleep(10000);
+				if (!Multiserver){
 					depositBlocker.Wait();
 				}
 			}
