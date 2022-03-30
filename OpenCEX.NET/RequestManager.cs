@@ -275,11 +275,12 @@ namespace jessielesbian.OpenCEX{
 				if(!instance.Balance.isZero)
 				{
 					//We only save the order to database if it's a limit order and it's not fully executed.
-					CheckSafety2(fillMode == 2, "Fill or kill order canceled due to insufficient liquidity!");
-					if(instance.amount == zero || fillMode == 1){
+					if(instance.amount.isZero || fillMode == 1){
 						//Cancel order
 						request.Credit(selected, userid, instance.Balance);
 						goto admitted;
+					} else{
+						CheckSafety2(fillMode == 2, "Fill or kill order canceled due to insufficient liquidity!");
 					}
 					StringBuilder stringBuilder = new StringBuilder("INSERT INTO Orders (Pri, Sec, Price, Amount, InitialAmount, TotalCost, Id, PlacedBy, Buy) VALUES (@primary, @secondary, \"");
 					stringBuilder.Append(instance.price.ToString() + "\", \"");
@@ -313,7 +314,7 @@ namespace jessielesbian.OpenCEX{
 					}
 					else
 					{
-						request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Orders SET Amount = \"" + modded.amount + "\", TotalCost = \"" + modded.totalCost + "\"" + " WHERE Id = \"" + modded.id + "\";");
+						request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Orders SET Amount = \"" + modded.amount.ToString() + "\", TotalCost = \"" + modded.totalCost.ToString() + "\"" + " WHERE Id = \"" + modded.id + "\";");
 					}
 
 				}
