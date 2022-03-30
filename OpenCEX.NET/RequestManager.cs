@@ -609,6 +609,7 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				//Re-use existing table for compartiability
+				CheckSafety2(amount.isZero, "Zero-value deposit!");
 				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"" + txid + "_" + amount.ToString() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@token", token);
 				mySqlCommand.Prepare();
