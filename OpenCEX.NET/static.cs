@@ -573,7 +573,7 @@ namespace jessielesbian.OpenCEX{
 					string error = debug ? e.ToString() : e.Message;
 					Exception inner = e.InnerException;
 					if(debug && inner != null){
-						Console.WriteLine("Unexpected internal server error: " + e.ToString());
+						Console.WriteLine("Unexpected internal server error: " + inner.ToString());
 					}
 					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(error)));
 				}
