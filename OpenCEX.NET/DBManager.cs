@@ -126,4 +126,11 @@ namespace jessielesbian.OpenCEX{
 			Dispose();
 		}
 	}
+
+	public static partial class StaticUtils{
+		public static void SafeExecuteNonQuery(this MySqlCommand mySqlCommand)
+		{
+			CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect!");
+		}
+	}
 }

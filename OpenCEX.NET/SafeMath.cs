@@ -18,6 +18,10 @@ namespace jessielesbian.OpenCEX
 		public static readonly SafeUint ether = GetSafeUint("1000000000000000000");
 		public static readonly SafeUint zero = new SafeUint(BigInteger.Zero);
 		public static readonly SafeUint one = new SafeUint(BigInteger.One);
+		public static readonly SafeUint two = new SafeUint(2);
+		public static readonly SafeUint three = new SafeUint(3);
+		public static readonly SafeUint thousand = new SafeUint(1000);
+		public static readonly SafeUint afterfees = new SafeUint(997);
 
 		public static SafeUint GetSafeUint(string number){
 			if (number.StartsWith("0x"))
