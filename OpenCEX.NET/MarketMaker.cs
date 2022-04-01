@@ -202,7 +202,7 @@ namespace jessielesbian.OpenCEX{
 			}
 			else
 			{
-				lpreserve = LPReserve(lpreserve.reserve0.Sub(output), lpreserve.reserve1.Add(input), lpreserve.totalSupply, false);
+				lpreserve = new LPReserve(lpreserve.reserve0.Sub(output), lpreserve.reserve1.Add(input), lpreserve.totalSupply, false);
 			}
 			WriteLP(sql, pri, sec, lpreserve);
 			return lpreserve;
