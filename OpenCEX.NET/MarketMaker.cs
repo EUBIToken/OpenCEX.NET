@@ -198,12 +198,14 @@ namespace jessielesbian.OpenCEX{
 			
 			if (buy)
 			{
-				return new LPReserve(lpreserve.reserve0.Add(input), lpreserve.reserve1.Sub(output), lpreserve.totalSupply, false);
+				lpreserve = new LPReserve(lpreserve.reserve0.Add(input), lpreserve.reserve1.Sub(output), lpreserve.totalSupply, false);
 			}
 			else
 			{
-				return new LPReserve(lpreserve.reserve0.Sub(output), lpreserve.reserve1.Add(input), lpreserve.totalSupply, false);
+				lpreserve = LPReserve(lpreserve.reserve0.Sub(output), lpreserve.reserve1.Add(input), lpreserve.totalSupply, false);
 			}
+			WriteLP(sql, pri, sec, lpreserve);
+			return lpreserve;
 		}
 
 		public static SafeUint ComputeProfitMaximizingTrade(SafeUint truePriceTokenB, LPReserve lpreserve, out bool buy)
