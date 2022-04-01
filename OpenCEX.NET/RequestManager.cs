@@ -272,9 +272,9 @@ namespace jessielesbian.OpenCEX{
 							lpreserve = request.sqlCommandFactory.SwapLP(primary, secondary, userid, arbitrageAmount, buy, lpreserve, false, out SafeUint output2);
 							maxout = maxout.Min(output2);
 							if(buy){
-								other.Debit(maxout.Mul(ether).Div(other.price));
+								other.Debit(maxout);
 							} else{
-								other.Debit(maxout.Mul(other.price).Div(ether), other.price);
+								other.Debit(maxout, other.price);
 							}
 							if(tmpbalances.TryGetValue(other.placedby, out SafeUint premod2)){
 								tmpbalances[other.placedby] = premod2.Add(maxout);
