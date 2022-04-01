@@ -252,7 +252,7 @@ namespace jessielesbian.OpenCEX{
 
 				ulong userid = request.GetUserID();
 				request.Debit(selected, userid, amount);
-				request.Credit(output, userid, zero, false);
+				request.Credit(output, userid, zero);
 				reader = request.sqlCommandFactory.SafeExecuteReader(counter);
 				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
 				if (reader.HasRows)
