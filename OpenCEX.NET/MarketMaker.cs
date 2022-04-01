@@ -77,18 +77,18 @@ namespace jessielesbian.OpenCEX{
 		{
 			StringBuilder stringBuilder;
 			if(lpreserve.insert){
-				stringBuilder = new StringBuilder("INSER FROM UniswapReserves SET Reserve0 = \"");
+				stringBuilder = new StringBuilder("INSERT INTO UniswapReserves (Reserve0, Reserve1, TotalSupply, Pri, Sec) VALUES (\"");
+				stringBuilder.Append(lpreserve.reserve0.ToString() + "\", \"");
+				stringBuilder.Append(lpreserve.reserve1.ToString() + "\", \"");
+				stringBuilder.Append(lpreserve.totalSupply.ToString() + "\", @pri, @sec);");
+			} else{
+				stringBuilder = new StringBuilder("UPDATE UniswapReserves SET Reserve0 = \"");
 				stringBuilder.Append(lpreserve.reserve0.ToString());
 				stringBuilder.Append("\", Reserve1 = \"");
 				stringBuilder.Append(lpreserve.reserve1.ToString());
 				stringBuilder.Append("\", TotalSupply = \"");
 				stringBuilder.Append(lpreserve.totalSupply.ToString());
 				stringBuilder.Append("\" WHERE Pri = @pri AND Sec = @sec;");
-			} else{
-				stringBuilder = new StringBuilder("INSERT INTO UniswapReserves (Reserve0, Reserve1, TotalSupply, Pri, Sec) VALUES (\"");
-				stringBuilder.Append(lpreserve.reserve0.ToString() + "\", \"");
-				stringBuilder.Append(lpreserve.reserve1.ToString() + "\", \"");
-				stringBuilder.Append(lpreserve.totalSupply.ToString() + "\", @pri, @sec);");
 			}
 			MySqlCommand mySqlCommand = sql.GetCommand(stringBuilder.ToString());
 			mySqlCommand.Parameters.AddWithValue("@pri", primary);
