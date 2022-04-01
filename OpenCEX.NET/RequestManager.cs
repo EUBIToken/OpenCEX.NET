@@ -246,13 +246,13 @@ namespace jessielesbian.OpenCEX{
 
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
 				
-				SafeUint debt = zero;
 				Queue<Order> moddedOrders = new Queue<Order>();
 				Dictionary<ulong, SafeUint> tmpbalances = new Dictionary<ulong, SafeUint>();
 				SafeUint close = null;
 
 				ulong userid = request.GetUserID();
 				request.Debit(selected, userid, amount);
+				request.Credit(output, userid, zero, false);
 				reader = request.sqlCommandFactory.SafeExecuteReader(counter);
 				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
 				if (reader.HasRows)
@@ -297,7 +297,7 @@ namespace jessielesbian.OpenCEX{
 							moddedOrders.Enqueue(other);
 							close = other.price;
 							SafeUint outamt = oldamt1.Sub(instance.Balance);
-							debt = debt.Add(oldamt2.Sub(other.Balance));
+							request.Credit(output, userid, oldamt2.Sub(other.Balance));
 							if (tmpbalances.TryGetValue(other.placedby, out SafeUint temp3))
 							{
 								tmpbalances[other.placedby] = temp3.Add(outamt);
@@ -370,11 +370,6 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				//Credit funds to customers
-				if (!debt.isZero)
-				{
-					request.Credit(output, userid, debt);
-				}
-
 				foreach (KeyValuePair<ulong, SafeUint> keyValuePair in tmpbalances)
 				{
 					request.Credit(selected, keyValuePair.Key, keyValuePair.Value);
