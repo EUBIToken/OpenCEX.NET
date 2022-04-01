@@ -247,11 +247,7 @@ namespace jessielesbian.OpenCEX{
 
 				ulong userid = request.GetUserID();
 				request.Debit(selected, userid, amount);
-
-				reader = request.sqlCommandFactory.SafeExecuteReader(counter);
-
 				
-
 				//Execute order using Uniswap.NET
 				SafeUint debt;
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
@@ -274,6 +270,7 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				//Execute order the traditional way
+				reader = request.sqlCommandFactory.SafeExecuteReader(counter);
 				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
 				if (reader.HasRows)
 				{
