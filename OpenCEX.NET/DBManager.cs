@@ -1,5 +1,7 @@
+using jessielesbian.OpenCEX.SafeMath;
 using MySql.Data.MySqlClient;
 using System;
+using System.Collections.Generic;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SQLCommandFactory : IDisposable
@@ -49,6 +51,14 @@ namespace jessielesbian.OpenCEX{
 				if (commit)
 				{
 					StaticUtils.CheckSafety2(dataReader, "Data reader still open!");
+					foreach(KeyValuePair<string, SafeUint> balanceUpdate in dirtyBalances){
+						//Flush dirty balances
+						string key = balanceUpdate.Key;
+						MySqlCommand command = GetCommand(balanceUpdateCommands[key]);
+						command.Parameters.AddWithValue("@balance", balanceUpdate.Value.ToString());
+						command.Parameters.AddWithValue("@coin", key.Substring(key.IndexOf('_') + 1));
+						command.Prepare();
+					}
 					mySqlTransaction.Commit();
 					mySqlTransaction = null;
 				}
@@ -117,6 +127,57 @@ namespace jessielesbian.OpenCEX{
 					// TODO: free unmanaged resources (unmanaged objects) and override finalizer
 					// TODO: set large fields to null
 					disposedValue = true;
+				}
+			}
+		}
+
+		private readonly Dictionary<string, SafeUint> cachedBalances = new Dictionary<string, SafeUint>();
+		private readonly Dictionary<string, SafeUint> dirtyBalances = new Dictionary<string, SafeUint>();
+		private readonly Dictionary<string, string> balanceUpdateCommands = new Dictionary<string, string>();
+
+		public SafeUint GetBalance(string coin, ulong userid){
+			string key = userid + '_' + coin;
+			SafeUint balance;
+			if (dirtyBalances.TryGetValue(key, out balance))
+			{
+				return balance;
+			}
+			else if(cachedBalances.TryGetValue(key, out balance)){
+				return balance;
+			} else{
+				//Fetch balance from database
+				MySqlCommand command = GetCommand("SELECT Balance FROM Balances WHERE UserID = " + userid + " AND Coin = @coin FOR UPDATE;");
+				command.Parameters.AddWithValue("@coin", coin);
+				command.Prepare();
+				MySqlDataReader reader = SafeExecuteReader(command);
+				
+				if (reader.HasRows)
+				{
+					balance = StaticUtils.GetSafeUint(reader.GetString("Balance"));
+					reader.CheckSingletonResult();
+					balanceUpdateCommands.Add(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;");
+				}
+				else
+				{
+					balance = StaticUtils.zero;
+					balanceUpdateCommands.Add(key, "INSERT INTO Balances (Balance, UserID, Coin) VALUES (@balance, " + userid + ", @coin);");
+				}
+				SafeDestroyReader();
+				cachedBalances.Add(key, balance);
+				return balance;
+			}
+		}
+
+		public void UpdateBalance(string coin, ulong userid, SafeUint balance)
+		{
+			string key = userid + '_' + coin;
+			StaticUtils.CheckSafety(cachedBalances.TryGetValue(key, out SafeUint temp), "Update uncached balance (should not reach here)!");
+			if(balance == temp){
+				dirtyBalances.Remove(key); //Restore original balance
+			} else
+			{
+				if(!dirtyBalances.TryAdd(key, balance)){
+					dirtyBalances[key] = balance;
 				}
 			}
 		}

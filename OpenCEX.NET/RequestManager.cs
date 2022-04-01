@@ -245,23 +245,9 @@ namespace jessielesbian.OpenCEX{
 					request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Misc SET Val = \"" + orderId + "\"WHERE Kei = \"OrderCounter\";");
 				}
 
-				ulong userid = request.GetUserID();
-				request.Debit(selected, userid, amount);
-				
-				//Execute order using Uniswap.NET
-				SafeUint debt;
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
-				SafeUint arbitrageAmount = ComputeProfitMaximizingTrade(price, lpreserve, out bool arbitrageBuy);
-				if(!arbitrageAmount.isZero && arbitrageBuy == buy)
-				{
-					arbitrageAmount = arbitrageAmount.Min(amount);
-					amount = amount.Sub(arbitrageAmount);
-					request.sqlCommandFactory.SwapLP(primary, secondary, userid, arbitrageAmount, buy, lpreserve, false, out debt);
-				} else
-				{
-					debt = zero;
-				}
-
+				ulong userid = request.GetUserID();
+				SafeUint debt = zero;
 				Queue<Order> moddedOrders = new Queue<Order>();
 				Dictionary<ulong, SafeUint> tmpbalances = new Dictionary<ulong, SafeUint>();
 				SafeUint close = null;
@@ -269,7 +255,6 @@ namespace jessielesbian.OpenCEX{
 					goto admitted;
 				}
 
-				//Execute order the traditional way
 				reader = request.sqlCommandFactory.SafeExecuteReader(counter);
 				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
 				if (reader.HasRows)
@@ -280,6 +265,31 @@ namespace jessielesbian.OpenCEX{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
+
+						SafeUint maxout = other.MaxOutput(buy);
+						SafeUint arbitrageAmount = ComputeProfitMaximizingTrade(price, lpreserve, out bool arbitrageBuy).Min(maxout);
+						if(!arbitrageAmount.isZero && arbitrageBuy == buy){
+							//Unbacked flashminting arbitrage - print and burn money in same transaction
+							request.Credit(output, userid, arbitrageAmount, false);
+							lpreserve = request.sqlCommandFactory.SwapLP(primary, secondary, userid, arbitrageAmount, buy, lpreserve, false, out SafeUint output2);
+							maxout = maxout.Min(output2);
+							if(buy){
+								other.Debit(maxout.Mul(ether).Div(other.price));
+							} else{
+								other.Debit(maxout.Mul(other.price).Div(ether), other.price);
+							}
+							if(tmpbalances.TryGetValue(other.placedby, out SafeUint premod2)){
+								tmpbalances[other.placedby] = premod2.Add(maxout);
+							} else{
+								tmpbalances.Add(other.placedby, maxout);
+							}
+							try{
+								request.Debit(output, userid, arbitrageAmount.Add(oldamt2).Sub(other.Balance), false);
+							} catch{
+								throw new SafetyException("Flashmint not repaid (should not reach here)!");
+							}
+							
+						}
 						if (oldamt1.isZero || instance.amount.isZero)
 						{
 							break;
@@ -371,6 +381,9 @@ namespace jessielesbian.OpenCEX{
 				{
 					request.Credit(selected, keyValuePair.Key, keyValuePair.Value);
 				}
+
+				//Flush Uniswap.NET
+				WriteLP(request.sqlCommandFactory, primary, secondary, lpreserve);
 
 				//Update charts (NOTE: this is ported from OpenCEX PHP server)
 				if (close != null)
@@ -509,6 +522,15 @@ namespace jessielesbian.OpenCEX{
 				CheckSafety2(temp > initialAmount, "Negative order size (should not reach here)!");
 				amount = amount.Sub(amt, "Negative order amount (should not reach here)!");
 				totalCost = temp;
+			}
+
+			public SafeUint MaxOutput(bool sell){
+				if(sell)
+				{
+					return Balance.Mul(price).Div(ether);
+				} else{
+					return Balance.Mul(ether).Div(price);
+				}
 			}
 
 			public SafeUint Balance => initialAmount.Sub(totalCost);
