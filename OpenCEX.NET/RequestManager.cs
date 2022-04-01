@@ -220,7 +220,6 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety2(amount < GetSafeUint(GetEnv("MinimumLimit_" + selected)), "Order is smaller than minimum limit order size!");
 				}
 
-
 				//Partially-atomic increment
 				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT Val FROM Misc WHERE Kei = \"OrderCounter\" FOR UPDATE;"));
 				ulong orderId;
@@ -246,16 +245,15 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
-				ulong userid = request.GetUserID();
+				
 				SafeUint debt = zero;
 				Queue<Order> moddedOrders = new Queue<Order>();
 				Dictionary<ulong, SafeUint> tmpbalances = new Dictionary<ulong, SafeUint>();
 				SafeUint close = null;
-				if (amount.isZero){
-					goto admitted;
-				}
 
 				reader = request.sqlCommandFactory.SafeExecuteReader(counter);
+				ulong userid = request.GetUserID();
+				request.Debit(selected, userid, amount);
 				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
 				if (reader.HasRows)
 				{
