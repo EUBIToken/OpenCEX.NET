@@ -184,7 +184,6 @@ namespace jessielesbian.OpenCEX{
 				reserveOut = lpreserve.reserve0;
 			}
 			CheckSafety2(reserveIn.isZero || reserveOut.isZero, "Uniswap.NET: Insufficent liquidity!");
-			sql.Debit(in_token, userid, input);
 
 			SafeUint amountInWithFee = input.Mul(afterfees);
 			SafeUint numerator = amountInWithFee.Mul(reserveOut);
