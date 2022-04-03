@@ -166,7 +166,7 @@ namespace jessielesbian.OpenCEX{
 		/// <summary>
 		/// Swaps tokens using Uniswap.NET
 		/// </summary>
-		public static LPReserve SwapLP(this SQLCommandFactory sql, string pri, string sec, ulong userid, SafeUint input, bool buy, LPReserve lpreserve, bool mutate, out SafeUint output){
+		public static LPReserve SwapLP(this SQLCommandFactory sql, string pri, string sec, ulong userid, SafeUint input, bool buy, bool debit, LPReserve lpreserve, out SafeUint output){
 			CheckSafety2(input.isZero, "Uniswap.NET: Insufficent input amount!");
 			SafeUint reserveIn;
 			SafeUint reserveOut;
@@ -184,16 +184,17 @@ namespace jessielesbian.OpenCEX{
 				reserveOut = lpreserve.reserve0;
 			}
 			CheckSafety2(reserveIn.isZero || reserveOut.isZero, "Uniswap.NET: Insufficent liquidity!");
-			sql.Debit(in_token, userid, input);
+			if(debit){
+				sql.Debit(in_token, userid, input);
+			}
 
 			SafeUint amountInWithFee = input.Mul(afterfees);
 			SafeUint numerator = amountInWithFee.Mul(reserveOut);
 			SafeUint denominator = reserveIn.Mul(thousand).Add(amountInWithFee);
 			output = numerator.Div(denominator);
 			CheckSafety2(output.isZero, "Uniswap.NET: Insufficent output amount!");
+			sql.Credit(out_token, userid, output);
 
-			
-			
 			if (buy)
 			{
 				lpreserve = new LPReserve(lpreserve.reserve0.Add(input), lpreserve.reserve1.Sub(output), lpreserve.totalSupply, false);
@@ -202,11 +203,7 @@ namespace jessielesbian.OpenCEX{
 			{
 				lpreserve = new LPReserve(lpreserve.reserve0.Sub(output), lpreserve.reserve1.Add(input), lpreserve.totalSupply, false);
 			}
-
-			sql.Credit(out_token, userid, output);
-			if (mutate){
-				WriteLP(sql, pri, sec, lpreserve);
-			}
+			WriteLP(sql, pri, sec, lpreserve);
 			
 			return lpreserve;
 		}

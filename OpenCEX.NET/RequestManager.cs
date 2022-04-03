@@ -243,8 +243,6 @@ namespace jessielesbian.OpenCEX{
 				{
 					request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Misc SET Val = \"" + orderId + "\"WHERE Kei = \"OrderCounter\";");
 				}
-
-				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
 				
 				Queue<Order> moddedOrders = new Queue<Order>();
 				Dictionary<ulong, SafeUint> tmpbalances = new Dictionary<ulong, SafeUint>();
@@ -263,39 +261,9 @@ namespace jessielesbian.OpenCEX{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
-
-						
-						SafeUint arbitrageAmount = ComputeProfitMaximizingTrade(price, lpreserve, out bool arbitrageBuy).Min(other.Balance);
-						if(!arbitrageAmount.isZero && arbitrageBuy == buy){
-							//Unbacked flashminting arbitrage - print and burn money in same transaction
-							request.Credit(output, userid, arbitrageAmount, false);
-							lpreserve = request.sqlCommandFactory.SwapLP(primary, secondary, userid, arbitrageAmount, buy, lpreserve, false, out SafeUint output2);
-							SafeUint maxout = other.MaxOutput(buy).Min(output2);
-							if(buy){
-								other.Debit(maxout);
-							} else{
-								other.Debit(maxout.Mul(ether).Div(other.price), other.price);
-							}
-							if(tmpbalances.TryGetValue(other.placedby, out SafeUint premod2)){
-								tmpbalances[other.placedby] = premod2.Add(maxout);
-							} else{
-								tmpbalances.Add(other.placedby, maxout);
-							}
-							request.Credit(output, userid, oldamt2.Sub(other.Balance).Add(output2.Sub(maxout)));
-							try
-							{
-								request.Debit(output, userid, arbitrageAmount, false);
-							} catch{
-								throw new SafetyException("Flashmint not repaid (should not reach here)!");
-							}
-							
-						}
 						if (oldamt1.isZero || instance.amount.isZero)
 						{
 							break;
-						}
-						else if(other.Balance.isZero){
-							continue;
 						}
 						else if (MatchOrders(instance, other, buy))
 						{
@@ -324,6 +292,26 @@ namespace jessielesbian.OpenCEX{
 
 				if (!instance.Balance.isZero)
 				{
+					//Fill the rest of the order with Uniswap.NET
+					LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
+					SafeUint ArbitrageIn = ComputeProfitMaximizingTrade(instance.price, lpreserve, out bool arbitrageBuy);
+					if(!ArbitrageIn.isZero && arbitrageBuy == buy)
+					{
+						SafeUint balance2 = instance.Balance;
+						ArbitrageIn = ArbitrageIn.Min(balance2);
+							
+						//Partial order cancellation
+						if(buy){
+							instance.Debit(ArbitrageIn.Mul(ether).Div(instance.price), instance.price);
+						} else{
+							instance.Debit(ArbitrageIn);
+						}
+
+						//Swap using Uniswap.NET
+						request.sqlCommandFactory.SwapLP(primary, secondary, userid, ArbitrageIn, buy, false, lpreserve, out _);
+					}
+					
+					
 					//We only save the order to database if it's a limit order and it's not fully executed.
 					if (instance.amount.isZero || fillMode == 1)
 					{
@@ -379,9 +367,6 @@ namespace jessielesbian.OpenCEX{
 				{
 					request.Credit(selected, keyValuePair.Key, keyValuePair.Value);
 				}
-
-				//Flush Uniswap.NET
-				WriteLP(request.sqlCommandFactory, primary, secondary, lpreserve);
 
 				//Update charts (NOTE: this is ported from OpenCEX PHP server)
 				if (close != null)
