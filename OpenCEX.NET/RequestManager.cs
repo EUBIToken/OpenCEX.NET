@@ -294,6 +294,9 @@ namespace jessielesbian.OpenCEX{
 						{
 							break;
 						}
+						else if(other.Balance.isZero){
+							continue;
+						}
 						else if (MatchOrders(instance, other, buy))
 						{
 							moddedOrders.Enqueue(other);
