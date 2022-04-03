@@ -2,6 +2,7 @@ using jessielesbian.OpenCEX.SafeMath;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SQLCommandFactory : IDisposable
@@ -56,9 +57,9 @@ namespace jessielesbian.OpenCEX{
 						string key = balanceUpdate.Key;
 						MySqlCommand command = GetCommand(balanceUpdateCommands[key]);
 						command.Parameters.AddWithValue("@balance", balanceUpdate.Value.ToString());
-						command.Parameters.AddWithValue("@coin", key.Substring(key.IndexOf('_') + 1));
+						command.Parameters.AddWithValue("@coin", key.Substring(key.IndexOf('_')));
 						command.Prepare();
-						command.ExecuteNonQuery();
+						command.SafeExecuteNonQuery();
 					}
 					mySqlTransaction.Commit();
 					mySqlTransaction = null;
@@ -190,6 +191,7 @@ namespace jessielesbian.OpenCEX{
 	}
 
 	public static partial class StaticUtils{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void SafeExecuteNonQuery(this MySqlCommand mySqlCommand)
 		{
 			CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
