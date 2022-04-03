@@ -205,7 +205,7 @@ namespace jessielesbian.OpenCEX{
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
 
 			//Redirected Request Methods
-			string[] redirectedRequestMethods = {"create_account", "login", "logout", "withdraw", "load_active_orders", "get_chart"};
+			string[] redirectedRequestMethods = {"create_account", "logout", "withdraw", "load_active_orders", "get_chart"};
 			foreach(string meth in redirectedRequestMethods){
 				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
 			}
@@ -219,6 +219,7 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("balances", GetBalances.instance);
 			requestMethods.Add("client_name", GetUsername.instance);
 			requestMethods.Add("eth_deposit_address", GetEthDepAddr.instance);
+			requestMethods.Add("login", Login.instance);
 
 			//Start threads
 			Thread thread;
@@ -577,9 +578,16 @@ namespace jessielesbian.OpenCEX{
 				}
 				catch (SafetyException e){
 					string error = debug ? e.ToString() : e.Message;
-					Exception inner = e.InnerException;
-					if(!(debug || inner == null)){
-						Console.Error.WriteLine("Unexpected internal server error: " + inner.ToString());
+					if(!debug){
+						Exception inner = e.InnerException;
+						while (inner != null){
+							if(inner is SafetyException){
+								inner = inner.InnerException;
+							} else{
+								Console.Error.WriteLine("Unexpected internal server error: " + e.ToString());
+								break;
+							}
+						}
 					}
 					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(error)));
 				}

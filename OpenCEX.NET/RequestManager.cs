@@ -8,6 +8,7 @@ using jessielesbian.OpenCEX.SafeMath;
 using MySql.Data.MySqlClient;
 using System.Text;
 using System.Numerics;
+using Org.BouncyCastle.Crypto.Generators;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -792,12 +793,12 @@ namespace jessielesbian.OpenCEX{
 			}
 			public override object Execute(Request request)
 			{
-				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.GetCommand("SELECT Username FROM Accounts WHERE UserID = " + request.GetUserID() + ";").ExecuteReader();
+				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.GetCommand("SELECT DepositPrivateKey FROM Accounts WHERE UserID = " + request.GetUserID() + ";").ExecuteReader();
 				object ret;
 				try
 				{
 					CheckSafety(mySqlDataReader.Read(), "Invalid UserID (should not reach here)!", true);
-					ret = mySqlDataReader.GetString("Username");
+					ret = mySqlDataReader.GetString("DepositPrivateKey");
 					mySqlDataReader.CheckSingletonResult();
 				}
 				catch (Exception x)
@@ -821,6 +822,62 @@ namespace jessielesbian.OpenCEX{
 				{
 					ThrowInternal2("Unexpected type while fetching ethereum deposit address (should not reach here)!");
 					return null;
+				}
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
+		private sealed class Login : RequestMethod{
+			public static readonly RequestMethod instance = new Login();
+			private Login(){
+
+			}
+
+			public override object Execute(Request request)
+			{
+				string username;
+				string password;
+				bool remember;
+				{
+					CheckSafety(request.args.TryGetValue("username", out object temp), "Missing username!");
+					username = (string)temp;
+					CheckSafety(request.args.TryGetValue("password", out temp), "Missing password!");
+					password = (string)temp;
+					CheckSafety(request.args.TryGetValue("renember", out temp), "Missing remember!");
+					remember = Convert.ToBoolean(temp);
+				}
+
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("SELECT UserID, Passhash FROM Accounts WHERE Username = @username;");
+				mySqlCommand.Parameters.AddWithValue("@username", username);
+				MySqlDataReader mySqlDataReader = mySqlCommand.ExecuteReader();
+				Exception throws = null;
+				string hash;
+				ulong userid;
+				try{
+					CheckSafety(mySqlDataReader.Read(), "Invalid credentials!");
+					hash = mySqlDataReader.GetString("Passhash");
+					userid = mySqlDataReader.GetUInt64("UserID");
+					mySqlDataReader.CheckSingletonResult();
+				} catch (Exception e){
+					throws = e;
+					hash = null;
+					userid = 0;
+				} finally{
+					mySqlDataReader.Close();
+				}
+
+				if (throws is null)
+				{
+					CheckSafety(OpenBsdBCrypt.CheckPassword(hash, password.ToCharArray()), "Invalid credentials!");
+					return null;
+				}
+				else if(throws is SafetyException){
+					throw throws;
+				} else{
+					throw new SafetyException("Unexpected internal server error while logging in (should not reach here)!", throws);
 				}
 			}
 
