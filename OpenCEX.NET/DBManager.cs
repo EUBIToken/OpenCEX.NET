@@ -58,7 +58,7 @@ namespace jessielesbian.OpenCEX{
 						command.Parameters.AddWithValue("@balance", balanceUpdate.Value.ToString());
 						command.Parameters.AddWithValue("@coin", key.Substring(key.IndexOf('_') + 1));
 						command.Prepare();
-						command.SafeExecuteNonQuery();
+						command.ExecuteNonQuery();
 					}
 					mySqlTransaction.Commit();
 					mySqlTransaction = null;
