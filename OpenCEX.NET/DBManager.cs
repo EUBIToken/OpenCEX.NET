@@ -57,7 +57,7 @@ namespace jessielesbian.OpenCEX{
 						string key = balanceUpdate.Key;
 						MySqlCommand command = GetCommand(balanceUpdateCommands[key]);
 						command.Parameters.AddWithValue("@balance", balanceUpdate.Value.ToString());
-						command.Parameters.AddWithValue("@coin", coins[key]);
+						command.Parameters.AddWithValue("@coin", key.Substring(key.IndexOf('_') + 1));
 						command.Prepare();
 						command.SafeExecuteNonQuery();
 					}
@@ -136,10 +136,9 @@ namespace jessielesbian.OpenCEX{
 		private readonly Dictionary<string, SafeUint> cachedBalances = new Dictionary<string, SafeUint>();
 		private readonly Dictionary<string, SafeUint> dirtyBalances = new Dictionary<string, SafeUint>();
 		private readonly Dictionary<string, string> balanceUpdateCommands = new Dictionary<string, string>();
-		private readonly Dictionary<string, string> coins = new Dictionary<string, string>();
 
 		public SafeUint GetBalance(string coin, ulong userid){
-			string key = userid + '_' + coin;
+			string key = userid + "_" + coin;
 			SafeUint balance;
 			if (dirtyBalances.TryGetValue(key, out balance))
 			{
@@ -164,7 +163,6 @@ namespace jessielesbian.OpenCEX{
 				{
 					balance = StaticUtils.zero;
 					balanceUpdateCommands.Add(key, "INSERT INTO Balances (Balance, UserID, Coin) VALUES (@balance, " + userid + ", @coin);");
-					coins.Add(key, coin);
 				}
 				SafeDestroyReader();
 				cachedBalances.Add(key, balance);
@@ -174,7 +172,7 @@ namespace jessielesbian.OpenCEX{
 
 		public void UpdateBalance(string coin, ulong userid, SafeUint balance)
 		{
-			string key = userid + '_' + coin;
+			string key = userid + "_" + coin;
 			StaticUtils.CheckSafety(cachedBalances.TryGetValue(key, out SafeUint temp), "Update uncached balance (should not reach here)!", true);
 			if(balance == temp){
 				dirtyBalances.Remove(key); //Restore original balance
