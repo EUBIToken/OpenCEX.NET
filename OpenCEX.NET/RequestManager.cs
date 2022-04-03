@@ -295,8 +295,10 @@ namespace jessielesbian.OpenCEX{
 
 				request.sqlCommandFactory.SafeDestroyReader();
 				SafeUint balance2 = instance.Balance;
-				if (!balance2.isZero)
+				if (balance2.isZero)
 				{
+					WriteLP(request.sqlCommandFactory, primary, secondary, lpreserve);
+				} else{
 					//Fill the rest of the order with Uniswap.NET
 					TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, true, lpreserve);
 
