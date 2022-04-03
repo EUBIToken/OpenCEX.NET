@@ -308,7 +308,8 @@ namespace jessielesbian.OpenCEX{
 						}
 
 						//Swap using Uniswap.NET
-						request.sqlCommandFactory.SwapLP(primary, secondary, userid, ArbitrageIn, buy, false, lpreserve, out _);
+						request.sqlCommandFactory.SwapLP(primary, secondary, userid, ArbitrageIn, buy, false, lpreserve, out SafeUint out2);
+						Console.WriteLine("Uniswap Output: " + out2.ToString());
 					}
 					
 					
