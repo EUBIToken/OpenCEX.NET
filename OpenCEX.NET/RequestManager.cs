@@ -281,7 +281,7 @@ namespace jessielesbian.OpenCEX{
 							} else{
 								tmpbalances.Add(other.placedby, maxout);
 							}
-							request.Credit(output, userid, oldamt2.Sub(other.Balance).Add(maxout.Sub(output2)));
+							request.Credit(output, userid, oldamt2.Sub(other.Balance).Add(output2.Sub(maxout)));
 							try
 							{
 								request.Debit(output, userid, arbitrageAmount, false);
