@@ -877,14 +877,9 @@ namespace jessielesbian.OpenCEX{
 					RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
 					randomNumberGenerator.GetBytes(SessionToken);
 					randomNumberGenerator.Dispose();
-					DateTimeOffset dateTime = DateTimeOffset.Now.AddSeconds(remember ? 2592000 : 86400);
 					SHA256 sha256 = SHA256.Create();
-					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + dateTime.ToUnixTimeSeconds() + ");");
-					Cookie cookie = new Cookie("OpenCEX_session", Convert.ToBase64String(SessionToken), "/", CookieOrigin);
-					cookie.Secure = true;
-					cookie.HttpOnly = true;
-					cookie.Expires = dateTime.DateTime;
-					request.httpListenerContext.Response.SetCookie(cookie);
+					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + DateTimeOffset.Now.AddSeconds(2592000).ToUnixTimeSeconds() + ");");
+					request.httpListenerContext.Response.AddHeader("Set-Cookie", "OpenCEX_session=" + WebUtility.UrlEncode(Convert.ToBase64String(SessionToken)) + (remember ? "; Domain=opencex-net-dev.herokuapp.com; Max-Age=2592000; Path=/; SameSite: none" : "; Domain=opencex-net-dev.herokuapp.com; Path=/; SameSite: none"));
 					return null;
 				}
 				else if(throws is SafetyException){
