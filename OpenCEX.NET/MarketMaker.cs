@@ -243,9 +243,12 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 		}
-		private static LPReserve TryArb(this SQLCommandFactory sqlCommandFactory, string primary, string secondary, bool buy, Order instance, bool mutate, LPReserve lpreserve)
+		private static LPReserve TryArb(this SQLCommandFactory sqlCommandFactory, string primary, string secondary, bool buy, Order instance, SafeUint price, bool mutate, LPReserve lpreserve)
 		{
-			SafeUint ArbitrageIn = ComputeProfitMaximizingTrade(instance.price, lpreserve, out bool arbitrageBuy);
+			if(lpreserve.reserve0.isZero || lpreserve.reserve1.isZero){
+				return lpreserve;
+			}
+			SafeUint ArbitrageIn = ComputeProfitMaximizingTrade(price, lpreserve, out bool arbitrageBuy);
 			if (!ArbitrageIn.isZero && arbitrageBuy == buy)
 			{
 
@@ -254,7 +257,7 @@ namespace jessielesbian.OpenCEX{
 				//Partial order cancellation
 				if (buy)
 				{
-					instance.Debit(ArbitrageIn.Mul(ether).Div(instance.price), instance.price);
+					instance.Debit(ArbitrageIn.Mul(ether).Div(price), price);
 				}
 				else
 				{
