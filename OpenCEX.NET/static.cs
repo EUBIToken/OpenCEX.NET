@@ -218,7 +218,7 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("deposit", Deposit.instance);
 			requestMethods.Add("balances", GetBalances.instance);
 			requestMethods.Add("client_name", GetUsername.instance);
-
+			requestMethods.Add("eth_deposit_address", GetEthDepAddr.instance);
 
 			//Start threads
 			Thread thread;
@@ -294,7 +294,7 @@ namespace jessielesbian.OpenCEX{
 				unprocessedRequest.method = name;
 				unprocessedRequest.data = request.args;
 				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
-				httpWebRequest.Headers.Add("Origin", origin);
+				httpWebRequest.Headers.Add("Origin", underlying_origin);
 				byte[] bytes = HttpUtility.UrlEncodeToBytes("[" + JsonConvert.SerializeObject(unprocessedRequest) + "]");
 
 				using (var stream = httpWebRequest.GetRequestStream())
@@ -490,6 +490,7 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private static readonly string origin = GetEnv("Origin");
+		private static readonly string underlying_origin = GetEnv("UnderlyingOrigin");
 		private static readonly int maxEventQueueSize = Convert.ToInt32(GetEnv("MaxEventQueueSize"));
 
 		//The lead server is responsible for deposit finalization.
@@ -578,7 +579,7 @@ namespace jessielesbian.OpenCEX{
 					string error = debug ? e.ToString() : e.Message;
 					Exception inner = e.InnerException;
 					if(!(debug || inner == null)){
-						Console.WriteLine("Unexpected internal server error: " + inner.ToString());
+						Console.Error.WriteLine("Unexpected internal server error: " + inner.ToString());
 					}
 					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(error)));
 				}
@@ -588,7 +589,7 @@ namespace jessielesbian.OpenCEX{
 						error = "Unexpected internal server error: " + e.ToString();
 					} else{
 						error = "Unexpected internal server error!";
-						Console.WriteLine("Unexpected internal server error: " + e.ToString());
+						Console.Error.WriteLine("Unexpected internal server error: " + e.ToString());
 					}
 					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(error)));
 				}
@@ -603,6 +604,12 @@ namespace jessielesbian.OpenCEX{
 				
 			}
 		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void ThrowInternal2(string reason){
+			throw new SafetyException(reason, new Exception(reason));
+		}
+
 		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x" };
 	}
 }

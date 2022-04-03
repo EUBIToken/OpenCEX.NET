@@ -701,11 +701,6 @@ namespace jessielesbian.OpenCEX{
 						CheckSafety(balances.TryAdd(mySqlDataReader.GetString("Coin"), mySqlDataReader.GetString("Balance")), "Corrupted balances table (should not reach here)!", true);
 					}
 
-					foreach(string token in listedTokensHint){
-						if(!balances.ContainsKey(token)){
-							balances.Add(token, "0");
-						}
-					}
 					ret = balances;
 				} catch (Exception x){
 					ret = x;
@@ -713,10 +708,30 @@ namespace jessielesbian.OpenCEX{
 					mySqlDataReader.Close();
 				}
 
-				if(ret is Exception e){
+				if (ret is Exception e)
+				{
 					throw new SafetyException("Unexpected internal server error while fetching user balance!", e);
-				} else{
-					return ret;
+				}
+				else if (ret is Dictionary<string, string> balances)
+				{
+					List<string[]> returning = new List<string[]>();
+					foreach (string token in listedTokensHint)
+					{
+						if (balances.TryGetValue(token, out string bal))
+						{
+							returning.Add(new string[] { token, bal });
+						}
+						else
+						{
+							returning.Add(new string[] { token, "0" });
+						}
+					}
+					return returning.ToArray();
+				}
+				else
+				{
+					ThrowInternal2("Unexpected type while fetching user balance (should not reach here)!");
+					return null;
 				}
 				
 			}
@@ -753,11 +768,59 @@ namespace jessielesbian.OpenCEX{
 
 				if (ret is Exception e)
 				{
-					throw new SafetyException("Unexpected internal server error while fetching username!", e);
+					throw new SafetyException("Unexpected internal server error while fetching username (should not reach here)!", e);
+				}
+				else if(ret is string)
+				{
+					return ret;
+				} else{
+					ThrowInternal2("Unexpected type while fetching user balance (should not reach here)!");
+					return null;
+				}
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
+
+		private sealed class GetEthDepAddr : RequestMethod{
+			public static readonly GetEthDepAddr instance = new GetEthDepAddr();
+			private GetEthDepAddr(){
+				
+			}
+			public override object Execute(Request request)
+			{
+				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.GetCommand("SELECT Username FROM Accounts WHERE UserID = " + request.GetUserID() + ";").ExecuteReader();
+				object ret;
+				try
+				{
+					CheckSafety(mySqlDataReader.Read(), "Invalid UserID (should not reach here)!", true);
+					ret = mySqlDataReader.GetString("Username");
+					mySqlDataReader.CheckSingletonResult();
+				}
+				catch (Exception x)
+				{
+					ret = x;
+				}
+				finally
+				{
+					mySqlDataReader.Close();
+				}
+
+				if (ret is Exception e)
+				{
+					throw new SafetyException("Unexpected internal server error while fetching ethereum deposit address!", e);
+				}
+				else if (ret is string str)
+				{
+					return BlockchainManager.MintME.GetWalletManager(str).address;
 				}
 				else
 				{
-					return ret;
+					ThrowInternal2("Unexpected type while fetching ethereum deposit address (should not reach here)!");
+					return null;
 				}
 			}
 
