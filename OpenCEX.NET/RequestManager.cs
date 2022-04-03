@@ -254,6 +254,7 @@ namespace jessielesbian.OpenCEX{
 				ulong userid = request.GetUserID();
 				request.Debit(selected, userid, amount);
 				request.Credit(output, userid, zero);
+				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
 				reader = request.sqlCommandFactory.SafeExecuteReader(counter);
 				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
 				if (reader.HasRows)
@@ -262,7 +263,7 @@ namespace jessielesbian.OpenCEX{
 					while (read)
 					{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
-						TryArb(request.sqlCommandFactory, primary, secondary, sell, other);
+						lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, sell, other, false, lpreserve);
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
 						if (oldamt1.isZero || instance.amount.isZero)
@@ -297,7 +298,7 @@ namespace jessielesbian.OpenCEX{
 				if (!balance2.isZero)
 				{
 					//Fill the rest of the order with Uniswap.NET
-					TryArb(request.sqlCommandFactory, primary, secondary, buy, instance);
+					TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, true, lpreserve);
 
 					//Tail safety check
 					SafeUint amount3;

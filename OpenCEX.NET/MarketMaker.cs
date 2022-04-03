@@ -166,7 +166,7 @@ namespace jessielesbian.OpenCEX{
 		/// <summary>
 		/// Swaps tokens using Uniswap.NET
 		/// </summary>
-		public static LPReserve SwapLP(this SQLCommandFactory sql, string pri, string sec, ulong userid, SafeUint input, bool buy, bool debit, LPReserve lpreserve, out SafeUint output){
+		public static LPReserve SwapLP(this SQLCommandFactory sql, string pri, string sec, ulong userid, SafeUint input, bool buy, bool mutate, LPReserve lpreserve, out SafeUint output){
 			CheckSafety2(input.isZero, "Uniswap.NET: Insufficent input amount!");
 			SafeUint reserveIn;
 			SafeUint reserveOut;
@@ -184,9 +184,7 @@ namespace jessielesbian.OpenCEX{
 				reserveOut = lpreserve.reserve0;
 			}
 			CheckSafety2(reserveIn.isZero || reserveOut.isZero, "Uniswap.NET: Insufficent liquidity!");
-			if(debit){
-				sql.Debit(in_token, userid, input);
-			}
+			sql.Debit(in_token, userid, input);
 
 			SafeUint amountInWithFee = input.Mul(afterfees);
 			SafeUint numerator = amountInWithFee.Mul(reserveOut);
@@ -203,7 +201,10 @@ namespace jessielesbian.OpenCEX{
 			{
 				lpreserve = new LPReserve(lpreserve.reserve0.Sub(output), lpreserve.reserve1.Add(input), lpreserve.totalSupply, false);
 			}
-			WriteLP(sql, pri, sec, lpreserve);
+			if(mutate)
+			{
+				WriteLP(sql, pri, sec, lpreserve);
+			}
 			
 			return lpreserve;
 		}
@@ -243,9 +244,8 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 		}
-		private static void TryArb(this SQLCommandFactory sqlCommandFactory, string primary, string secondary, bool buy, Order instance)
+		private static LPReserve TryArb(this SQLCommandFactory sqlCommandFactory, string primary, string secondary, bool buy, Order instance, bool mutate, LPReserve lpreserve)
 		{
-			LPReserve lpreserve = new LPReserve(sqlCommandFactory, primary, secondary);
 			SafeUint ArbitrageIn = ComputeProfitMaximizingTrade(instance.price, lpreserve, out bool arbitrageBuy);
 			if (!ArbitrageIn.isZero && arbitrageBuy == buy)
 			{
@@ -263,7 +263,9 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				//Swap using Uniswap.NET
-				sqlCommandFactory.SwapLP(primary, secondary, instance.placedby, ArbitrageIn, buy, false, lpreserve, out _);
+				return sqlCommandFactory.SwapLP(primary, secondary, instance.placedby, ArbitrageIn, buy, mutate, lpreserve, out _);
+			} else{
+				return lpreserve;
 			}
 		}
 	}
