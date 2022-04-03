@@ -331,6 +331,8 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
+		public static readonly string CookieOrigin = GetEnv("CookieOrigin");
+
 		private static readonly ConcurrentQueue<ConcurrentJob> concurrentJobs = new ConcurrentQueue<ConcurrentJob>();
 
 		private static readonly PooledManualResetEvent manualResetEventSlim = PooledManualResetEvent.GetInstance(false);

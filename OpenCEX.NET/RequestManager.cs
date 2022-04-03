@@ -9,6 +9,7 @@ using MySql.Data.MySqlClient;
 using System.Text;
 using System.Numerics;
 using Org.BouncyCastle.Crypto.Generators;
+using System.Security.Cryptography;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -872,6 +873,18 @@ namespace jessielesbian.OpenCEX{
 				if (throws is null)
 				{
 					CheckSafety(OpenBsdBCrypt.CheckPassword(hash, password.ToCharArray()), "Invalid credentials!");
+					byte[] SessionToken = new byte[64];
+					RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
+					randomNumberGenerator.GetBytes(SessionToken);
+					randomNumberGenerator.Dispose();
+					DateTimeOffset dateTime = DateTimeOffset.Now.AddSeconds(remember ? 2592000 : 86400);
+					SHA256 sha256 = SHA256.Create();
+					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + dateTime.ToUnixTimeSeconds() + ");");
+					Cookie cookie = new Cookie("OpenCEX_session", Convert.ToBase64String(SessionToken), "/", CookieOrigin);
+					cookie.Secure = true;
+					cookie.HttpOnly = true;
+					cookie.Expires = dateTime.DateTime;
+					request.httpListenerContext.Response.SetCookie(cookie);
 					return null;
 				}
 				else if(throws is SafetyException){
