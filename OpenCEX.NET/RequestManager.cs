@@ -684,5 +684,87 @@ namespace jessielesbian.OpenCEX{
 				return true;
 			}
 		}
+
+		private sealed class GetBalances : RequestMethod
+		{
+			public static readonly RequestMethod instance = new GetBalances();
+			private GetBalances(){
+				
+			}
+			public override object Execute(Request request)
+			{
+				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.GetCommand("SELECT Coin, Balance FROM Balances WHERE UserID = " + request.GetUserID() + " ORDER BY Coin DESC;").ExecuteReader();
+				object ret;
+				try{
+					Dictionary<string, string> balances = new Dictionary<string, string>();
+					while(mySqlDataReader.Read()){
+						CheckSafety(balances.TryAdd(mySqlDataReader.GetString("Coin"), mySqlDataReader.GetString("Balance")), "Corrupted balances table (should not reach here)!", true);
+					}
+
+					foreach(string token in listedTokensHint){
+						if(!balances.ContainsKey(token)){
+							balances.Add(token, "0");
+						}
+					}
+					ret = balances;
+				} catch (Exception x){
+					ret = x;
+				} finally{
+					mySqlDataReader.Close();
+				}
+
+				if(ret is Exception e){
+					throw new SafetyException("Unexpected internal server error while fetching user balance!", e);
+				} else{
+					return ret;
+				}
+				
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
+
+		private sealed class GetUsername : RequestMethod{
+			public static readonly GetUsername instance = new GetUsername();
+			private GetUsername(){
+				
+			}
+			public override object Execute(Request request)
+			{
+				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.GetCommand("SELECT Username FROM Accounts WHERE UserID = " + request.GetUserID() + ";").ExecuteReader();
+				object ret;
+				try
+				{
+					CheckSafety(mySqlDataReader.Read(), "Invalid UserID (should not reach here)!", true);
+					ret = mySqlDataReader.GetString("Username");
+					mySqlDataReader.CheckSingletonResult();
+				}
+				catch (Exception x)
+				{
+					ret = x;
+				}
+				finally
+				{
+					mySqlDataReader.Close();
+				}
+
+				if (ret is Exception e)
+				{
+					throw new SafetyException("Unexpected internal server error while fetching username!", e);
+				}
+				else
+				{
+					return ret;
+				}
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
 	}
 }

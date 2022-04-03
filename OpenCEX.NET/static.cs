@@ -205,7 +205,7 @@ namespace jessielesbian.OpenCEX{
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
 
 			//Redirected Request Methods
-			string[] redirectedRequestMethods = {"create_account", "login", "flush", "client_name", "logout", "balances", "eth_deposit_address", "withdraw", "load_active_orders", "get_chart"};
+			string[] redirectedRequestMethods = {"create_account", "login", "logout", "eth_deposit_address", "withdraw", "load_active_orders", "get_chart"};
 			foreach(string meth in redirectedRequestMethods){
 				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
 			}
@@ -216,6 +216,9 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("place_order", PlaceOrder.instance);
 			requestMethods.Add("bid_ask", BidAsk.instance);
 			requestMethods.Add("deposit", Deposit.instance);
+			requestMethods.Add("balances", GetBalances.instance);
+			requestMethods.Add("client_name", GetUsername.instance);
+
 
 			//Start threads
 			Thread thread;
@@ -600,5 +603,6 @@ namespace jessielesbian.OpenCEX{
 				
 			}
 		}
+		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x" };
 	}
 }
