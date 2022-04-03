@@ -150,11 +150,7 @@ namespace jessielesbian.OpenCEX{
 				ulong safeheight = walletManager.SafeBlockheight;
 				if (safeheight == 0){
 					if(!Multiserver){
-						lock(depositBlocker){
-							if(!depositBlocker.IsSet){
-								depositBlocker.Set();
-							}
-						}
+						depositBlocker.Set();
 					}
 					return null; //Later
 				}
