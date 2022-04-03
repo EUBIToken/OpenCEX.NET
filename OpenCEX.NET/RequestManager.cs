@@ -264,25 +264,27 @@ namespace jessielesbian.OpenCEX{
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
 
-						SafeUint maxout = other.MaxOutput(buy);
-						SafeUint arbitrageAmount = ComputeProfitMaximizingTrade(price, lpreserve, out bool arbitrageBuy).Min(maxout);
+						
+						SafeUint arbitrageAmount = ComputeProfitMaximizingTrade(price, lpreserve, out bool arbitrageBuy).Min(other.Balance);
 						if(!arbitrageAmount.isZero && arbitrageBuy == buy){
 							//Unbacked flashminting arbitrage - print and burn money in same transaction
 							request.Credit(output, userid, arbitrageAmount, false);
 							lpreserve = request.sqlCommandFactory.SwapLP(primary, secondary, userid, arbitrageAmount, buy, lpreserve, false, out SafeUint output2);
-							maxout = maxout.Min(output2);
+							SafeUint maxout = other.MaxOutput(buy).Min(output2);
 							if(buy){
 								other.Debit(maxout);
 							} else{
-								other.Debit(maxout, other.price);
+								other.Debit(maxout.Mul(ether).Div(other.price), other.price);
 							}
 							if(tmpbalances.TryGetValue(other.placedby, out SafeUint premod2)){
 								tmpbalances[other.placedby] = premod2.Add(maxout);
 							} else{
 								tmpbalances.Add(other.placedby, maxout);
 							}
-							try{
-								request.Debit(output, userid, arbitrageAmount.Add(oldamt2).Sub(other.Balance), false);
+							request.Credit(output, userid, oldamt2.Sub(other.Balance).Add(maxout.Sub(output2)));
+							try
+							{
+								request.Debit(output, userid, arbitrageAmount, false);
 							} catch{
 								throw new SafetyException("Flashmint not repaid (should not reach here)!");
 							}
