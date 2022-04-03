@@ -194,10 +194,12 @@ namespace jessielesbian.OpenCEX{
 
 				string selected;
 				string output;
+				bool sell;
 				SafeUint amt2;
 				MySqlCommand counter;
 				if (buy)
 				{
+					sell = false;
 					selected = primary;
 					output = secondary;
 					amt2 = amount.Mul(ether).Div(price);
@@ -205,6 +207,7 @@ namespace jessielesbian.OpenCEX{
 				}
 				else
 				{
+					sell = true;
 					selected = secondary;
 					output = primary;
 					amt2 = amount;
@@ -259,6 +262,7 @@ namespace jessielesbian.OpenCEX{
 					while (read)
 					{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
+						TryArb(request.sqlCommandFactory, primary, secondary, sell, other);
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
 						if (oldamt1.isZero || instance.amount.isZero)
@@ -290,26 +294,10 @@ namespace jessielesbian.OpenCEX{
 
 				request.sqlCommandFactory.SafeDestroyReader();
 				SafeUint balance2 = instance.Balance;
-				if (!instance.Balance.isZero)
+				if (!balance2.isZero)
 				{
 					//Fill the rest of the order with Uniswap.NET
-					LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
-					SafeUint ArbitrageIn = ComputeProfitMaximizingTrade(instance.price, lpreserve, out bool arbitrageBuy);
-					if (!ArbitrageIn.isZero && arbitrageBuy == buy)
-					{
-						
-						ArbitrageIn = ArbitrageIn.Min(balance2);
-
-						//Partial order cancellation
-						if (buy) {
-							instance.Debit(ArbitrageIn.Mul(ether).Div(instance.price), instance.price);
-						} else {
-							instance.Debit(ArbitrageIn);
-						}
-
-						//Swap using Uniswap.NET
-						request.sqlCommandFactory.SwapLP(primary, secondary, userid, ArbitrageIn, buy, false, lpreserve, out SafeUint out2);
-					}
+					TryArb(request.sqlCommandFactory, primary, secondary, buy, instance);
 
 					//Tail safety check
 					SafeUint amount3;

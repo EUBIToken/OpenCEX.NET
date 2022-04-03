@@ -243,5 +243,28 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 		}
+		private static void TryArb(this SQLCommandFactory sqlCommandFactory, string primary, string secondary, bool buy, Order instance)
+		{
+			LPReserve lpreserve = new LPReserve(sqlCommandFactory, primary, secondary);
+			SafeUint ArbitrageIn = ComputeProfitMaximizingTrade(instance.price, lpreserve, out bool arbitrageBuy);
+			if (!ArbitrageIn.isZero && arbitrageBuy == buy)
+			{
+
+				ArbitrageIn = ArbitrageIn.Min(instance.Balance);
+
+				//Partial order cancellation
+				if (buy)
+				{
+					instance.Debit(ArbitrageIn.Mul(ether).Div(instance.price), instance.price);
+				}
+				else
+				{
+					instance.Debit(ArbitrageIn);
+				}
+
+				//Swap using Uniswap.NET
+				sqlCommandFactory.SwapLP(primary, secondary, instance.placedby, ArbitrageIn, buy, false, lpreserve, out _);
+			}
+		}
 	}
 }
