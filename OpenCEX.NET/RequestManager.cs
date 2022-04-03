@@ -289,30 +289,39 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				request.sqlCommandFactory.SafeDestroyReader();
-
+				SafeUint balance2 = instance.Balance;
 				if (!instance.Balance.isZero)
 				{
 					//Fill the rest of the order with Uniswap.NET
 					LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
 					SafeUint ArbitrageIn = ComputeProfitMaximizingTrade(instance.price, lpreserve, out bool arbitrageBuy);
-					if(!ArbitrageIn.isZero && arbitrageBuy == buy)
+					if (!ArbitrageIn.isZero && arbitrageBuy == buy)
 					{
-						SafeUint balance2 = instance.Balance;
+						
 						ArbitrageIn = ArbitrageIn.Min(balance2);
-							
+
 						//Partial order cancellation
-						if(buy){
+						if (buy) {
 							instance.Debit(ArbitrageIn.Mul(ether).Div(instance.price), instance.price);
-						} else{
+						} else {
 							instance.Debit(ArbitrageIn);
 						}
 
 						//Swap using Uniswap.NET
 						request.sqlCommandFactory.SwapLP(primary, secondary, userid, ArbitrageIn, buy, false, lpreserve, out SafeUint out2);
-						Console.WriteLine("Uniswap Output: " + out2.ToString());
 					}
-					
-					
+
+					//Tail safety check
+					SafeUint amount3;
+					balance2 = instance.Balance;
+					if (buy){
+						amount3 = balance2.Mul(ether).Div(price);
+					} else{
+						amount3 = balance2;
+					}
+					CheckSafety2(amount3 > instance.amount, "Corrupted order (should not reach here)!", true);
+
+
 					//We only save the order to database if it's a limit order and it's not fully executed.
 					if (instance.amount.isZero || fillMode == 1)
 					{
@@ -326,7 +335,7 @@ namespace jessielesbian.OpenCEX{
 					}
 					StringBuilder stringBuilder = new StringBuilder("INSERT INTO Orders (Pri, Sec, Price, Amount, InitialAmount, TotalCost, Id, PlacedBy, Buy) VALUES (@primary, @secondary, \"");
 					stringBuilder.Append(instance.price.ToString() + "\", \"");
-					stringBuilder.Append(instance.amount.ToString() + "\", \"");
+					stringBuilder.Append(amount3.ToString() + "\", \"");
 					stringBuilder.Append(amount.ToString() + "\", \"");
 					stringBuilder.Append(instance.totalCost.ToString() + "\", \"");
 					stringBuilder.Append(instance.id + "\", \"");
@@ -441,7 +450,7 @@ namespace jessielesbian.OpenCEX{
 					prepared.Parameters.AddWithValue("@primary", primary);
 					prepared.Parameters.AddWithValue("@secondary", secondary);
 					prepared.Prepare();
-					CheckSafety(prepared.ExecuteNonQuery() == 1, "Excessive write effect!");
+					CheckSafety(prepared.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
 				}
 
 				return null;
@@ -472,7 +481,7 @@ namespace jessielesbian.OpenCEX{
 					second.Debit(ret, second.price);
 				}
 			}
-			CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!");
+			CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!", true);
 			return true;
 		}
 
@@ -503,8 +512,8 @@ namespace jessielesbian.OpenCEX{
 				} else{
 					temp = totalCost.Add(amt.Mul(price).Div(ether));
 				}
-				CheckSafety2(temp > initialAmount, "Negative order size (should not reach here)!");
-				amount = amount.Sub(amt, "Negative order amount (should not reach here)!");
+				CheckSafety2(temp > initialAmount, "Negative order size (should not reach here)!", true);
+				amount = amount.Sub(amt, "Negative order amount (should not reach here)!", true);
 				totalCost = temp;
 			}
 
@@ -662,7 +671,7 @@ namespace jessielesbian.OpenCEX{
 					request.Debit(gastoken, userid, gas.Mul(gasPrice), false); //Debit gas token to pay for gas
 					txid = walletManager.SendEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, abi);
 				} else{
-					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!");
+					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!", false);
 					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
 					txid = walletManager.SendEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
 				}
@@ -672,7 +681,7 @@ namespace jessielesbian.OpenCEX{
 				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"" + txid + "_" + amount.ToString() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@token", token);
 				mySqlCommand.Prepare();
-				CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect!");
+				CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
 
 				//NOTE: the deposits manager will do the rest of the werk for us.
 				return null;

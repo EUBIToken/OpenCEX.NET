@@ -101,7 +101,7 @@ namespace jessielesbian.OpenCEX{
 		/// Executes query and restricts effect to single row
 		/// </summary>
 		public void SafeExecuteNonQuery(string query){
-			StaticUtils.CheckSafety(GetCommand(query).ExecuteNonQuery() == 1, "Excessive write effect!");
+			StaticUtils.CheckSafety(GetCommand(query).ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
 		}
 
 		public void BeginTransaction()
@@ -171,7 +171,7 @@ namespace jessielesbian.OpenCEX{
 		public void UpdateBalance(string coin, ulong userid, SafeUint balance)
 		{
 			string key = userid + '_' + coin;
-			StaticUtils.CheckSafety(cachedBalances.TryGetValue(key, out SafeUint temp), "Update uncached balance (should not reach here)!");
+			StaticUtils.CheckSafety(cachedBalances.TryGetValue(key, out SafeUint temp), "Update uncached balance (should not reach here)!", true);
 			if(balance == temp){
 				dirtyBalances.Remove(key); //Restore original balance
 			} else
@@ -191,7 +191,7 @@ namespace jessielesbian.OpenCEX{
 	public static partial class StaticUtils{
 		public static void SafeExecuteNonQuery(this MySqlCommand mySqlCommand)
 		{
-			CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect!");
+			CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
 		}
 	}
 }

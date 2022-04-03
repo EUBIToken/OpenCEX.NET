@@ -145,7 +145,7 @@ namespace jessielesbian.OpenCEX
 			Task<HexBigInteger> task = ethApiContractService.GasPrice.SendRequestAsync();
 			task.GetAwaiter().OnCompleted(manualResetEventSlim.Set);
 			manualResetEventSlim.Wait();
-			StaticUtils.CheckSafety(task.IsCompleted, "Blockchain request not completed (should not reach here)!");
+			StaticUtils.CheckSafety(task.IsCompleted, "Blockchain request not completed (should not reach here)!", true);
 			Exception e = task.Exception;
 			if (e == null)
 			{

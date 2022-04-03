@@ -5,6 +5,7 @@ using System.Linq;
 using System;
 using System.Globalization;
 using Nethereum.Hex.HexTypes;
+using System.Runtime.CompilerServices;
 
 namespace jessielesbian.OpenCEX
 {
@@ -67,42 +68,54 @@ namespace jessielesbian.OpenCEX.SafeMath{
 		public readonly bool isZero;
 		public readonly bool isOne;
 
-		public SafeUint(BigInteger bigInteger, string msg = "SafeMath: Negative unsigned big integer!")
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public SafeUint(BigInteger bigInteger, string msg = "SafeMath: Negative unsigned big integer!", bool critical = false)
 		{
-			StaticUtils.CheckSafety2(bigInteger.Sign < 0, msg);
+			StaticUtils.CheckSafety2(bigInteger.Sign < 0, msg, critical);
 			this.bigInteger = bigInteger;
 			isZero = bigInteger.IsZero;
 			isOne = bigInteger.IsOne;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public SafeUint Add(SafeUint other){
-			return new SafeUint(bigInteger + other.bigInteger, "SafeMath: Unreachable Add Error (should not reach here)!");
+			return new SafeUint(bigInteger + other.bigInteger, "SafeMath: Unreachable Add Error (should not reach here)!", true);
 		}
 
-		public SafeUint Sub(SafeUint other, string msg = "SafeMath: Subtraction Overflow!")
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public SafeUint Sub(SafeUint other)
 		{
-			return new SafeUint(bigInteger - other.bigInteger, msg);
+			return new SafeUint(bigInteger - other.bigInteger, "SafeMath: Unexpected subtraction overflow (should not reach here)!", true);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public SafeUint Sub(SafeUint other, string msg, bool critical)
+		{
+			return new SafeUint(bigInteger - other.bigInteger, msg, critical);
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public SafeUint Mul(SafeUint other)
 		{
-			return new SafeUint(bigInteger * other.bigInteger, "SafeMath: Unreachable Multiply Error (should not reach here)!");
+			return new SafeUint(bigInteger * other.bigInteger, "SafeMath: Unreachable Multiply Error (should not reach here)!", true);
 		}
 
-		public SafeUint Div(SafeUint other, string msg = "SafeMath: Divide by zero!")
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public SafeUint Div(SafeUint other)
 		{
-			StaticUtils.CheckSafety2(other.isZero, msg);
+			StaticUtils.CheckSafety2(other.isZero, "Unexpected division by zero (should not reach here)!", true);
 			BigInteger b = bigInteger / other.bigInteger;
-			return new SafeUint(b, "SafeMath: Unreachable Divide Error (should not reach here)!");
+			return new SafeUint(b, "SafeMath: Unreachable Divide Error (should not reach here)!", true);
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public SafeUint Mod(SafeUint other, string msg = "SafeMath: Modulo by zero!")
 		{
 			StaticUtils.CheckSafety2(other.isZero, msg);
 			BigInteger b = bigInteger % other.bigInteger;
-			return new SafeUint(b, "SafeMath: Unreachable Modulo Error (should not reach here)!");
+			return new SafeUint(b, "SafeMath: Unreachable Modulo Error (should not reach here)!", true);
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public SafeUint Max(SafeUint other){
 			if(bigInteger > other.bigInteger){
 				return this;
@@ -111,6 +124,7 @@ namespace jessielesbian.OpenCEX.SafeMath{
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public SafeUint Min(SafeUint other)
 		{
 			if (bigInteger < other.bigInteger)
@@ -123,16 +137,19 @@ namespace jessielesbian.OpenCEX.SafeMath{
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool operator >(SafeUint x, SafeUint y)
 		{
 			return x.bigInteger > y.bigInteger;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool operator <(SafeUint x, SafeUint y)
 		{
 			return x.bigInteger < y.bigInteger;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool operator ==(SafeUint x, SafeUint y)
 		{
 			if(x is null && y is null){
@@ -147,11 +164,13 @@ namespace jessielesbian.OpenCEX.SafeMath{
 			
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool operator !=(SafeUint x, SafeUint y)
 		{
 			return !(x == y);
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public override bool Equals(object obj)
 		{
 			if(obj is SafeUint safeUint){
@@ -161,11 +180,13 @@ namespace jessielesbian.OpenCEX.SafeMath{
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public override string ToString()
 		{
 			return bigInteger.ToString();
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public override int GetHashCode()
 		{
 			return bigInteger.GetHashCode();

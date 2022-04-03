@@ -119,7 +119,7 @@ namespace jessielesbian.OpenCEX{
 			SafeUint liquidity;
 			if (totalSupply.isZero)
 			{
-				liquidity = amount0.Mul(amount1).Sqrt().Sub(thousand, "Uniswap.NET: Insufficent liquidity minted!");
+				liquidity = amount0.Mul(amount1).Sqrt().Sub(thousand, "Uniswap.NET: Insufficent liquidity minted!", false);
 			}
 			else
 			{
@@ -139,9 +139,9 @@ namespace jessielesbian.OpenCEX{
 		public static LPReserve BurnLP(this SQLCommandFactory sql, string pri, string sec, SafeUint amount, ulong to, LPReserve lpreserve)
 		{
 			CheckSafety2(lpreserve.insert, "Uniswap.NET: Burn from empty pool!");
-			SafeUint remainingTotalSupply = lpreserve.totalSupply.Sub(amount, "Uniswap.NET: Burn exceeds total supply!");
 			string name = "LP_" + pri.Replace("_", "__") + sec;
 			sql.Debit(name, to, amount, false);
+			SafeUint remainingTotalSupply = lpreserve.totalSupply.Sub(amount, "Uniswap.NET: Burn exceeds total supply (should not reach here)!", true);
 
 			SafeUint out0 = lpreserve.reserve0.Mul(amount).Div(lpreserve.totalSupply);
 			SafeUint out1 = lpreserve.reserve1.Mul(amount).Div(lpreserve.totalSupply);

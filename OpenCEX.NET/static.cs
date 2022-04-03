@@ -13,6 +13,7 @@ using System.Text;
 using Newtonsoft.Json.Linq;
 using System.Web;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SafetyException : Exception
@@ -69,38 +70,67 @@ namespace jessielesbian.OpenCEX{
 		public static void CheckSingletonResult(this MySqlDataReader mySqlDataReader){
 			if(mySqlDataReader.NextResult()){
 				mySqlDataReader.Close();
-				throw new SafetyException("Unexpected trailing data!");
+				throw new SafetyException("Unexpected trailing data (should not reach here)!");
 			}
 		}
 
 		private static readonly System.Collections.IDictionary config = Environment.GetEnvironmentVariables();
-		public static void CheckSafety(bool status, string message = "An unknown error have occoured!"){
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void CheckSafety(bool status, string message = "An unknown error have occoured!", bool critical = false){
 			if(!status){
-				throw new SafetyException(message);
+				if(critical){
+					throw new Exception(message);
+				} else{
+					throw new SafetyException(message);
+				}
 			}
 		}
 
-		public static void CheckSafety2(bool status, string message = "An unknown error have occoured!")
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void CheckSafety2(bool status, string message = "An unknown error have occoured!", bool critical = false)
 		{
 			if (status)
 			{
-				throw new SafetyException(message);
+				if (critical)
+				{
+					throw new Exception(message);
+				}
+				else
+				{
+					throw new SafetyException(message);
+				}
 			}
 		}
 
-		public static void CheckSafety(object obj, string message = "An unknown error have occoured!")
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void CheckSafety(object obj, string message = "An unknown error have occoured!", bool critical = false)
 		{
 			if (obj == null)
 			{
-				throw new SafetyException(message);
+				if (critical)
+				{
+					throw new Exception(message);
+				}
+				else
+				{
+					throw new SafetyException(message);
+				}
 			}
 		}
 
-		public static void CheckSafety2(object obj, string message = "An unknown error have occoured!")
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void CheckSafety2(object obj, string message = "An unknown error have occoured!", bool critical = false)
 		{
 			if (obj != null)
 			{
-				throw new SafetyException(message);
+				if (critical)
+				{
+					throw new Exception(message);
+				}
+				else
+				{
+					throw new SafetyException(message);
+				}
 			}
 		}
 
@@ -213,7 +243,7 @@ namespace jessielesbian.OpenCEX{
 			task.GetAwaiter().OnCompleted(manualResetEventSlim.Set);
 			manualResetEventSlim.Wait();
 			manualResetEventSlim.Dispose();
-			CheckSafety(task.IsCompleted, "Async task not completed (should not reach here)!");
+			CheckSafety(task.IsCompleted, "Async task not completed (should not reach here)!", true);
 			Exception e = task.Exception;
 			if (e == null)
 			{
@@ -231,7 +261,7 @@ namespace jessielesbian.OpenCEX{
 			task.GetAwaiter().OnCompleted(manualResetEventSlim.Set);
 			manualResetEventSlim.Wait();
 			manualResetEventSlim.Dispose();
-			CheckSafety(task.IsCompleted, "Async task not completed (should not reach here)!");
+			CheckSafety(task.IsCompleted, "Async task not completed (should not reach here)!", true);
 			Exception e = task.Exception;
 			if (e != null)
 			{

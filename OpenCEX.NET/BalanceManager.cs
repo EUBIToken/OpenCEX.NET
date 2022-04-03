@@ -12,7 +12,7 @@ namespace jessielesbian.OpenCEX{
 			if(credit){
 				balance = balance.Add(amount);
 			} else{
-				balance = balance.Sub(amount, "Insufficent balance!");
+				balance = balance.Sub(amount, "Insufficent balance!", false);
 			}
 			sqlCommandFactory.UpdateBalance(coin, userid, balance);
 		}
