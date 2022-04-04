@@ -1075,21 +1075,20 @@ namespace jessielesbian.OpenCEX{
 			}
 			public override object Execute(Request request)
 			{
-				object[] buffer = new object[7];
 				Queue<object[]> objects = new Queue<object[]>();
 				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.GetCommand("SELECT Pri, Sec, Price, InitialAmount, TotalCost, Id, Buy FROM Orders WHERE PlacedBy = " + request.GetUserID() + ";").ExecuteReader();
 				Exception throwlater = null;
 				try{
 					while (mySqlDataReader.Read())
 					{
-						buffer[0] = mySqlDataReader.GetString("Pri");
-						buffer[1] = mySqlDataReader.GetString("Sec");
-						buffer[2] = mySqlDataReader.GetString("Price");
-						buffer[3] = mySqlDataReader.GetString("InitialAmount");
-						buffer[4] = mySqlDataReader.GetString("TotalCost");
-						buffer[5] = mySqlDataReader.GetString("Id");
-						buffer[6] = mySqlDataReader.GetUInt16("Buy") == 1;
-						objects.Enqueue(buffer);
+						(new object[7])[0] = mySqlDataReader.GetString("Pri");
+						(new object[7])[1] = mySqlDataReader.GetString("Sec");
+						(new object[7])[2] = mySqlDataReader.GetString("Price");
+						(new object[7])[3] = mySqlDataReader.GetString("InitialAmount");
+						(new object[7])[4] = mySqlDataReader.GetString("TotalCost");
+						(new object[7])[5] = mySqlDataReader.GetString("Id");
+						(new object[7])[6] = mySqlDataReader.GetBoolean("Buy");
+						objects.Enqueue(new object[7]);
 					}
 				} catch(Exception e){
 					throwlater = e;
