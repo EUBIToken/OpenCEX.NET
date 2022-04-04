@@ -960,7 +960,7 @@ namespace jessielesbian.OpenCEX{
 
 			[JsonObject(MemberSerialization.Fields)]
 			private sealed class CaptchaResult{
-				public bool success;
+				public bool success = false;
 			}
 
 			private static readonly byte[] prefixData1 = Encoding.ASCII.GetBytes("secret=");
@@ -995,8 +995,8 @@ namespace jessielesbian.OpenCEX{
 				using (WebResponse webResponse = httpWebRequest.GetResponse()) {
 					returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
 				}
-				CaptchaResult captchaResult = JsonConvert.DeserializeObject<CaptchaResult>(returns, CaptchaValidatorJsonSerializerSettings);
-				CheckSafety(captchaResult.success, "Invalid captcha!");
+				Console.WriteLine(returns);
+				CheckSafety(JsonConvert.DeserializeObject<CaptchaResult>(returns, CaptchaValidatorJsonSerializerSettings).success, "Invalid captcha!");
 
 				Execute2(request);
 				return null;
