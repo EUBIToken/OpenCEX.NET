@@ -71,15 +71,25 @@ namespace jessielesbian.OpenCEX{
 						pendingFlush.Enqueue(balanceUpdate);
 					}
 
-					while(pendingFlush.TryDequeue(out KeyValuePair<string, SafeUint> result)){
-						L3BalancesCache[result.Key].Value = result.Value;
-					}
+					try{
+						while (pendingFlush.TryDequeue(out KeyValuePair<string, SafeUint> result))
+						{
+							L3BalancesCache[result.Key].Value = result.Value;
+						}
 
-					//Release balance cache locks
-					while (release.TryDequeue(out PooledManualResetEvent result))
-					{
-						result.Set();
+						//Release balance cache locks
+						while (release.TryDequeue(out PooledManualResetEvent result))
+						{
+							result.Set();
+						}
+					} catch{
+						lock(L3Blacklist){
+							L3BalancesCache.Clear();
+							L3Blacklist.Clear();
+						}
+						
 					}
+					
 					mySqlTransaction.Commit();
 					mySqlTransaction = null;
 				}
@@ -215,27 +225,38 @@ namespace jessielesbian.OpenCEX{
 						for (int i = 0; i < limit; ++i)
 						{
 							string key2 = k2[BitConverter.ToUInt32(rngbuffer, 0) % ((uint)keys.Count)];
-							L3Balance l3balance = L3BalancesCache[key2];
-							int ctr = l3balance.Counter;
-							if (ctr <= oldest){
-								evict = key;
-								oldest = ctr;
-								dispose = l3balance.syncer;
+							if(L3BalancesCache.TryGetValue(key2, out L3Balance l3balance)){
+								int ctr = l3balance.Counter;
+								if (ctr <= oldest)
+								{
+									evict = key2;
+									oldest = ctr;
+									dispose = l3balance.syncer;
+								}
+							} else{
+								++limit;
 							}
 						}
 
 						if(evict != null){
 							lock(L3Blacklist){
-								StaticUtils.CheckSafety(L3Blacklist.TryAdd(key, 0), "Unable to blacklist balance from cache (should not reach here)!", false);
-								while(dispose.IsSet){
-									dispose.Wait3();
+								if(L3BalancesCache.TryGetValue(evict, out _)){
+									StaticUtils.CheckSafety(L3Blacklist.TryAdd(evict, 0), "Unable to blacklist balance from cache (should not reach here)!", false);
+									while (dispose.IsSet)
+									{
+										dispose.Wait3();
+									}
+									dispose.Dispose();
+								} else{
+									newcache = false;
+									goto noremove;
 								}
 							}
-
-							dispose.Dispose();
+							
 							newcache = L3BalancesCache.TryRemove(evict, out _);
-							StaticUtils.CheckSafety(L3Blacklist.TryRemove(key, out _), "Unable to remove balances cache blacklisting (should not reach here)!", false);
+							StaticUtils.CheckSafety(L3Blacklist.TryRemove(evict, out _), "Unable to remove balances cache blacklisting (should not reach here)!", false);
 						}
+						noremove:
 
 						randomNumberGenerator.Dispose();
 					}
