@@ -248,10 +248,7 @@ namespace jessielesbian.OpenCEX{
 							lock(L3Blacklist){
 								if(L3BalancesCache.ContainsKey(evict)){
 									StaticUtils.CheckSafety(L3Blacklist.TryAdd(evict, 0), "Unable to blacklist balance from cache (should not reach here)!", true);
-									while (dispose.IsSet)
-									{
-										dispose.Wait3();
-									}
+									dispose.Wait3();
 									dispose.Dispose();
 								} else{
 									newcache = false;

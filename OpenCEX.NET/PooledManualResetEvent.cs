@@ -74,20 +74,25 @@ namespace jessielesbian.OpenCEX
 		}
 
 		private readonly object wait2 = new object();
+		private volatile int autowaiters = 0;
 
 		//AutoResetEvent-like behavior
 		public void Wait2()
 		{
+			Interlocked.Increment(ref autowaiters);
 			lock(wait2){
 				manualResetEventSlim.Wait();
 				manualResetEventSlim.Reset();
 			}
+			Interlocked.Decrement(ref autowaiters);
 		}
 		public void Wait3()
 		{
-			lock (wait2)
-			{
-				manualResetEventSlim.Wait();
+			while(autowaiters > 0){
+				lock (wait2)
+				{
+					manualResetEventSlim.Wait(1);
+				}
 			}
 		}
 
