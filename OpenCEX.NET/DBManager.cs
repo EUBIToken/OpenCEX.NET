@@ -241,7 +241,7 @@ namespace jessielesbian.OpenCEX{
 						if(evict != null){
 							lock(L3Blacklist){
 								if(L3BalancesCache.TryGetValue(evict, out _)){
-									StaticUtils.CheckSafety(L3Blacklist.TryAdd(evict, 0), "Unable to blacklist balance from cache (should not reach here)!", false);
+									StaticUtils.CheckSafety(L3Blacklist.TryAdd(evict, 0), "Unable to blacklist balance from cache (should not reach here)!", true);
 									while (dispose.IsSet)
 									{
 										dispose.Wait3();
@@ -254,7 +254,7 @@ namespace jessielesbian.OpenCEX{
 							}
 							
 							newcache = L3BalancesCache.TryRemove(evict, out _);
-							StaticUtils.CheckSafety(L3Blacklist.TryRemove(evict, out _), "Unable to remove balances cache blacklisting (should not reach here)!", false);
+							StaticUtils.CheckSafety(L3Blacklist.TryRemove(evict, out _), "Unable to remove balances cache blacklisting (should not reach here)!", true);
 						}
 						noremove:
 
@@ -314,6 +314,10 @@ namespace jessielesbian.OpenCEX{
 		public void UpdateBalance(string coin, ulong userid, SafeUint balance)
 		{
 			string key = userid + "_" + coin;
+			if(cachedBalances.TryAdd(key, balance)){
+				StaticUtils.CheckSafety(balanceUpdateCommands.TryAdd(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;"), "Balance update command already defined (should not reach here)!", true);
+			}
+
 			if (!dirtyBalances.TryAdd(key, balance))
 			{
 				dirtyBalances[key] = balance;
