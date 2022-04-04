@@ -82,12 +82,12 @@ namespace jessielesbian.OpenCEX{
 						{
 							result.Set();
 						}
-					} catch{
+					} catch (Exception e){
+						Console.Error.WriteLine("Clearing balances cache due to exception: " + e.ToString());
 						lock(L3Blacklist){
 							L3BalancesCache.Clear();
 							L3Blacklist.Clear();
 						}
-						
 					}
 					
 					mySqlTransaction.Commit();
@@ -216,7 +216,7 @@ namespace jessielesbian.OpenCEX{
 						keys.CopyTo(k2, 0);
 
 						randomNumberGenerator.GetBytes(rngbuffer);
-						int limit = StaticUtils.MaximumBalanceCacheSize; //For now
+						int limit = StaticUtils.MaximumBalanceCacheSize > 16 ? (StaticUtils.MaximumBalanceCacheSize / 16) : 1;
 						string evict = null;
 						int oldest = int.MaxValue;
 						PooledManualResetEvent dispose = null;
