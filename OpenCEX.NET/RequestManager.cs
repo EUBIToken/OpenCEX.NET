@@ -1088,7 +1088,7 @@ namespace jessielesbian.OpenCEX{
 						buffer[3] = mySqlDataReader.GetString("InitialAmount");
 						buffer[4] = mySqlDataReader.GetString("TotalCost");
 						buffer[5] = mySqlDataReader.GetString("Id");
-						buffer[6] = mySqlDataReader.GetByte("Buy") == 1;
+						buffer[6] = mySqlDataReader.GetBoolean("Buy");
 						objects.Enqueue(buffer);
 					}
 				} catch(Exception e){
@@ -1152,7 +1152,7 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				Queue<Candle> objects = new Queue<Candle>();
-				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close, Timestamp FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp ASC LIMIT 60;");
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close, Timestamp FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp DESC LIMIT 60;");
 				mySqlCommand.Parameters.AddWithValue("@primary", pri);
 				mySqlCommand.Parameters.AddWithValue("@secondary", sec);
 				mySqlCommand.Prepare();
