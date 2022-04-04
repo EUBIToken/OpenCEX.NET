@@ -201,7 +201,6 @@ namespace jessielesbian.OpenCEX{
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
 		public static readonly string underlying = GetEnv("Underlying");
 		public static readonly int MaximumBalanceCacheSize = (int)(Convert.ToUInt32(GetEnv("MaximumBalanceCacheSize")) - 1);
-		public static readonly string CaptchaSecret = GetEnv("CaptchaSecret");
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;

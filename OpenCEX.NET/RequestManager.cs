@@ -964,7 +964,8 @@ namespace jessielesbian.OpenCEX{
 			}
 
 			private static readonly byte[] prefixData1 = Encoding.ASCII.GetBytes("secret=");
-			private static readonly byte[] prefixData2 = Encoding.ASCII.GetBytes("response=");
+			private static readonly byte[] prefixData2 = Encoding.ASCII.GetBytes("&response=");
+			private static readonly byte[] bytes1 = HttpUtility.UrlEncodeToBytes(GetEnv("CaptchaSecret"));
 			private static readonly JsonSerializerSettings CaptchaValidatorJsonSerializerSettings = new JsonSerializerSettings();
 
 			static CaptchaProtectedRequestMethod(){
@@ -979,14 +980,14 @@ namespace jessielesbian.OpenCEX{
 				WebRequest httpWebRequest = WebRequest.Create("https://www.google.com/recaptcha/api/siteverify");
 				httpWebRequest.Method = "POST";
 				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
-				byte[] bytes1 = HttpUtility.UrlEncodeToBytes(CaptchaSecret);
+				
 				byte[] bytes2 = HttpUtility.UrlEncodeToBytes((string) temp);
 
 				using (Stream stream = httpWebRequest.GetRequestStream())
 				{
 					stream.Write(prefixData1, 0, 7);
 					stream.Write(bytes1, 0, bytes1.Length);
-					stream.Write(prefixData2, 0, 9);
+					stream.Write(prefixData2, 0, 10);
 					stream.Write(bytes2, 0, bytes2.Length);
 					stream.Flush();
 				}
