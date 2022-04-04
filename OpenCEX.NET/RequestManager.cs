@@ -965,6 +965,12 @@ namespace jessielesbian.OpenCEX{
 
 			private static readonly byte[] prefixData1 = Encoding.ASCII.GetBytes("secret=");
 			private static readonly byte[] prefixData2 = Encoding.ASCII.GetBytes("response=");
+			private static readonly JsonSerializerSettings CaptchaValidatorJsonSerializerSettings = new JsonSerializerSettings();
+
+			static CaptchaProtectedRequestMethod(){
+				CaptchaValidatorJsonSerializerSettings.MaxDepth = 2;
+				CaptchaValidatorJsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Ignore;
+			}
 			public override object Execute(Request request)
 			{
 				CheckSafety(request.args.TryGetValue("captcha", out object temp), "Missing captcha!");
@@ -989,7 +995,7 @@ namespace jessielesbian.OpenCEX{
 				using (WebResponse webResponse = httpWebRequest.GetResponse()) {
 					returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
 				}
-				CaptchaResult captchaResult = JsonConvert.DeserializeObject<CaptchaResult>(returns, StaticUtils.jsonSerializerSettings);
+				CaptchaResult captchaResult = JsonConvert.DeserializeObject<CaptchaResult>(returns, CaptchaValidatorJsonSerializerSettings);
 				CheckSafety(captchaResult.success, "Invalid captcha!");
 
 				Execute2(request);
