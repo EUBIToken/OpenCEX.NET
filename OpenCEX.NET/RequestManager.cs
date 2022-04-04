@@ -1042,7 +1042,7 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private sealed class Logout : RequestMethod{
-			public static readonly RequestMethod instance;
+			public static readonly RequestMethod instance = new Logout();
 			private Logout(){
 				
 			}
@@ -1051,16 +1051,11 @@ namespace jessielesbian.OpenCEX{
 				ulong userid = request.GetUserID(false);
 				if(userid > 0)
 				{
-					try{
-						byte[] cookie = Convert.FromBase64String(request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"].Value);
-						SHA256 sha256 = SHA256.Create();
-						string hash = BitConverter.ToString(sha256.ComputeHash(cookie)).Replace("-", string.Empty);
-						sha256.Dispose();
-						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Sessions WHERE SessionTokenHash = \"" + hash + "\";");
-					} catch(Exception e){
-						Console.Error.WriteLine(e.ToString());
-					}
-					
+					byte[] cookie = Convert.FromBase64String(request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"].Value);
+					SHA256 sha256 = SHA256.Create();
+					string hash = BitConverter.ToString(sha256.ComputeHash(cookie)).Replace("-", string.Empty);
+					sha256.Dispose();
+					request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Sessions WHERE SessionTokenHash = \"" + hash + "\";");
 				}
 				return null;
 			}
