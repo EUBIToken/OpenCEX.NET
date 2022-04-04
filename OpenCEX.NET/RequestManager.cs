@@ -1030,7 +1030,7 @@ namespace jessielesbian.OpenCEX{
 				rng.GetBytes(privatekey);
 				rng.Dispose();
 				
-				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO Accounts (Username, Passhash, DepositPrivateKey) VALUES (@username, @passhash, \"" + BitConverter.ToString(privatekey).Replace("-", "") + "\");");
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO Accounts (Username, Passhash, DepositPrivateKey) VALUES (@username, @passhash, \"" + BitConverter.ToString(privatekey).Replace("-", string.Empty).ToLower() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@username", username);
 				mySqlCommand.Parameters.AddWithValue("@passhash", OpenBsdBCrypt.Generate(password.ToCharArray(), salt, 16));
 				mySqlCommand.SafeExecuteNonQuery();
@@ -1038,6 +1038,32 @@ namespace jessielesbian.OpenCEX{
 				//HACK: Hijack existing request method
 				request.args.Add("renember", true);
 				((Login) Login.instance).Execute2(request);
+			}
+		}
+
+		private sealed class Logout : RequestMethod{
+			public static readonly RequestMethod instance;
+			private Logout(){
+				
+			}
+			public override object Execute(Request request)
+			{
+				ulong userid = request.GetUserID(false);
+				if(userid > 0)
+				{
+					byte[] cookie = Convert.FromBase64String(WebUtility.UrlDecode(request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"].Value));
+					CheckSafety(cookie.Length == 64, "Invalid session cookie!");
+					SHA256 sha256 = SHA256.Create();
+					string hash = BitConverter.ToString(sha256.ComputeHash(cookie)).Replace("-", string.Empty);
+					sha256.Dispose();
+					request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Sessions WHERE SessionTokenHash = \"" + hash + "\";");
+				}
+				return null;
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
 			}
 		}
 	}
