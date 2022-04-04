@@ -199,7 +199,6 @@ namespace jessielesbian.OpenCEX{
 		private static readonly HttpListener httpListener = new HttpListener();
 		private static readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
-		public static readonly string underlying = GetEnv("Underlying");
 		public static readonly int MaximumBalanceCacheSize = (int)(Convert.ToUInt32(GetEnv("MaximumBalanceCacheSize")) - 1);
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
@@ -270,65 +269,6 @@ namespace jessielesbian.OpenCEX{
 			if (e != null)
 			{
 				throw new SafetyException("Async task failed!", e);
-			}
-		}
-
-		private sealed class RedirectedRequestMethod : RequestMethod
-		{
-			private static readonly byte[] prefixData = Encoding.ASCII.GetBytes("OpenCEX_request_body=");
-			private readonly string name;
-
-			public RedirectedRequestMethod(string name)
-			{
-				this.name = name ?? throw new ArgumentNullException(nameof(name));
-			}
-
-			public override object Execute(Request request)
-			{
-				WebRequest httpWebRequest = WebRequest.Create(underlying);
-				httpWebRequest.Method = "POST";
-				string cookie = request.httpListenerContext.Request.Headers.Get("Cookie");
-				if(cookie != null){
-					httpWebRequest.Headers.Add("Cookie", cookie);
-				}
-				UnprocessedRequest unprocessedRequest = new UnprocessedRequest();
-				unprocessedRequest.method = name;
-				unprocessedRequest.data = request.args;
-				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
-				httpWebRequest.Headers.Add("Origin", underlying_origin);
-				byte[] bytes = HttpUtility.UrlEncodeToBytes("[" + JsonConvert.SerializeObject(unprocessedRequest) + "]");
-
-				using (Stream stream = httpWebRequest.GetRequestStream())
-				{
-					stream.Write(prefixData, 0, 21);
-					stream.Write(bytes, 0, bytes.Length);
-					stream.Flush();
-				}
-				WebResponse webResponse = httpWebRequest.GetResponse();
-				cookie = webResponse.Headers["Set-Cookie"];
-				if(cookie != null){
-					request.httpListenerContext.Response.AddHeader("Set-Cookie", cookie + "; SameSite=None");
-				}
-				string returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
-				webResponse.Close();
-				JObject obj = JObject.Parse(returns);
-				JToken token = null;
-				CheckSafety(obj.TryGetValue("status", out token), "Missing request status!");
-				if(token.ToObject<string>() == "success")
-				{
-					CheckSafety(obj.TryGetValue("returns", out token), "Missing request returns!");
-					token = token.First;
-					CheckSafety(token, "Missing request returns!");
-					return token.ToObject<object>();
-				} else{
-					CheckSafety(obj.TryGetValue("reason", out token), "Missing error reason!");
-					throw new SafetyException(token.ToObject<string>());
-				}
-			}
-
-			protected override bool NeedSQL()
-			{
-				return false;
 			}
 		}
 
@@ -494,7 +434,6 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private static readonly string origin = GetEnv("Origin");
-		private static readonly string underlying_origin = GetEnv("UnderlyingOrigin");
 		private static readonly int maxEventQueueSize = Convert.ToInt32(GetEnv("MaxEventQueueSize"));
 
 		//The lead server is responsible for deposit finalization.
