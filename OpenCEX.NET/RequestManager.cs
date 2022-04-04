@@ -892,11 +892,6 @@ namespace jessielesbian.OpenCEX{
 					throw new SafetyException("Unexpected internal server error while logging in (should not reach here)!", throws);
 				}
 			}
-
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 		}
 
 		private sealed class Withdraw : RequestMethod{
@@ -1004,6 +999,44 @@ namespace jessielesbian.OpenCEX{
 			protected override bool NeedSQL()
 			{
 				return true;
+			}
+		}
+		private sealed class CreateAccount : CaptchaProtectedRequestMethod
+		{
+			public static readonly RequestMethod instance = new CreateAccount();
+			private CreateAccount()
+			{
+
+			}
+
+			public override void Execute2(Request request)
+			{
+				string username;
+				string password;
+				{
+					CheckSafety(request.args.TryGetValue("username", out object temp), "Missing username!");
+					username = (string)temp;
+					CheckSafety(request.args.TryGetValue("password", out temp), "Missing password!");
+					password = (string)temp;
+				}
+				CheckSafety2(username.Length < 5, "Excessively short username!");
+				CheckSafety2(username.Length > 255, "Excessively long username!");
+				CheckSafety2(password.Length > 72, "Excessively long password!");
+				byte[] salt = new byte[16];
+				byte[] privatekey = new byte[32];
+				RandomNumberGenerator rng = RandomNumberGenerator.Create();
+				rng.GetBytes(salt);
+				rng.GetBytes(privatekey);
+				rng.Dispose();
+				
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO Accounts (Username, Passhash, DepositPrivateKey) (@username, @passhash, \"" + BitConverter.ToString(privatekey).Replace("-", "") + "\");");
+				mySqlCommand.Parameters.AddWithValue("@username", username);
+				mySqlCommand.Parameters.AddWithValue("@passhash", Encoding.ASCII.GetString(BCrypt.Generate(Encoding.Unicode.GetBytes(password), salt, 16)));
+				mySqlCommand.SafeExecuteNonQuery();
+
+				//HACK: Hijack existing request method
+				request.args.Add("renember", true);
+				((Login) Login.instance).Execute2(request);
 			}
 		}
 	}
