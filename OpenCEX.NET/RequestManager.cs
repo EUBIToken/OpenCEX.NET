@@ -996,7 +996,6 @@ namespace jessielesbian.OpenCEX{
 				using (WebResponse webResponse = httpWebRequest.GetResponse()) {
 					returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
 				}
-				Console.WriteLine(returns);
 				CheckSafety(JsonConvert.DeserializeObject<CaptchaResult>(returns, CaptchaValidatorJsonSerializerSettings).success, "Invalid captcha!");
 
 				Execute2(request);
