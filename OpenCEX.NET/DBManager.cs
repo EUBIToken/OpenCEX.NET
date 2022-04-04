@@ -322,10 +322,8 @@ namespace jessielesbian.OpenCEX{
 			string key = userid + "_" + coin;
 			if(cachedBalances.TryAdd(key, balance))
 			{
-				lock(L3Blacklist){
-					StaticUtils.CheckSafety(L3BalancesCache.ContainsKey(key), "Attempted to update uncached balance (should not reach here)!", true);
-					StaticUtils.CheckSafety(balanceUpdateCommands.TryAdd(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;"), "Balance update command already defined (should not reach here)!", true);
-				}
+				StaticUtils.CheckSafety(L3BalancesCache.ContainsKey(key), "Attempted to update uncached balance (should not reach here)!", true);
+				StaticUtils.CheckSafety(balanceUpdateCommands.TryAdd(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;"), "Balance update command already defined (should not reach here)!", true);
 			}
 
 			if (!dirtyBalances.TryAdd(key, balance))
