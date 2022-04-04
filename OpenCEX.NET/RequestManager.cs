@@ -1029,9 +1029,9 @@ namespace jessielesbian.OpenCEX{
 				rng.GetBytes(privatekey);
 				rng.Dispose();
 				
-				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO Accounts (Username, Passhash, DepositPrivateKey) (@username, @passhash, \"" + BitConverter.ToString(privatekey).Replace("-", "") + "\");");
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO Accounts (Username, Passhash, DepositPrivateKey) VALUES (@username, @passhash, \"" + BitConverter.ToString(privatekey).Replace("-", "") + "\");");
 				mySqlCommand.Parameters.AddWithValue("@username", username);
-				mySqlCommand.Parameters.AddWithValue("@passhash", Encoding.ASCII.GetString(BCrypt.Generate(Encoding.Unicode.GetBytes(password), salt, 16)));
+				mySqlCommand.Parameters.AddWithValue("@passhash", OpenBsdBCrypt.Generate(password.ToCharArray(), salt, 16));
 				mySqlCommand.SafeExecuteNonQuery();
 
 				//HACK: Hijack existing request method
