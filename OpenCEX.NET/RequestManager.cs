@@ -1081,14 +1081,15 @@ namespace jessielesbian.OpenCEX{
 				try{
 					while (mySqlDataReader.Read())
 					{
-						(new object[7])[0] = mySqlDataReader.GetString("Pri");
-						(new object[7])[1] = mySqlDataReader.GetString("Sec");
-						(new object[7])[2] = mySqlDataReader.GetString("Price");
-						(new object[7])[3] = mySqlDataReader.GetString("InitialAmount");
-						(new object[7])[4] = mySqlDataReader.GetString("TotalCost");
-						(new object[7])[5] = mySqlDataReader.GetString("Id");
-						(new object[7])[6] = mySqlDataReader.GetBoolean("Buy");
-						objects.Enqueue(new object[7]);
+						object[] buffer = new object[7];
+						buffer[0] = mySqlDataReader.GetString("Pri");
+						buffer[1] = mySqlDataReader.GetString("Sec");
+						buffer[2] = mySqlDataReader.GetString("Price");
+						buffer[3] = mySqlDataReader.GetString("InitialAmount");
+						buffer[4] = mySqlDataReader.GetString("TotalCost");
+						buffer[5] = mySqlDataReader.GetString("Id");
+						buffer[6] = mySqlDataReader.GetBoolean("Buy");
+						objects.Enqueue(buffer);
 					}
 				} catch(Exception e){
 					throwlater = e;
@@ -1119,15 +1120,15 @@ namespace jessielesbian.OpenCEX{
 
 			[JsonObject(MemberSerialization.Fields)]
 			private sealed class Candle{
-				public readonly string x;
+				public readonly ulong x;
 				public readonly string o;
 				public readonly string h;
 				public readonly string l;
 				public readonly string c;
 
-				public Candle(string x, string o, string h, string l, string c)
+				public Candle(ulong x, string o, string h, string l, string c)
 				{
-					this.x = x ?? throw new ArgumentNullException(nameof(x));
+					this.x = x;
 					this.o = o ?? throw new ArgumentNullException(nameof(o));
 					this.h = h ?? throw new ArgumentNullException(nameof(h));
 					this.l = l ?? throw new ArgumentNullException(nameof(l));
@@ -1160,7 +1161,7 @@ namespace jessielesbian.OpenCEX{
 				try
 				{
 					while(mySqlDataReader.Read()){
-						objects.Enqueue(new Candle(mySqlDataReader.GetString("Timestamp"), mySqlDataReader.GetString("Open"), mySqlDataReader.GetString("High"), mySqlDataReader.GetString("Low"), mySqlDataReader.GetString("Close")));
+						objects.Enqueue(new Candle(Convert.ToUInt64(mySqlDataReader.GetString("Timestamp")), mySqlDataReader.GetString("Open"), mySqlDataReader.GetString("High"), mySqlDataReader.GetString("Low"), mySqlDataReader.GetString("Close")));
 					}
 				}
 				catch (Exception e)
@@ -1175,7 +1176,7 @@ namespace jessielesbian.OpenCEX{
 				}
 				else
 				{
-					throw new SafetyException("Unable to fetch active orders!", throwlater);
+					throw new SafetyException("Unable to fetch price chart!", throwlater);
 				}
 			}
 
