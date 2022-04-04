@@ -10,6 +10,9 @@ using System.Text;
 using System.Numerics;
 using Org.BouncyCastle.Crypto.Generators;
 using System.Security.Cryptography;
+using Newtonsoft.Json;
+using System.IO;
+using System.Web;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -831,13 +834,14 @@ namespace jessielesbian.OpenCEX{
 				return true;
 			}
 		}
-		private sealed class Login : RequestMethod{
+		private sealed class Login : CaptchaProtectedRequestMethod
+		{
 			public static readonly RequestMethod instance = new Login();
 			private Login(){
 
 			}
 
-			public override object Execute(Request request)
+			public override void Execute2(Request request)
 			{
 				string username;
 				string password;
@@ -880,7 +884,7 @@ namespace jessielesbian.OpenCEX{
 					SHA256 sha256 = SHA256.Create();
 					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + DateTimeOffset.Now.AddSeconds(2592000).ToUnixTimeSeconds() + ");");
 					request.httpListenerContext.Response.AddHeader("Set-Cookie", "__Secure-OpenCEX_session =" + WebUtility.UrlEncode(Convert.ToBase64String(SessionToken)) + (remember ? ("; Domain=" + CookieOrigin + "; Max-Age=2592000; Path=/; Secure; HttpOnly; SameSite=None") : ("; Domain=" + CookieOrigin + "; Path=/; Secure; HttpOnly; SameSite=None")));
-					return null;
+					return;
 				}
 				else if(throws is SafetyException){
 					throw throws;
@@ -946,6 +950,51 @@ namespace jessielesbian.OpenCEX{
 				return null;
 			}
 
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
+		private abstract class CaptchaProtectedRequestMethod : RequestMethod{
+			public abstract void Execute2(Request request);
+
+			[JsonObject(MemberSerialization.Fields)]
+			private sealed class CaptchaResult{
+				public bool success;
+			}
+
+			private static readonly byte[] prefixData1 = Encoding.ASCII.GetBytes("secret=");
+			private static readonly byte[] prefixData2 = Encoding.ASCII.GetBytes("response=");
+			public override object Execute(Request request)
+			{
+				CheckSafety(request.args.TryGetValue("captcha", out object temp), "Missing captcha!");
+				CheckSafety(temp is string, "Captcha response must be string!");
+
+				WebRequest httpWebRequest = WebRequest.Create("https://www.google.com/recaptcha/api/siteverify");
+				httpWebRequest.Method = "POST";
+				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
+				byte[] bytes1 = HttpUtility.UrlEncodeToBytes(CaptchaSecret);
+				byte[] bytes2 = HttpUtility.UrlEncodeToBytes((string) temp);
+
+				using (Stream stream = httpWebRequest.GetRequestStream())
+				{
+					stream.Write(prefixData1, 0, 7);
+					stream.Write(bytes1, 0, bytes1.Length);
+					stream.Write(prefixData2, 0, 9);
+					stream.Write(bytes2, 0, bytes2.Length);
+					stream.Flush();
+				}
+
+				string returns;
+				using (WebResponse webResponse = httpWebRequest.GetResponse()) {
+					returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
+				}
+				CaptchaResult captchaResult = JsonConvert.DeserializeObject<CaptchaResult>(returns, StaticUtils.jsonSerializerSettings);
+				CheckSafety(captchaResult.success, "Invalid captcha!");
+
+				Execute2(request);
+				return null;
+			}
 			protected override bool NeedSQL()
 			{
 				return true;

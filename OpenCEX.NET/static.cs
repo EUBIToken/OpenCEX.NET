@@ -201,6 +201,7 @@ namespace jessielesbian.OpenCEX{
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
 		public static readonly string underlying = GetEnv("Underlying");
 		public static readonly int MaximumBalanceCacheSize = (int)(Convert.ToUInt32(GetEnv("MaximumBalanceCacheSize")) - 1);
+		public static readonly string CaptchaSecret = GetEnv("CaptchaSecret");
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
@@ -300,10 +301,11 @@ namespace jessielesbian.OpenCEX{
 				httpWebRequest.Headers.Add("Origin", underlying_origin);
 				byte[] bytes = HttpUtility.UrlEncodeToBytes("[" + JsonConvert.SerializeObject(unprocessedRequest) + "]");
 
-				using (var stream = httpWebRequest.GetRequestStream())
+				using (Stream stream = httpWebRequest.GetRequestStream())
 				{
 					stream.Write(prefixData, 0, 21);
 					stream.Write(bytes, 0, bytes.Length);
+					stream.Flush();
 				}
 				WebResponse webResponse = httpWebRequest.GetResponse();
 				cookie = webResponse.Headers["Set-Cookie"];
