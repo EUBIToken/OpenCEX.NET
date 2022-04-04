@@ -1065,5 +1065,125 @@ namespace jessielesbian.OpenCEX{
 				return true;
 			}
 		}
+
+		private sealed class LoadActiveOrders : RequestMethod
+		{
+			public static readonly RequestMethod instance = new LoadActiveOrders();
+			private LoadActiveOrders()
+			{
+				
+			}
+			public override object Execute(Request request)
+			{
+				object[] buffer = new object[7];
+				Queue<object[]> objects = new Queue<object[]>();
+				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.GetCommand("SELECT Pri, Sec, Price, InitialAmount, TotalCost, Id, Buy FROM Orders WHERE PlacedBy = " + request.GetUserID() + ";").ExecuteReader();
+				Exception throwlater = null;
+				try{
+					while (mySqlDataReader.Read())
+					{
+						buffer[0] = mySqlDataReader.GetString("Pri");
+						buffer[1] = mySqlDataReader.GetString("Sec");
+						buffer[2] = mySqlDataReader.GetString("Price");
+						buffer[3] = mySqlDataReader.GetString("InitialAmount");
+						buffer[4] = mySqlDataReader.GetString("TotalCost");
+						buffer[5] = mySqlDataReader.GetString("Id");
+						buffer[6] = mySqlDataReader.GetByte("Buy") == 1;
+						objects.Enqueue(buffer);
+					}
+				} catch(Exception e){
+					throwlater = e;
+				}
+				mySqlDataReader.Close();
+
+				if(throwlater is null){
+					return objects.ToArray();
+				} else{
+					throw new SafetyException("Unable to fetch active orders!", throwlater);
+				}
+				
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
+
+		private sealed class GetChart : RequestMethod
+		{
+			public static readonly RequestMethod instance = new GetChart();
+			private GetChart()
+			{
+
+			}
+
+			[JsonObject(MemberSerialization.Fields)]
+			private sealed class Candle{
+				public readonly string x;
+				public readonly string o;
+				public readonly string h;
+				public readonly string l;
+				public readonly string c;
+
+				public Candle(string x, string o, string h, string l, string c)
+				{
+					this.x = x ?? throw new ArgumentNullException(nameof(x));
+					this.o = o ?? throw new ArgumentNullException(nameof(o));
+					this.h = h ?? throw new ArgumentNullException(nameof(h));
+					this.l = l ?? throw new ArgumentNullException(nameof(l));
+					this.c = c ?? throw new ArgumentNullException(nameof(c));
+				}
+			}
+			public override object Execute(Request request)
+			{
+				string pri;
+				string sec;
+				{
+					CheckSafety(request.args.TryGetValue("primary", out object temp));
+					pri = (string)temp;
+					CheckSafety(request.args.TryGetValue("secondary", out temp));
+					sec = (string)temp;
+				}
+				try{
+					GetEnv("PairExists_" + pri.Replace("_", "__") + "_" + sec);
+				} catch{
+					throw new SafetyException("Non-existant trading pair!");
+				}
+
+				Queue<Candle> objects = new Queue<Candle>();
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close, Timestamp FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp ASC LIMIT 60;");
+				mySqlCommand.Parameters.AddWithValue("@primary", pri);
+				mySqlCommand.Parameters.AddWithValue("@secondary", sec);
+				mySqlCommand.Prepare();
+				MySqlDataReader mySqlDataReader = mySqlCommand.ExecuteReader();
+				Exception throwlater = null;
+				try
+				{
+					while(mySqlDataReader.Read()){
+						objects.Enqueue(new Candle(mySqlDataReader.GetString("Timestamp"), mySqlDataReader.GetString("Open"), mySqlDataReader.GetString("High"), mySqlDataReader.GetString("Low"), mySqlDataReader.GetString("Close")));
+					}
+				}
+				catch (Exception e)
+				{
+					throwlater = e;
+				}
+				mySqlDataReader.Close();
+
+				if (throwlater is null)
+				{
+					return objects.ToArray();
+				}
+				else
+				{
+					throw new SafetyException("Unable to fetch active orders!", throwlater);
+				}
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
 	}
 }

@@ -205,12 +205,6 @@ namespace jessielesbian.OpenCEX{
 			jsonSerializerSettings.MaxDepth = 3;
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
 
-			//Redirected Request Methods
-			string[] redirectedRequestMethods = {"load_active_orders", "get_chart"};
-			foreach(string meth in redirectedRequestMethods){
-				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
-			}
-
 			//Native request methods
 			requestMethods.Add("get_test_tokens", TestShitcoins.instance);
 			requestMethods.Add("cancel_order", CancelOrder.instance);
@@ -224,6 +218,8 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("withdraw", Withdraw.instance);
 			requestMethods.Add("create_account", CreateAccount.instance);
 			requestMethods.Add("logout", Logout.instance);
+			requestMethods.Add("load_active_orders", LoadActiveOrders.instance);
+			requestMethods.Add("get_chart", GetChart.instance);
 
 			//Start threads
 			Thread thread;
