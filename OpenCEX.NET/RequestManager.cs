@@ -1051,7 +1051,7 @@ namespace jessielesbian.OpenCEX{
 				ulong userid = request.GetUserID(false);
 				if(userid > 0)
 				{
-					byte[] cookie = Convert.FromBase64String(request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"].Value);
+					byte[] cookie = Convert.FromBase64String(WebUtility.UrlDecode(request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"].Value));
 					SHA256 sha256 = SHA256.Create();
 					string hash = BitConverter.ToString(sha256.ComputeHash(cookie)).Replace("-", string.Empty);
 					sha256.Dispose();
