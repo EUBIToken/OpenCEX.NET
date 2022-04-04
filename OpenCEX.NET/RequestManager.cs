@@ -1011,6 +1011,7 @@ namespace jessielesbian.OpenCEX{
 
 			public override void Execute2(Request request)
 			{
+				CheckSafety2(debug, "Account creation not allowed on dev server!");
 				string username;
 				string password;
 				{
