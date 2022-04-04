@@ -73,6 +73,24 @@ namespace jessielesbian.OpenCEX
 			manualResetEventSlim.Wait(timeout);
 		}
 
+		private readonly object wait2 = new object();
+
+		//AutoResetEvent-like behavior
+		public void Wait2()
+		{
+			lock(wait2){
+				manualResetEventSlim.Wait();
+				manualResetEventSlim.Reset();
+			}
+		}
+		public void Wait3()
+		{
+			lock (wait2)
+			{
+				manualResetEventSlim.Wait();
+			}
+		}
+
 		private void Dispose(bool disposing)
 		{
 			if (Interlocked.Exchange(ref notDisposed, 1) == 0)

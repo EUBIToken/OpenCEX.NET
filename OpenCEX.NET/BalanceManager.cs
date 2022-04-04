@@ -1,8 +1,5 @@
 using jessielesbian.OpenCEX.RequestManager;
 using jessielesbian.OpenCEX.SafeMath;
-using MySql.Data.MySqlClient;
-using System;
-using System.Numerics;
 
 namespace jessielesbian.OpenCEX{
 	public static class BalanceManager{		
