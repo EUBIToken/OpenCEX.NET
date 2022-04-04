@@ -205,7 +205,7 @@ namespace jessielesbian.OpenCEX{
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
 
 			//Redirected Request Methods
-			string[] redirectedRequestMethods = {"create_account", "logout", "withdraw", "load_active_orders", "get_chart"};
+			string[] redirectedRequestMethods = {"create_account", "logout", "load_active_orders", "get_chart"};
 			foreach(string meth in redirectedRequestMethods){
 				requestMethods.Add(meth, new RedirectedRequestMethod(meth));
 			}
@@ -220,6 +220,7 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("client_name", GetUsername.instance);
 			requestMethods.Add("eth_deposit_address", GetEthDepAddr.instance);
 			requestMethods.Add("login", Login.instance);
+			requestMethods.Add("withdraw", Withdraw.instance);
 
 			//Start threads
 			Thread thread;

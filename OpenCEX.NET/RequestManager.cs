@@ -894,5 +894,62 @@ namespace jessielesbian.OpenCEX{
 				return true;
 			}
 		}
+
+		private sealed class Withdraw : RequestMethod{
+			public static readonly RequestMethod instance = new Withdraw();
+			private Withdraw(){
+				
+			}
+			public override object Execute(Request request)
+			{
+				string token;
+				string address;
+				SafeUint amount;
+				{
+					CheckSafety(request.args.TryGetValue("token", out object temp), "Missing token!");
+					token = Convert.ToString(temp);
+					CheckSafety(request.args.TryGetValue("address", out temp), "Missing address!");
+					address = Convert.ToString(temp);
+					VerifyAddress(address);
+					CheckSafety(request.args.TryGetValue("amount", out temp), "Missing amount!");
+					amount = GetSafeUint(Convert.ToString(temp));
+				}
+				BlockchainManager blockchainManager;
+				switch(token){
+					case "MATIC":
+						blockchainManager = BlockchainManager.Polygon;
+						break;
+					case "MintME":
+						blockchainManager = BlockchainManager.MintME;
+						break;
+					case "BNB":
+						blockchainManager = BlockchainManager.BinanceSmartChain;
+						break;
+					default:
+						throw new SafetyException("Unsupported token!");
+				}
+				WalletManager walletManager = blockchainManager.ExchangeWalletManager;
+				SafeUint gasPrice = walletManager.GetGasPrice();
+				//Boost gas price to reduce server waiting time.
+				gasPrice = gasPrice.Add(gasPrice.Div(ten));
+				bool erc20 = false;
+
+				if(erc20){
+					
+				} else{
+					//Debit unbacked balance
+					SafeUint gas = walletManager.EstimateGas(address, gasPrice, amount, "");
+					request.Debit(token, request.GetUserID(), amount.Add(gasPrice.Mul(gas)), false);
+					walletManager.SendEther(amount, address, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, "");
+				}
+				
+				return null;
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
 	}
 }
