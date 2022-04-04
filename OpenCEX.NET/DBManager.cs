@@ -314,14 +314,9 @@ namespace jessielesbian.OpenCEX{
 		public void UpdateBalance(string coin, ulong userid, SafeUint balance)
 		{
 			string key = userid + "_" + coin;
-			StaticUtils.CheckSafety(cachedBalances.TryGetValue(key, out SafeUint temp), "Update uncached balance (should not reach here)!", true);
-			if(balance == temp){
-				dirtyBalances.Remove(key); //Restore original balance
-			} else
+			if (!dirtyBalances.TryAdd(key, balance))
 			{
-				if(!dirtyBalances.TryAdd(key, balance)){
-					dirtyBalances[key] = balance;
-				}
+				dirtyBalances[key] = balance;
 			}
 		}
 
