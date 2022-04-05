@@ -100,6 +100,23 @@ namespace jessielesbian.OpenCEX{
 						{
 							SafeDestroyReader();
 						}
+						try
+						{
+							//Release balance cache locks
+							while (release.TryDequeue(out PooledManualResetEvent result))
+							{
+								result.Set();
+							}
+						}
+						catch (Exception e)
+						{
+							Console.Error.WriteLine("Clearing balances cache due to exception: " + e.ToString());
+							lock (L3Blacklist)
+							{
+								L3BalancesCache.Clear();
+								L3Blacklist.Clear();
+							}
+						}
 						mySqlTransaction.Rollback();
 						mySqlTransaction.Dispose();
 					} finally{
@@ -281,14 +298,14 @@ namespace jessielesbian.OpenCEX{
 
 				if (service is null)
 				{
-					return FetchBalanceIMPL(key);
+					balance = FetchBalanceIMPL(key);
+					StaticUtils.CheckSafety(cachedBalances.TryAdd(key, balance), "Unable to cache balance (should not reach here)!", true);
+					return balance;
 				}
 				else
 				{
 					release.Enqueue(service.syncer);
-					SafeUint val = service.Value;
-					StaticUtils.CheckSafety(cachedBalances.TryAdd(key, val), "Unable to cache balance (should not reach here)!", true);
-					return val;
+					return service.Value;
 				}
 			}
 		}
