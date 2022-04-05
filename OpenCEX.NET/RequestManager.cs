@@ -663,18 +663,19 @@ namespace jessielesbian.OpenCEX{
 							throw new SafetyException("Unsupported blockchain!");
 					}
 					amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, gasPrice, zero, abi2));
+					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					string abi = "0x64d7cd50" + postfix + amount.ToHex(false);
 					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi);
 					request.Debit(gastoken, userid, gas.Mul(gasPrice), false); //Debit gas token to pay for gas
 					txid = walletManager.SendEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, abi);
 				} else{
 					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!", false);
+					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
 					txid = walletManager.SendEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
 				}
 
 				//Re-use existing table for compartiability
-				CheckSafety2(amount.isZero, "Zero-value deposit!");
 				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"" + txid + "_" + amount.ToString() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@token", token);
 				mySqlCommand.Prepare();
