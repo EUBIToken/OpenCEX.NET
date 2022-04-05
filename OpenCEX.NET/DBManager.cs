@@ -222,7 +222,9 @@ namespace jessielesbian.OpenCEX{
 			}
 			else if (StaticUtils.Multiserver)
 			{
-				return FetchBalanceIMPL(key);
+				balance = FetchBalanceIMPL(key);
+				cachedBalances.Add(key, balance);
+				return balance;
 			}
 			else
 			{
@@ -299,13 +301,15 @@ namespace jessielesbian.OpenCEX{
 				if (service is null)
 				{
 					balance = FetchBalanceIMPL(key);
-					StaticUtils.CheckSafety(cachedBalances.TryAdd(key, balance), "Unable to cache balance (should not reach here)!", true);
+					cachedBalances.Add(key, balance);
 					return balance;
 				}
 				else
 				{
 					release.Enqueue(service.syncer);
-					return service.Value;
+					balance = service.Value;
+					cachedBalances.Add(key, balance);
+					return balance;
 				}
 			}
 		}
