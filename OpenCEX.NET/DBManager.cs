@@ -71,7 +71,11 @@ namespace jessielesbian.OpenCEX{
 						pendingFlush.Enqueue(balanceUpdate);
 					}
 
-					try{
+					mySqlTransaction.Commit();
+					mySqlTransaction = null;
+
+					try
+					{
 						while (pendingFlush.TryDequeue(out KeyValuePair<string, SafeUint> result))
 						{
 							L3BalancesCache[result.Key].Value = result.Value;
@@ -82,6 +86,8 @@ namespace jessielesbian.OpenCEX{
 						{
 							result.Set();
 						}
+
+						
 					} catch (Exception e){
 						Console.Error.WriteLine("Clearing balances cache due to exception: " + e.ToString());
 						lock(L3Blacklist){
@@ -89,9 +95,6 @@ namespace jessielesbian.OpenCEX{
 							L3Blacklist.Clear();
 						}
 					}
-					
-					mySqlTransaction.Commit();
-					mySqlTransaction = null;
 				}
 				else
 				{
