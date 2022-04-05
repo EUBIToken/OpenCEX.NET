@@ -901,6 +901,7 @@ namespace jessielesbian.OpenCEX{
 			}
 			public override object Execute(Request request)
 			{
+				ulong userid = request.GetUserID();
 				string token;
 				string address;
 				SafeUint amount;
@@ -909,16 +910,18 @@ namespace jessielesbian.OpenCEX{
 					token = Convert.ToString(temp);
 					CheckSafety(request.args.TryGetValue("address", out temp), "Missing address!");
 					address = Convert.ToString(temp);
-					VerifyAddress(address);
 					CheckSafety(request.args.TryGetValue("amount", out temp), "Missing amount!");
 					amount = GetSafeUint(Convert.ToString(temp));
 				}
 				BlockchainManager blockchainManager;
 				switch(token){
 					case "MATIC":
+					case "PolyEUBI":
 						blockchainManager = BlockchainManager.Polygon;
 						break;
 					case "MintME":
+					case "EUBI":
+					case "1000x":
 						blockchainManager = BlockchainManager.MintME;
 						break;
 					case "BNB":
@@ -931,15 +934,57 @@ namespace jessielesbian.OpenCEX{
 				SafeUint gasPrice = walletManager.GetGasPrice();
 				//Boost gas price to reduce server waiting time.
 				gasPrice = gasPrice.Add(gasPrice.Div(ten));
-				bool erc20 = false;
+				string tokenAddress;
+				switch (token)
+				{
+					case "PolyEUBI":
+						tokenAddress = "0x553e77f7f71616382b1545d4457e2c1ee255fa7a";
+						break;
+					case "EUBI":
+						tokenAddress = "0x8afa1b7a8534d519cb04f4075d3189df8a6738c1";
+						break;
+					case "1000x":
+						tokenAddress = "0x7b535379bbafd9cd12b35d91addabf617df902b2";
+						break;
+					default:
+						tokenAddress = null;
+						break;
+				}
 
-				if(erc20){
-					
-				} else{
-					//Debit unbacked balance
+				ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
+				if (tokenAddress is null)
+				{
+					//Verify address
+					VerifyAddress(address);
+
+					//Estimate gas
 					SafeUint gas = walletManager.EstimateGas(address, gasPrice, amount, "");
-					request.Debit(token, request.GetUserID(), amount.Add(gasPrice.Mul(gas)), false);
-					walletManager.SendEther(amount, address, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, "");
+
+					//Debit unbacked balance
+					request.Debit(token, userid, amount.Add(gasPrice.Mul(gas)), false);
+
+					//Send withdrawal
+					walletManager.SendEther(amount, address, nonce, gasPrice, gas, "");
+				} else{
+					string gastoken;
+					if(token == "PolyEUBI"){
+						gastoken = "MATIC";
+					} else{
+						gastoken = "MintME";
+					}
+
+					//Prepare ABI
+					string data = "0xa9059cbb" + ExpandABIAddress(address) + amount.ToHex(false, true);
+
+					//Estimate gas
+					SafeUint gas = walletManager.EstimateGas(tokenAddress, gasPrice, zero, data);
+
+					//Debit unbacked balance
+					request.Debit(gastoken, userid, gasPrice.Mul(gas), false);
+					request.Debit(token, userid, amount, false);
+
+					//Send withdrawal
+					walletManager.SendEther(zero, tokenAddress, nonce, gasPrice, gas, data);
 				}
 				
 				return null;
