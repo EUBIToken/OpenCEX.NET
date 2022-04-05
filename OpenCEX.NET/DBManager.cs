@@ -103,6 +103,8 @@ namespace jessielesbian.OpenCEX{
 						{
 							SafeDestroyReader();
 						}
+						mySqlTransaction.Rollback();
+						mySqlTransaction.Dispose();
 						try
 						{
 							//Release balance cache locks
@@ -120,8 +122,6 @@ namespace jessielesbian.OpenCEX{
 								L3Blacklist.Clear();
 							}
 						}
-						mySqlTransaction.Rollback();
-						mySqlTransaction.Dispose();
 					} finally{
 						mySqlTransaction = null;
 					}
