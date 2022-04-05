@@ -265,18 +265,30 @@ namespace jessielesbian.OpenCEX{
 					}
 					
 				}
-				lock (L3Blacklist){
+				L3Balance service;
+				lock (L3Blacklist)
+				{
 					if (L3Blacklist.ContainsKey(key))
 					{
-						return FetchBalanceIMPL(key);
+						service = null;
 					}
 					else
 					{
-						L3Balance l3 = L3BalancesCache.GetOrAdd(key, FetchBalance2);
-						l3.syncer.Wait2();
-						release.Enqueue(l3.syncer);
-						return l3.Value;
+						service = L3BalancesCache.GetOrAdd(key, FetchBalance2);
+						service.syncer.Wait2();
 					}
+				}
+
+				if (service is null)
+				{
+					return FetchBalanceIMPL(key);
+				}
+				else
+				{
+					release.Enqueue(service.syncer);
+					SafeUint val = service.Value;
+					StaticUtils.CheckSafety(cachedBalances.TryAdd(key, val), "Unable to cache balance (should not reach here)!", true);
+					return val;
 				}
 			}
 		}
@@ -296,7 +308,7 @@ namespace jessielesbian.OpenCEX{
 			{
 				balance = StaticUtils.GetSafeUint(reader.GetString("Balance"));
 				reader.CheckSingletonResult();
-				balanceUpdateCommands.Add(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;");
+				balanceUpdateCommands.Add(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin AND Balance = \"" + balance.ToString() + "\";");
 			}
 			else
 			{
@@ -317,11 +329,7 @@ namespace jessielesbian.OpenCEX{
 		public void UpdateBalance(string coin, ulong userid, SafeUint balance)
 		{
 			string key = userid + "_" + coin;
-			if(cachedBalances.TryAdd(key, balance))
-			{
-				StaticUtils.CheckSafety(L3BalancesCache.ContainsKey(key), "Attempted to update uncached balance (should not reach here)!", true);
-				StaticUtils.CheckSafety(balanceUpdateCommands.TryAdd(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin;"), "Balance update command already defined (should not reach here)!", true);
-			}
+			StaticUtils.CheckSafety(cachedBalances.ContainsKey(coin), "Attempted to update uncached balance (should not reach here)!", true);
 
 			if (!dirtyBalances.TryAdd(key, balance))
 			{
