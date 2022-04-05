@@ -308,7 +308,7 @@ namespace jessielesbian.OpenCEX{
 				{
 					release.Enqueue(service.syncer);
 					balance = service.Value;
-					cachedBalances.Add(key, balance);
+					cachedBalances.TryAdd(key, balance); //Guarantee that we have added balance to cache
 					return balance;
 				}
 			}
