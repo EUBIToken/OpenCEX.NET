@@ -308,7 +308,9 @@ namespace jessielesbian.OpenCEX{
 				{
 					release.Enqueue(service.syncer);
 					balance = service.Value;
-					cachedBalances.TryAdd(key, balance); //Guarantee that we have added balance to cache
+					if(cachedBalances.TryAdd(key, balance)){
+						balanceUpdateCommands.Add(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin AND Balance = \"" + balance.ToString() + "\";");
+					}
 					return balance;
 				}
 			}
