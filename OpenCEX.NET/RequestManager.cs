@@ -960,12 +960,13 @@ namespace jessielesbian.OpenCEX{
 
 					//Estimate gas
 					SafeUint gas = walletManager.EstimateGas(address, gasPrice, amount, "");
+					SafeUint withfee = amount.Add(gasPrice.Mul(gas));
 
 					//Debit unbacked balance
-					request.Debit(token, userid, amount.Add(gasPrice.Mul(gas)), false);
+					request.Debit(token, userid, withfee, false);
 
-					//Send withdrawal
-					walletManager.SendEther(amount, address, nonce, gasPrice, gas, "");
+					//Send withdrawal later
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, amount, address, nonce, gasPrice, gas, "", userid, token, withfee));
 				} else{
 					string gastoken;
 					if(token == "PolyEUBI"){
@@ -984,8 +985,8 @@ namespace jessielesbian.OpenCEX{
 					request.Debit(gastoken, userid, gasPrice.Mul(gas), false);
 					request.Debit(token, userid, amount, false);
 
-					//Send withdrawal
-					walletManager.SendEther(zero, tokenAddress, nonce, gasPrice, gas, data);
+					//Send withdrawal later
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, zero, tokenAddress, nonce, gasPrice, gas, data, userid, token, amount));
 				}
 				
 				return null;
@@ -1230,6 +1231,61 @@ namespace jessielesbian.OpenCEX{
 			{
 				return true;
 			}
+		}
+	}
+	sealed class PostWithdrawal : ConcurrentJob
+	{
+		private readonly WalletManager walletManager1;
+		private readonly SafeUint amount;
+		private readonly string to;
+		private readonly ulong nonce;
+		private readonly SafeUint gasPrice;
+		private readonly SafeUint gas;
+		private readonly string data;
+
+		private readonly ulong userid;
+		private readonly string coin;
+		private readonly SafeUint refundIfFail;
+		private readonly SQLCommandFactory sql = StaticUtils.GetSQL();
+
+		public PostWithdrawal(WalletManager walletManager1, SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas, string data, ulong userid, string coin, SafeUint refundIfFail)
+		{
+			this.walletManager1 = walletManager1 ?? throw new ArgumentNullException(nameof(walletManager1));
+			this.amount = amount ?? throw new ArgumentNullException(nameof(amount));
+			this.to = to ?? throw new ArgumentNullException(nameof(to));
+			this.nonce = nonce;
+			this.gasPrice = gasPrice ?? throw new ArgumentNullException(nameof(gasPrice));
+			this.gas = gas ?? throw new ArgumentNullException(nameof(gas));
+			this.data = data ?? throw new ArgumentNullException(nameof(data));
+			this.userid = userid;
+			this.coin = coin ?? throw new ArgumentNullException(nameof(coin));
+			this.refundIfFail = refundIfFail ?? throw new ArgumentNullException(nameof(refundIfFail));
+		}
+
+		protected override object ExecuteIMPL()
+		{
+			bool commit;
+			try
+			{
+				walletManager1.SendEther(amount, to, nonce, gasPrice, gas, data);
+				commit = false;
+			}
+			catch (Exception e)
+			{
+				Console.Error.WriteLine("Exception while sending withdrawal: " + e.ToString());
+				try{
+					sql.Credit(coin, userid, refundIfFail, false);
+					commit = true;
+				} catch(Exception x){
+					Console.Error.WriteLine("Exception while crediting failed withdrawal back to user: " + x.ToString());
+					Console.Error.WriteLine("UnsafeCredit " + coin.ToString() + " " + userid.ToString() + " " + refundIfFail.ToString());
+					commit = false;
+				}
+				
+			}
+			sql.DestroyTransaction(commit, true);
+
+			return null;
 		}
 	}
 }

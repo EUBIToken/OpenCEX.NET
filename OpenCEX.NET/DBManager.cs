@@ -47,6 +47,12 @@ namespace jessielesbian.OpenCEX{
 			return new MySqlCommand(cmd, mySqlConnection, mySqlTransaction);
 		}
 
+		private PostWithdrawal postWithdrawal = null;
+		internal void AfterCommit(PostWithdrawal postWithdrawal){
+			StaticUtils.CheckSafety2(postWithdrawal, "Post-withdrawal transaction defined twice (should not reach here)!", true);
+			this.postWithdrawal = postWithdrawal ?? throw new ArgumentNullException(nameof(postWithdrawal));
+		}
+
 		public void DestroyTransaction(bool commit, bool destroy)
 		{
 			RequireTransaction();
@@ -73,6 +79,12 @@ namespace jessielesbian.OpenCEX{
 
 					mySqlTransaction.Commit();
 					mySqlTransaction = null;
+
+					if (postWithdrawal != null)
+					{
+						StaticUtils.Append(postWithdrawal);
+						postWithdrawal = null;
+					}
 
 					try
 					{
