@@ -456,11 +456,12 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety(httpListenerRequest.HttpMethod == "POST", "Illegal request method!");
 
 					//CSRF protection
-					CheckSafety(httpListenerRequest.Headers.Get("Origin") == origin, "Illegal origin!");
+					string body = httpListenerRequest.Headers.Get("Origin");
+					CheckSafety(body == origin, "Illegal origin: " + body + "!");
 
 					//POST parameter
 					StreamReader streamReader = new StreamReader(httpListenerRequest.InputStream, httpListenerRequest.ContentEncoding);
-					string body = streamReader.ReadToEnd();
+					body = streamReader.ReadToEnd();
 
 					CheckSafety(body.StartsWith("OpenCEX_request_body="), "Missing request body!");
 					body = HttpUtility.UrlDecode(body.Substring(21));
