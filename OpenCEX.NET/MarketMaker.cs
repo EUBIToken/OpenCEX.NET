@@ -123,7 +123,7 @@ namespace jessielesbian.OpenCEX{
 			sql.Debit(sec, to, amount1);
 
 			bool insert = ReadLP(sql, pri, sec, out SafeUint reserve0, out SafeUint reserve1, out SafeUint totalSupply);
-			string name = "LP_" + pri.Replace("_", "__") + sec;
+			string name = "LP_" + pri.Replace("_", "__") + "_" + sec;
 
 			SafeUint liquidity;
 			if (totalSupply.isZero)
@@ -148,7 +148,7 @@ namespace jessielesbian.OpenCEX{
 		public static LPReserve BurnLP(this SQLCommandFactory sql, string pri, string sec, SafeUint amount, ulong to, LPReserve lpreserve)
 		{
 			CheckSafety2(lpreserve.insert, "Uniswap.NET: Burn from empty pool!");
-			string name = "LP_" + pri.Replace("_", "__") + sec;
+			string name = "LP_" + pri.Replace("_", "__") + "_" + sec;
 			sql.Debit(name, to, amount, false);
 			SafeUint remainingTotalSupply = lpreserve.totalSupply.Sub(amount, "Uniswap.NET: Burn exceeds total supply (should not reach here)!", true);
 
