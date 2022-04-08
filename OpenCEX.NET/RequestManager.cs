@@ -1276,9 +1276,9 @@ namespace jessielesbian.OpenCEX{
 					pri = (string) temp;
 					CheckSafety(request.args.TryGetValue("secondary", out temp), "Missing secondary token!");
 					sec = (string)temp;
-					CheckSafety(request.args.TryGetValue("primary", out temp), "Missing primary amount!");
+					CheckSafety(request.args.TryGetValue("amount0", out temp), "Missing primary amount!");
 					amount0 = GetSafeUint((string)temp);
-					CheckSafety(request.args.TryGetValue("secondary", out temp), "Missing secondary amount!");
+					CheckSafety(request.args.TryGetValue("amount1", out temp), "Missing secondary amount!");
 					amount1 = GetSafeUint((string)temp);
 				}
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, pri, sec);
