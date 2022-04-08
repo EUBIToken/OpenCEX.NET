@@ -1281,6 +1281,14 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety(request.args.TryGetValue("amount1", out temp), "Missing secondary amount!");
 					amount1 = GetSafeUint((string)temp);
 				}
+				try
+				{
+					GetEnv("PairExists_" + pri.Replace("_", "__") + "_" + sec);
+				}
+				catch
+				{
+					throw new SafetyException("Nonexistant trading pair!");
+				}
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, pri, sec);
 
 				if(!(lpreserve.reserve0.isZero || lpreserve.reserve1.isZero)){
