@@ -49,7 +49,7 @@ namespace jessielesbian.OpenCEX{
 
 		private PostWithdrawal postWithdrawal = null;
 		internal void AfterCommit(PostWithdrawal postWithdrawal){
-			StaticUtils.CheckSafety2(postWithdrawal, "Post-withdrawal transaction defined twice (should not reach here)!", true);
+			StaticUtils.CheckSafety2(this.postWithdrawal, "Post-withdrawal transaction defined twice (should not reach here)!", true);
 			this.postWithdrawal = postWithdrawal ?? throw new ArgumentNullException(nameof(postWithdrawal));
 		}
 
