@@ -219,6 +219,7 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("logout", Logout.instance);
 			requestMethods.Add("load_active_orders", LoadActiveOrders.instance);
 			requestMethods.Add("get_chart", GetChart.instance);
+			requestMethods.Add("get_chart", GetChart.instance);
 
 			//Start threads
 			Thread thread;
@@ -561,6 +562,6 @@ namespace jessielesbian.OpenCEX{
 			throw new SafetyException(reason, new Exception(reason));
 		}
 
-		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x" };
+		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x", "LP_MATIC_PolyEUBI", "LP_MintME_MATIC", "LP_MintME_BNB", "LP_MintME_PolyEUBI", "LP_MintME_EUBI", "LP_MintME_1000x", "LP_BNB_PolyEUBI", "LP_shitcoin_scamcoin" };
 	}
 }

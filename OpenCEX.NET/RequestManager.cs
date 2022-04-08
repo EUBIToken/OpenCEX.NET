@@ -884,7 +884,10 @@ namespace jessielesbian.OpenCEX{
 					randomNumberGenerator.Dispose();
 					SHA256 sha256 = SHA256.Create();
 					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + DateTimeOffset.Now.AddSeconds(2592000).ToUnixTimeSeconds() + ");");
-					request.httpListenerContext.Response.AddHeader("Set-Cookie", "__Secure-OpenCEX_session =" + WebUtility.UrlEncode(Convert.ToBase64String(SessionToken)) + (remember ? ("; Domain=" + CookieOrigin + "; Max-Age=2592000; Path=/; Secure; HttpOnly; SameSite=None") : ("; Domain=" + CookieOrigin + "; Path=/; Secure; HttpOnly; SameSite=None")));
+					string cookie = "__Secure-OpenCEX_session =" + WebUtility.UrlEncode(Convert.ToBase64String(SessionToken)) + (remember ? ("; Domain=" + CookieOrigin + "; Max-Age=2592000; Path=/; Secure; HttpOnly; SameSite=None") : ("; Domain=" + CookieOrigin + "; Path=/; Secure; HttpOnly; SameSite=None"));
+					lock (request.httpListenerContext){
+						request.httpListenerContext.Response.AddHeader("Set-Cookie", cookie);
+					}
 					return;
 				}
 				else if(throws is SafetyException){
@@ -916,6 +919,30 @@ namespace jessielesbian.OpenCEX{
 				}
 				BlockchainManager blockchainManager;
 				switch(token){
+					case "LP_MATIC_PolyEUBI":
+						BurnLP(request.sqlCommandFactory, "MATIC", "PolyEUBI", amount, userid);
+						return null;
+					case "LP_MintME_MATIC":
+						BurnLP(request.sqlCommandFactory, "MintME", "MATIC", amount, userid);
+						return null;
+					case "LP_MintME_BNB":
+						BurnLP(request.sqlCommandFactory, "MintME", "BNB", amount, userid);
+						return null;
+					case "LP_MintME_PolyEUBI":
+						BurnLP(request.sqlCommandFactory, "MintME", "PolyEUBI", amount, userid);
+						return null;
+					case "LP_MintME_EUBI":
+						BurnLP(request.sqlCommandFactory, "MintME", "EUBI", amount, userid);
+						return null;
+					case "LP_MintME_1000x":
+						BurnLP(request.sqlCommandFactory, "MintME", "1000x", amount, userid);
+						return null;
+					case "LP_BNB_PolyEUBI":
+						BurnLP(request.sqlCommandFactory, "BNB", "PolyEUBI", amount, userid);
+						return null;
+					case "LP_shitcoin_scamcoin":
+						BurnLP(request.sqlCommandFactory, "shitcoin", "scamcoin", amount, userid);
+						return null;
 					case "MATIC":
 					case "PolyEUBI":
 						blockchainManager = BlockchainManager.Polygon;
@@ -1225,6 +1252,59 @@ namespace jessielesbian.OpenCEX{
 				{
 					throw new SafetyException("Unable to fetch price chart!", throwlater);
 				}
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
+		private sealed class MintLP1 : RequestMethod
+		{
+			public override object Execute(Request request)
+			{
+				string pri;
+				string sec;
+				SafeUint amount0;
+				SafeUint amount1;
+				{
+					CheckSafety(request.args.TryGetValue("primary", out object temp), "Missing primary token!");
+					pri = (string) temp;
+					CheckSafety(request.args.TryGetValue("secondary", out temp), "Missing secondary token!");
+					sec = (string)temp;
+					CheckSafety(request.args.TryGetValue("primary", out temp), "Missing primary amount!");
+					amount0 = GetSafeUint((string)temp);
+					CheckSafety(request.args.TryGetValue("secondary", out temp), "Missing secondary amount!");
+					amount1 = GetSafeUint((string)temp);
+				}
+				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, pri, sec);
+
+				if(!(lpreserve.reserve0.isZero || lpreserve.reserve1.isZero)){
+					SafeUint optimal1 = lpreserve.QuoteLP(amount0, true);
+					if (optimal1 > amount1){
+						SafeUint optimal0 = lpreserve.QuoteLP(amount1, false);
+						CheckSafety2(optimal0 > amount0, "Uniswap.NET: Insufficent primary amount (should not reach here)!", true);
+						amount0 = optimal0;
+					} else{
+						amount1 = optimal1;
+					}
+				}
+
+				MintLP(request.sqlCommandFactory, pri, sec, amount0, amount1, request.GetUserID(), lpreserve);
+				return null;
+			}
+
+			protected override bool NeedSQL()
+			{
+				return true;
+			}
+		}
+
+		private sealed class BurnLP1 : RequestMethod
+		{
+			public override object Execute(Request request)
+			{
+				throw new NotImplementedException();
 			}
 
 			protected override bool NeedSQL()

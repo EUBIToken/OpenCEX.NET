@@ -27,6 +27,15 @@ namespace jessielesbian.OpenCEX{
 				this.totalSupply = totalSupply ?? throw new ArgumentNullException(nameof(totalSupply));
 				this.insert = insert;
 			}
+
+			public SafeUint QuoteLP(SafeUint inp, bool atob){
+				CheckSafety2(inp.isZero || reserve0.isZero || reserve1.isZero, "Uniswap.NET: Zero liquidity!");
+				if(atob){
+					return inp.Mul(reserve0).Div(reserve1);
+				} else{
+					return inp.Mul(reserve1).Div(reserve0);
+				}
+			}
 		}
 		public static SafeUint Sqrt(this SafeUint y){
 			if (y > three)

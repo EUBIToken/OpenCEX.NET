@@ -13,7 +13,10 @@ namespace jessielesbian.OpenCEX
 	public static class SessionManager
 	{
 		public static ulong GetUserID(this Request request, bool thr = true){
-			Cookie cookie = request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"];
+			Cookie cookie;
+			lock(request.httpListenerContext){
+				cookie = request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"];
+			}
 			if(cookie == null){
 				StaticUtils.CheckSafety2(thr, "Missing session token!");
 				return 0;
