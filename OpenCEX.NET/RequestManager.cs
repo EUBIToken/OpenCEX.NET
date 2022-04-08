@@ -1261,6 +1261,10 @@ namespace jessielesbian.OpenCEX{
 		}
 		private sealed class MintLP1 : RequestMethod
 		{
+			private MintLP1(){
+				
+			}
+			public static readonly RequestMethod instance = new MintLP1();
 			public override object Execute(Request request)
 			{
 				string pri;
@@ -1292,19 +1296,6 @@ namespace jessielesbian.OpenCEX{
 
 				MintLP(request.sqlCommandFactory, pri, sec, amount0, amount1, request.GetUserID(), lpreserve);
 				return null;
-			}
-
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
-		}
-
-		private sealed class BurnLP1 : RequestMethod
-		{
-			public override object Execute(Request request)
-			{
-				throw new NotImplementedException();
 			}
 
 			protected override bool NeedSQL()

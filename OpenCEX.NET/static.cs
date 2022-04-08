@@ -219,7 +219,7 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("logout", Logout.instance);
 			requestMethods.Add("load_active_orders", LoadActiveOrders.instance);
 			requestMethods.Add("get_chart", GetChart.instance);
-			requestMethods.Add("get_chart", GetChart.instance);
+			requestMethods.Add("mint_lp", MintLP1.instance);
 
 			//Start threads
 			Thread thread;
