@@ -366,32 +366,29 @@ namespace jessielesbian.OpenCEX{
 			depositBlocker.Set();
 		}
 
-		private static bool watchdogSoftReboot = false;
-		private class Ping : ConcurrentJob
+		private class WatchdogPing : ConcurrentJob
 		{
 			protected override object ExecuteIMPL()
 			{
+				if(Interlocked.Decrement(ref watchdogCounter) == MaximumWatchdogLag){
+					Console.WriteLine("Watchdog: Server load normal, resume processing requests!");
+				}
+				
 				return true;
 			}
 		}
-		/// <summary>
-		/// Quality of service watchdog soft reboots if server is overloaded!
-		/// </summary>
+
+		private static volatile int watchdogCounter = 0;
+		private static readonly int MaximumWatchdogLag = Convert.ToInt32(GetEnv("MaximumWatchdogLag"));
+
 		private static void QOSWatchdog(){
 			while(!abort){
-				if(watchdogSoftReboot){
-					Thread.Sleep(1000);
-					watchdogSoftReboot = !concurrentJobs.IsEmpty;
-				} else{
-					Ping ping = new Ping();
-					Append(ping);
-					Thread.Sleep(10000);
-					if (ping.returns == null)
-					{
-						watchdogSoftReboot = true;
-					}
+				if ((Interlocked.Increment(ref watchdogCounter) - 1) == MaximumWatchdogLag)
+				{
+					Console.Error.WriteLine("Watchdog: Server overloaded, stop processing requests!");
 				}
-				
+				Append(new WatchdogPing());
+				Thread.Sleep(20);
 			}
 		}
 
@@ -435,7 +432,6 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private static readonly string origin = GetEnv("Origin");
-		private static readonly int maxEventQueueSize = Convert.ToInt32(GetEnv("MaxEventQueueSize"));
 
 		//The lead server is responsible for deposit finalization.
 		public static bool leadServer = GetEnv("DYNO") == "web.1";
@@ -467,8 +463,7 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety(body.StartsWith("OpenCEX_request_body="), "Missing request body!");
 					body = HttpUtility.UrlDecode(body.Substring(21));
 
-					CheckSafety2(watchdogSoftReboot, "Soft reboot in progress, please try again later!");
-					CheckSafety2(concurrentJobs.Count > maxEventQueueSize, "Server overloaded, please try again later!");
+					CheckSafety2(watchdogCounter > MaximumWatchdogLag, "Server overloaded, please try again later!");
 
 					UnprocessedRequest[] unprocessedRequests;
 

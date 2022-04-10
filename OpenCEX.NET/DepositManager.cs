@@ -12,7 +12,7 @@ namespace jessielesbian.OpenCEX{
 		public static readonly WalletManager defaultPolyWallet = BlockchainManager.Polygon.GetWalletManager();
 		private static void DepositManager(){
 			while(!abort){
-				if(watchdogSoftReboot){
+				if(watchdogCounter > MaximumWatchdogLag){
 					Thread.Sleep(1001);
 					continue;
 				} else{
