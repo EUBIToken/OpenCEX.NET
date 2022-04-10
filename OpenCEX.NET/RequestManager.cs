@@ -13,7 +13,7 @@ using System.Security.Cryptography;
 using Newtonsoft.Json;
 using System.IO;
 using System.Web;
-using Nethereum.Web3;
+using Nethereum.Util;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -680,7 +680,7 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				//Re-use existing table for compartiability
-				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"0x" + Web3.Sha3(tx) + "_" + amount.ToString() + "\");");
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"" + TransactionUtils.CalculateTransactionHash(tx) + "_" + amount.ToString() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@token", token);
 				mySqlCommand.Prepare();
 				CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
