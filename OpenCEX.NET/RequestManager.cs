@@ -679,9 +679,8 @@ namespace jessielesbian.OpenCEX{
 					walletManager.SendRawTX(tx);
 				}
 
-				string txid = Web3.Sha3(tx);
 				//Re-use existing table for compartiability
-				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"" + txid + "_" + amount.ToString() + "\");");
+				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"0x" + Web3.Sha3(tx) + "_" + amount.ToString() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@token", token);
 				mySqlCommand.Prepare();
 				CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
