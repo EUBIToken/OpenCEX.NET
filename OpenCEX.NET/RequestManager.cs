@@ -13,6 +13,7 @@ using System.Security.Cryptography;
 using Newtonsoft.Json;
 using System.IO;
 using System.Web;
+using Nethereum.Web3;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -638,7 +639,7 @@ namespace jessielesbian.OpenCEX{
 
 				//Boost gas price to reduce server waiting time.
 				gasPrice = gasPrice.Add(gasPrice.Div(ten));
-				string txid;
+				string tx;
 				SafeUint amount;
 
 				if (erc20){
@@ -666,15 +667,19 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					string abi = "0x64d7cd50" + postfix + amount.ToHex(false);
 					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi);
-					request.Debit(gastoken, userid, gas.Mul(gasPrice), false); //Debit gas token to pay for gas
-					txid = walletManager.SendEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, abi);
+					SafeUint gasFees = gas.Mul(gasPrice);
+					request.Debit(gastoken, userid, gasFees, false); //Debit gas token to pay for gas
+					tx = walletManager.SignEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, abi);
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, tx, userid, gastoken, gasFees));
 				} else{
 					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!", false);
 					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
-					txid = walletManager.SendEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
+					tx = walletManager.SignEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
+					walletManager.SendRawTX(tx);
 				}
 
+				string txid = Web3.Sha3(tx);
 				//Re-use existing table for compartiability
 				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"" + txid + "_" + amount.ToString() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@token", token);
@@ -993,7 +998,7 @@ namespace jessielesbian.OpenCEX{
 					request.Debit(token, userid, withfee, false);
 
 					//Send withdrawal later
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, amount, address, nonce, gasPrice, gas, "", userid, token, withfee));
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(amount, address, nonce, gasPrice, gas, ""), userid, token, withfee));
 				} else{
 					string gastoken;
 					if(token == "PolyEUBI"){
@@ -1013,7 +1018,7 @@ namespace jessielesbian.OpenCEX{
 					request.Debit(token, userid, amount, false);
 
 					//Send withdrawal later
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, zero, tokenAddress, nonce, gasPrice, gas, data, userid, token, amount));
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(zero, tokenAddress, nonce, gasPrice, gas, data), userid, token, amount));
 				}
 				
 				return null;
@@ -1315,27 +1320,16 @@ namespace jessielesbian.OpenCEX{
 	sealed class PostWithdrawal : ConcurrentJob
 	{
 		private readonly WalletManager walletManager1;
-		private readonly SafeUint amount;
-		private readonly string to;
-		private readonly ulong nonce;
-		private readonly SafeUint gasPrice;
-		private readonly SafeUint gas;
-		private readonly string data;
+		private readonly string tx;
 
 		private readonly ulong userid;
 		private readonly string coin;
 		private readonly SafeUint refundIfFail;
-		private readonly SQLCommandFactory sql = StaticUtils.GetSQL();
 
-		public PostWithdrawal(WalletManager walletManager1, SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas, string data, ulong userid, string coin, SafeUint refundIfFail)
+		public PostWithdrawal(WalletManager walletManager1, string tx, ulong userid, string coin, SafeUint refundIfFail)
 		{
 			this.walletManager1 = walletManager1 ?? throw new ArgumentNullException(nameof(walletManager1));
-			this.amount = amount ?? throw new ArgumentNullException(nameof(amount));
-			this.to = to ?? throw new ArgumentNullException(nameof(to));
-			this.nonce = nonce;
-			this.gasPrice = gasPrice ?? throw new ArgumentNullException(nameof(gasPrice));
-			this.gas = gas ?? throw new ArgumentNullException(nameof(gas));
-			this.data = data ?? throw new ArgumentNullException(nameof(data));
+			this.tx = tx ?? throw new ArgumentNullException(nameof(tx));
 			this.userid = userid;
 			this.coin = coin ?? throw new ArgumentNullException(nameof(coin));
 			this.refundIfFail = refundIfFail ?? throw new ArgumentNullException(nameof(refundIfFail));
@@ -1343,26 +1337,35 @@ namespace jessielesbian.OpenCEX{
 
 		protected override object ExecuteIMPL()
 		{
-			bool commit;
 			try
 			{
-				walletManager1.SendEther(amount, to, nonce, gasPrice, gas, data);
-				commit = false;
+				walletManager1.SendRawTX(tx);
 			}
 			catch (Exception e)
 			{
 				Console.Error.WriteLine("Exception while sending withdrawal: " + e.ToString());
-				try{
+				SQLCommandFactory sql = StaticUtils.GetSQL();
+				bool commit;
+				try
+				{
 					sql.Credit(coin, userid, refundIfFail, false);
 					commit = true;
 				} catch(Exception x){
+					commit = false;
 					Console.Error.WriteLine("Exception while crediting failed withdrawal back to user: " + x.ToString());
 					Console.Error.WriteLine("UnsafeCredit " + coin.ToString() + " " + userid.ToString() + " " + refundIfFail.ToString());
-					commit = false;
+					sql.DestroyTransaction(false, true);
 				}
-				
+				if(commit){
+					try{
+						sql.DestroyTransaction(true, true);
+					} catch (Exception x)
+					{
+						Console.Error.WriteLine("Exception while crediting failed withdrawal back to user: " + x.ToString());
+						Console.Error.WriteLine("UnsafeCredit " + coin.ToString() + " " + userid.ToString() + " " + refundIfFail.ToString());
+					}
+				}
 			}
-			sql.DestroyTransaction(commit, true);
 
 			return null;
 		}

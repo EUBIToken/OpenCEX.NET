@@ -13,7 +13,7 @@ namespace jessielesbian.OpenCEX{
 		private static void DepositManager(){
 			while(!abort){
 				if(watchdogCounter > MaximumWatchdogLag){
-					Thread.Sleep(1001);
+					Thread.Sleep(3);
 					continue;
 				} else{
 					ConcurrentJob[] updates = new ConcurrentJob[] { defaultMintMEWallet.getUpdate(), defaultBSCWallet.getUpdate(), defaultPolyWallet.getUpdate() };

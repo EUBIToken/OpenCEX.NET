@@ -157,15 +157,22 @@ namespace jessielesbian.OpenCEX
 			}
 		}
 
-		public string SendEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas, string data = "")
+		public string SignEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas, string data = "")
 		{
 			TransactionInput transactionInput = new TransactionInput(data, to, address, gas.bigInteger.ToHexBigInteger(), gasPrice.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger());
 			transactionInput.Nonce = nonce.ToHexBigInteger();
 
-			string ret = StaticUtils.Await2(ethApiContractService.TransactionManager.SendTransactionAsync(transactionInput));
-			StaticUtils.CheckSafety(ret, "Null transaction id!");
+			string ret = StaticUtils.Await2(ethApiContractService.TransactionManager.SignTransactionAsync(transactionInput));
+			StaticUtils.CheckSafety(ret, "Null transaction!");
 			return ret;
 		}
+
+		public void SendRawTX(string tx){
+			RpcRequest rpcRequest = ethApiContractService.Transactions.SendRawTransaction.BuildRequest(tx);
+			StaticUtils.Await2(blockchainManager.rpc.SendRequestAsync<string>(rpcRequest));
+		}
+
+		
 
 		[JsonObject(MemberSerialization.Fields)]
 		private sealed class EthCall{

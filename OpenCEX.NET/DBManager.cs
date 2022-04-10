@@ -71,7 +71,18 @@ namespace jessielesbian.OpenCEX{
 						command.Parameters.AddWithValue("@balance", balanceUpdate.Value.ToString());
 						command.Parameters.AddWithValue("@coin", key.Substring(key.IndexOf('_') + 1));
 						command.Prepare();
-						command.SafeExecuteNonQuery();
+
+						try{
+							command.SafeExecuteNonQuery();
+						} catch(Exception e){
+							Console.Error.WriteLine("Clearing balances cache due to exception: " + e.ToString());
+							lock (L3Blacklist)
+							{
+								L3BalancesCache.Clear();
+								L3Blacklist.Clear();
+							}
+							throw e;
+						}
 
 						//Prepare to write to cache
 						pendingFlush.Enqueue(balanceUpdate);
