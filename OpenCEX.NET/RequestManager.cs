@@ -653,7 +653,7 @@ namespace jessielesbian.OpenCEX{
 						if(blockchainManager.chainid == 24734){
 							token_address = null;
 						} else{
-							token_address = "0x1c5be9928cae5ef9e93e0c9068903d1f6145c51c";
+							token_address = "0xb09d3671f342c1959719bcb5db02d1a7be3a9970";
 						}
 						break;
 					default:
@@ -1036,7 +1036,7 @@ namespace jessielesbian.OpenCEX{
 						}
 						else
 						{
-							tokenAddress = "0x1c5be9928cae5ef9e93e0c9068903d1f6145c51c";
+							tokenAddress = "0xb09d3671f342c1959719bcb5db02d1a7be3a9970";
 						}
 						break;
 					default:
