@@ -639,25 +639,32 @@ namespace jessielesbian.OpenCEX{
 				request.sqlCommandFactory.SafeDestroyReader();
 
 				string token_address;
+				bool backed;
 				switch(token){
 					case "1000x":
 						token_address = "0x7b535379bbafd9cd12b35d91addabf617df902b2";
+						backed = false;
 						break;
 					case "EUBI":
 						token_address = "0x8afa1b7a8534d519cb04f4075d3189df8a6738c1";
+						backed = false;
 						break;
 					case "PolyEUBI":
 						token_address = "0x553e77f7f71616382b1545d4457e2c1ee255fa7a";
+						backed = false;
 						break;
 					case "MintME":
 						if(blockchainManager.chainid == 24734){
 							token_address = null;
+							backed = false;
 						} else{
 							token_address = "0xb09d3671f342c1959719bcb5db02d1a7be3a9970";
+							backed = true;
 						}
 						break;
 					default:
 						token_address = null;
+						backed = false;
 						break;
 				}
 
@@ -703,7 +710,7 @@ namespace jessielesbian.OpenCEX{
 					SafeUint gasFees = gas.Mul(gasPrice);
 					request.Debit(gastoken, userid, gasFees, false); //Debit gas token to pay for gas
 					tx = walletManager.SignEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, abi);
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, tx, userid, gastoken, gasFees));
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, tx, userid, gastoken, gasFees, backed));
 				}
 
 				//Re-use existing table for compartiability
@@ -1018,29 +1025,36 @@ namespace jessielesbian.OpenCEX{
 				//Boost gas price to reduce server waiting time.
 				gasPrice = gasPrice.Add(gasPrice.Div(ten));
 				string tokenAddress;
+				bool backed;
 				switch (token)
 				{
 					case "PolyEUBI":
 						tokenAddress = "0x553e77f7f71616382b1545d4457e2c1ee255fa7a";
+						backed = false;
 						break;
 					case "EUBI":
 						tokenAddress = "0x8afa1b7a8534d519cb04f4075d3189df8a6738c1";
+						backed = false;
 						break;
 					case "1000x":
 						tokenAddress = "0x7b535379bbafd9cd12b35d91addabf617df902b2";
+						backed = false;
 						break;
 					case "MintME":
 						if (blockchainManager.chainid == 24734)
 						{
 							tokenAddress = null;
+							backed = false;
 						}
 						else
 						{
 							tokenAddress = "0xb09d3671f342c1959719bcb5db02d1a7be3a9970";
+							backed = true;
 						}
 						break;
 					default:
 						tokenAddress = null;
+						backed = false;
 						break;
 				}
 
@@ -1055,10 +1069,10 @@ namespace jessielesbian.OpenCEX{
 					SafeUint withfee = amount.Add(gasPrice.Mul(gas));
 
 					//Debit unbacked balance
-					request.Debit(token, userid, withfee, false);
+					request.Debit(token, userid, withfee, backed);
 
 					//Send withdrawal later
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(amount, address, nonce, gasPrice, gas, ""), userid, token, withfee));
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(amount, address, nonce, gasPrice, gas, ""), userid, token, withfee, backed));
 				} else{
 					string gastoken;
 					if(blockchainManager.chainid == 24734)
@@ -1079,7 +1093,7 @@ namespace jessielesbian.OpenCEX{
 					request.Debit(token, userid, amount, false);
 
 					//Send withdrawal later
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(zero, tokenAddress, nonce, gasPrice, gas, data), userid, token, amount));
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(zero, tokenAddress, nonce, gasPrice, gas, data), userid, token, amount, backed));
 				}
 				
 				return null;
@@ -1386,14 +1400,16 @@ namespace jessielesbian.OpenCEX{
 		private readonly ulong userid;
 		private readonly string coin;
 		private readonly SafeUint refundIfFail;
+		private readonly bool backed;
 
-		public PostWithdrawal(WalletManager walletManager1, string tx, ulong userid, string coin, SafeUint refundIfFail)
+		public PostWithdrawal(WalletManager walletManager1, string tx, ulong userid, string coin, SafeUint refundIfFail, bool b)
 		{
 			this.walletManager1 = walletManager1 ?? throw new ArgumentNullException(nameof(walletManager1));
 			this.tx = tx ?? throw new ArgumentNullException(nameof(tx));
 			this.userid = userid;
 			this.coin = coin ?? throw new ArgumentNullException(nameof(coin));
 			this.refundIfFail = refundIfFail ?? throw new ArgumentNullException(nameof(refundIfFail));
+			backed = b;
 		}
 
 		protected override object ExecuteIMPL()
@@ -1409,7 +1425,7 @@ namespace jessielesbian.OpenCEX{
 				bool commit;
 				try
 				{
-					sql.Credit(coin, userid, refundIfFail, false);
+					sql.Credit(coin, userid, refundIfFail, backed);
 					commit = true;
 				} catch(Exception x){
 					commit = false;
