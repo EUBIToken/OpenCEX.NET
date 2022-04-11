@@ -129,18 +129,29 @@ namespace jessielesbian.OpenCEX{
 				//[txid, amount]
 				string[] misc = url2.Split('_');
 				WalletManager walletManager;
-				switch(url1){
+				bool backed;
+				string url3 = url1;
+				switch(url3)
+				{
 					case "MintME":
 					case "EUBI":
 					case "1000x":
 						walletManager = BlockchainManager.MintME.GetWalletManager();
+						backed = false;
 						break;
 					case "BNB":
 						walletManager = BlockchainManager.BinanceSmartChain.GetWalletManager();
+						backed = false;
 						break;
 					case "MATIC":
 					case "PolyEUBI":
 						walletManager = BlockchainManager.Polygon.GetWalletManager();
+						backed = false;
+						break;
+					case "WMintME":
+						walletManager = BlockchainManager.Polygon.GetWalletManager();
+						backed = true;
+						url3 = "MintME";
 						break;
 					default:
 						throw new Exception("Unknown token!");
@@ -172,7 +183,7 @@ namespace jessielesbian.OpenCEX{
 								if (GetSafeUint(Convert.ToString(transaction.status)) == one)
 								{
 									//UNSAFE credit, since we are adding newly-deposited funds
-									sqlCommandFactory.Credit(url1, userid, GetSafeUint(misc[1]), false);
+									sqlCommandFactory.Credit(url3, userid, GetSafeUint(misc[1]), backed);
 								}
 								sqlCommandFactory.DestroyTransaction(true, true);
 							}

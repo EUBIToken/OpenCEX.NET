@@ -639,32 +639,26 @@ namespace jessielesbian.OpenCEX{
 				request.sqlCommandFactory.SafeDestroyReader();
 
 				string token_address;
-				bool backed;
 				switch(token){
 					case "1000x":
 						token_address = "0x7b535379bbafd9cd12b35d91addabf617df902b2";
-						backed = false;
 						break;
 					case "EUBI":
 						token_address = "0x8afa1b7a8534d519cb04f4075d3189df8a6738c1";
-						backed = false;
 						break;
 					case "PolyEUBI":
 						token_address = "0x553e77f7f71616382b1545d4457e2c1ee255fa7a";
-						backed = false;
 						break;
 					case "MintME":
 						if(blockchainManager.chainid == 24734){
 							token_address = null;
-							backed = false;
 						} else{
 							token_address = "0xb09d3671f342c1959719bcb5db02d1a7be3a9970";
-							backed = true;
+							token = "WMintME";
 						}
 						break;
 					default:
 						token_address = null;
-						backed = false;
 						break;
 				}
 
@@ -715,7 +709,7 @@ namespace jessielesbian.OpenCEX{
 					SafeUint gasFees = gas.Mul(gasPrice);
 					request.Debit(gastoken, userid, gasFees, false); //Debit gas token to pay for gas
 					tx = walletManager.SignEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, abi);
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, tx, userid, gastoken, gasFees, backed));
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, tx, userid, gastoken, gasFees, false));
 				}
 
 				//Re-use existing table for compartiability
