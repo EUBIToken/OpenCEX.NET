@@ -703,7 +703,12 @@ namespace jessielesbian.OpenCEX{
 						default:
 							throw new SafetyException("Unsupported blockchain!");
 					}
-					amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, gasPrice, zero, abi2));
+					try{
+						amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, gasPrice, zero, abi2));
+					} catch{
+						amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, zero, zero, abi2));
+					}
+					
 					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					string abi = "0x64d7cd50" + postfix + amount.ToHex(false);
 					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi);
