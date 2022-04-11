@@ -596,7 +596,7 @@ namespace jessielesbian.OpenCEX{
 				}
 				BlockchainManager blockchainManager;
 				switch(token){
-					case "MintME":
+					//Traditional tokens
 					case "EUBI":
 					case "1000x":
 						blockchainManager = BlockchainManager.MintME;
@@ -608,6 +608,26 @@ namespace jessielesbian.OpenCEX{
 					case "BNB":
 						blockchainManager = BlockchainManager.BinanceSmartChain;
 						break;
+
+					//Multichain (MintME-Polygon) token
+					case "MintME":
+						string blockchain;
+						{
+							CheckSafety(request.args.TryGetValue("blockchain", out object tm), "Must specify blockchain for multichain token!");
+							blockchain = (string)tm;
+						}
+						switch(blockchain){
+							case "MintME":
+								blockchainManager = BlockchainManager.MintME;
+								break;
+							case "Polygon":
+								blockchainManager = BlockchainManager.Polygon;
+								break;
+							default:
+								throw new SafetyException("Unsupported blockchain!");
+						}
+						break;
+					//Unknown tokens
 					default:
 						throw new SafetyException("Unknown token!");
 				}
@@ -629,11 +649,17 @@ namespace jessielesbian.OpenCEX{
 					case "PolyEUBI":
 						token_address = "0x553e77f7f71616382b1545d4457e2c1ee255fa7a";
 						break;
+					case "MintME":
+						if(blockchainManager.chainid == 24734){
+							token_address = null;
+						} else{
+							token_address = "0x1c5be9928cae5ef9e93e0c9068903d1f6145c51c";
+						}
+						break;
 					default:
-						token_address = string.Empty;
+						token_address = null;
 						break;
 				}
-				bool erc20 = token_address != string.Empty;
 
 				SafeUint gasPrice = walletManager.GetGasPrice();
 
@@ -642,15 +668,22 @@ namespace jessielesbian.OpenCEX{
 				string tx;
 				SafeUint amount;
 
-				if (erc20){
+				if (token_address is null)
+				{
+					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!", false);
+					CheckSafety2(amount.isZero, "Zero-value deposit!");
+					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
+					tx = walletManager.SignEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
+					walletManager.SendRawTX(tx);
+				} else{
 					string formattedTokenAddress = ExpandABIAddress(token_address);
 					string postfix = formattedTokenAddress + ExpandABIAddress(walletManager.address);
 					walletManager = blockchainManager.ExchangeWalletManager;
 					string abi2 = "0xaec6ed90" + ExpandABIAddress(walletManager.address) + postfix;
-					
+
 					string ERC20DepositManager;
 					string gastoken;
-					switch(blockchainManager.chainid)
+					switch (blockchainManager.chainid)
 					{
 						case 24734:
 							gastoken = "MintME";
@@ -671,12 +704,6 @@ namespace jessielesbian.OpenCEX{
 					request.Debit(gastoken, userid, gasFees, false); //Debit gas token to pay for gas
 					tx = walletManager.SignEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, abi);
 					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, tx, userid, gastoken, gasFees));
-				} else{
-					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!", false);
-					CheckSafety2(amount.isZero, "Zero-value deposit!");
-					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
-					tx = walletManager.SignEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
-					walletManager.SendRawTX(tx);
 				}
 
 				//Re-use existing table for compartiability
@@ -923,6 +950,7 @@ namespace jessielesbian.OpenCEX{
 				}
 				BlockchainManager blockchainManager;
 				switch(token){
+					//LP tokens
 					case "LP_MATIC_PolyEUBI":
 						BurnLP(request.sqlCommandFactory, "MATIC", "PolyEUBI", amount, userid);
 						return null;
@@ -947,11 +975,12 @@ namespace jessielesbian.OpenCEX{
 					case "LP_shitcoin_scamcoin":
 						BurnLP(request.sqlCommandFactory, "shitcoin", "scamcoin", amount, userid);
 						return null;
+					
+					//Traditional tokens
 					case "MATIC":
 					case "PolyEUBI":
 						blockchainManager = BlockchainManager.Polygon;
 						break;
-					case "MintME":
 					case "EUBI":
 					case "1000x":
 						blockchainManager = BlockchainManager.MintME;
@@ -959,6 +988,28 @@ namespace jessielesbian.OpenCEX{
 					case "BNB":
 						blockchainManager = BlockchainManager.BinanceSmartChain;
 						break;
+
+					//Multichain tokens
+					case "MintME":
+						string blockchain;
+						{
+							CheckSafety(request.args.TryGetValue("blockchain", out object tm), "Must specify blockchain for multichain token!");
+							blockchain = (string)tm;
+						}
+						switch (blockchain)
+						{
+							case "MintME":
+								blockchainManager = BlockchainManager.MintME;
+								break;
+							case "Polygon":
+								blockchainManager = BlockchainManager.Polygon;
+								break;
+							default:
+								throw new SafetyException("Unsupported blockchain!");
+						}
+						break;
+
+					//Unsupported tokens
 					default:
 						throw new SafetyException("Unsupported token!");
 				}
@@ -977,6 +1028,16 @@ namespace jessielesbian.OpenCEX{
 						break;
 					case "1000x":
 						tokenAddress = "0x7b535379bbafd9cd12b35d91addabf617df902b2";
+						break;
+					case "MintME":
+						if (blockchainManager.chainid == 24734)
+						{
+							tokenAddress = null;
+						}
+						else
+						{
+							tokenAddress = "0x1c5be9928cae5ef9e93e0c9068903d1f6145c51c";
+						}
 						break;
 					default:
 						tokenAddress = null;
@@ -1000,10 +1061,11 @@ namespace jessielesbian.OpenCEX{
 					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(amount, address, nonce, gasPrice, gas, ""), userid, token, withfee));
 				} else{
 					string gastoken;
-					if(token == "PolyEUBI"){
-						gastoken = "MATIC";
-					} else{
+					if(blockchainManager.chainid == 24734)
+					{
 						gastoken = "MintME";
+					} else{
+						gastoken = "MATIC";
 					}
 
 					//Prepare ABI
