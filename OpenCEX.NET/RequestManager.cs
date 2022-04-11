@@ -653,7 +653,7 @@ namespace jessielesbian.OpenCEX{
 						if(blockchainManager.chainid == 24734){
 							token_address = null;
 						} else{
-							token_address = "0xb09d3671f342c1959719bcb5db02d1a7be3a9970";
+							token_address = "0x2b7bede8a97021da880e6c84e8b915492d2ae216";
 							token = "WMintME";
 						}
 						break;
@@ -1047,7 +1047,7 @@ namespace jessielesbian.OpenCEX{
 						}
 						else
 						{
-							tokenAddress = "0xb09d3671f342c1959719bcb5db02d1a7be3a9970";
+							tokenAddress = "0x2b7bede8a97021da880e6c84e8b915492d2ae216";
 							backed = true;
 						}
 						break;
