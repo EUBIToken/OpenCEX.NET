@@ -1067,7 +1067,6 @@ namespace jessielesbian.OpenCEX{
 					SafeUint gas = walletManager.EstimateGas(address, gasPrice, amount, "");
 					SafeUint withfee = amount.Add(gasPrice.Mul(gas));
 
-					//Debit unbacked balance
 					request.Debit(token, userid, withfee, backed);
 
 					//Send withdrawal later
@@ -1087,9 +1086,10 @@ namespace jessielesbian.OpenCEX{
 					//Estimate gas
 					SafeUint gas = walletManager.EstimateGas(tokenAddress, gasPrice, zero, data);
 
-					//Debit unbacked balance
+					//Debit unbacked gas fees 
 					request.Debit(gastoken, userid, gasPrice.Mul(gas), false);
-					request.Debit(token, userid, amount, false);
+
+					request.Debit(token, userid, amount, backed);
 
 					//Send withdrawal later
 					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(zero, tokenAddress, nonce, gasPrice, gas, data), userid, token, amount, backed));
