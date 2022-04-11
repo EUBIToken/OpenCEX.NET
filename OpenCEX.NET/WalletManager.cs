@@ -35,7 +35,7 @@ namespace jessielesbian.OpenCEX
 		public readonly ulong chainid;
 		public static readonly BlockchainManager MintME = new BlockchainManager("https://node1.mintme.com", 24734);
 
-		public static readonly BlockchainManager Polygon = new BlockchainManager("https://rpc-mainnet.maticvigil.com", 137);
+		public static readonly BlockchainManager Polygon = new BlockchainManager("https://polygon-rpc.com", 137);
 		public static readonly BlockchainManager BinanceSmartChain = new BlockchainManager("https://bscrpc.com", 56);
 		public readonly RpcClient rpc;
 		public readonly string tail1;

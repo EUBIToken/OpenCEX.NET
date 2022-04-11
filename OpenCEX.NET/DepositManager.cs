@@ -140,7 +140,7 @@ namespace jessielesbian.OpenCEX{
 						break;
 					case "MATIC":
 					case "PolyEUBI":
-						walletManager = BlockchainManager.BinanceSmartChain.GetWalletManager();
+						walletManager = BlockchainManager.Polygon.GetWalletManager();
 						break;
 					default:
 						throw new Exception("Unknown token!");
