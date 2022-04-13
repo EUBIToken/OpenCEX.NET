@@ -603,6 +603,7 @@ namespace jessielesbian.OpenCEX{
 						break;
 					case "MATIC":
 					case "PolyEUBI":
+					case "Dai":
 						blockchainManager = BlockchainManager.Polygon;
 						break;
 					case "BNB":
@@ -648,6 +649,9 @@ namespace jessielesbian.OpenCEX{
 						break;
 					case "PolyEUBI":
 						token_address = "0x553e77f7f71616382b1545d4457e2c1ee255fa7a";
+						break;
+					case "Dai":
+						token_address = "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063";
 						break;
 					case "MintME":
 						if(blockchainManager.chainid == 24734){
@@ -985,6 +989,7 @@ namespace jessielesbian.OpenCEX{
 					//Traditional tokens
 					case "MATIC":
 					case "PolyEUBI":
+					case "Dai":
 						blockchainManager = BlockchainManager.Polygon;
 						break;
 					case "EUBI":
@@ -1037,6 +1042,10 @@ namespace jessielesbian.OpenCEX{
 						break;
 					case "1000x":
 						tokenAddress = "0x7b535379bbafd9cd12b35d91addabf617df902b2";
+						backed = false;
+						break;
+					case "Dai":
+						tokenAddress = "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063";
 						backed = false;
 						break;
 					case "MintME":
