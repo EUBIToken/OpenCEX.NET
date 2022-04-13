@@ -145,6 +145,7 @@ namespace jessielesbian.OpenCEX{
 						break;
 					case "MATIC":
 					case "PolyEUBI":
+					case "Dai":
 						walletManager = BlockchainManager.Polygon.GetWalletManager();
 						backed = false;
 						break;
