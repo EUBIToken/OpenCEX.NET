@@ -165,21 +165,12 @@ namespace jessielesbian.OpenCEX{
 			public override object Execute(Request request)
 			{
 				//Safety checks
-				int fillMode;
-				SafeUint price;
-				SafeUint amount;
-				string primary;
-				string secondary;
-				bool buy;
-				{
-					object tmp = null;
-					fillMode = request.ExtractRequestArg<int>("fill_mode");
-					price = request.ExtractSafeUint("price");
-					amount = request.ExtractSafeUint("amount");
-					primary = request.ExtractRequestArg<string>("primary");
-					secondary = request.ExtractRequestArg<string>("secondary");
-					buy = request.ExtractRequestArg<bool>("buy");
-				}
+				long fillMode = request.ExtractRequestArg<long>("fill_mode");
+				SafeUint price = request.ExtractSafeUint("price");
+				SafeUint amount = request.ExtractSafeUint("amount");
+				string primary = request.ExtractRequestArg<string>("primary");
+				string secondary = request.ExtractRequestArg<string>("secondary");
+				bool buy = request.ExtractRequestArg<bool>("buy");
 
 				CheckSafety(fillMode > -1, "Invalid fill mode!");
 				CheckSafety(fillMode < 3, "Invalid fill mode!");
