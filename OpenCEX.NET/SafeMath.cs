@@ -14,7 +14,6 @@ namespace jessielesbian.OpenCEX
 		public static readonly SafeUint basegas = new SafeUint(new BigInteger(21000));
 		public static readonly SafeUint basegas2 = new SafeUint(new BigInteger(1000000));
 		public static readonly SafeUint e16 = new SafeUint(new BigInteger(65536));
-		public static readonly SafeUint gwei = new SafeUint(new BigInteger(990000000));
 		public static readonly SafeUint ten = new SafeUint(new BigInteger(10));
 		public static readonly SafeUint ether = GetSafeUint("1000000000000000000");
 		public static readonly SafeUint zero = new SafeUint(BigInteger.Zero);
@@ -24,6 +23,7 @@ namespace jessielesbian.OpenCEX
 		public static readonly SafeUint thousand = new SafeUint(1000);
 		public static readonly SafeUint afterfees = new SafeUint(997);
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static SafeUint GetSafeUint(string number){
 			if (number.StartsWith("0x"))
 			{
@@ -41,6 +41,7 @@ namespace jessielesbian.OpenCEX
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string SafeSerializeSafeUint(SafeUint stuff){
 			if(stuff is null){
 				return null;
@@ -48,15 +49,18 @@ namespace jessielesbian.OpenCEX
 				return stuff.ToString();
 			}
 		}
-		public static decimal GetAmount2(this SafeUint amount)
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static SafeUint ExtractSafeUint(this RequestManager.Request request, string key)
 		{
-			if (amount < ether)
-			{
-				return Convert.ToDecimal("0." + amount.ToString().PadLeft(18, '0'));
-			}
-			else
-			{
-				return Convert.ToDecimal(amount.Div(ether) + "." + amount.Mod(ether));
+			string temp = request.ExtractRequestArg<string>(key);
+			string postfix = key + '!';
+			CheckSafety2(temp.Length == 0, "Zero-length number for request argument: " + postfix);
+			CheckSafety2(temp[0] == '-', "Negative number for request argument: " + postfix);
+			try{
+				return GetSafeUint(temp);
+			} catch{
+				throw new SafetyException("Invalid number for request argument: " + postfix);
 			}
 		}
 	}

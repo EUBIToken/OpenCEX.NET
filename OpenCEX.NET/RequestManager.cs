@@ -165,7 +165,7 @@ namespace jessielesbian.OpenCEX{
 			public override object Execute(Request request)
 			{
 				//Safety checks
-				long fillMode;
+				int fillMode;
 				SafeUint price;
 				SafeUint amount;
 				string primary;
@@ -173,18 +173,12 @@ namespace jessielesbian.OpenCEX{
 				bool buy;
 				{
 					object tmp = null;
-					CheckSafety(request.args.TryGetValue("fill_mode", out tmp), "Missing order fill mode!");
-					fillMode = (long)tmp;
-					CheckSafety(request.args.TryGetValue("price", out tmp), "Missing order price!");
-					price = GetSafeUint((string)tmp);
-					CheckSafety(request.args.TryGetValue("amount", out tmp), "Missing order amount!");
-					amount = GetSafeUint((string)tmp);
-					CheckSafety(request.args.TryGetValue("primary", out tmp), "Missing primary token!");
-					primary = (string)tmp;
-					CheckSafety(request.args.TryGetValue("secondary", out tmp), "Missing secondary token!");
-					secondary = (string)tmp;
-					CheckSafety(request.args.TryGetValue("buy", out tmp), "Missing order type!");
-					buy = Convert.ToBoolean(tmp);
+					fillMode = request.ExtractRequestArg<int>("fill_mode");
+					price = request.ExtractSafeUint("price");
+					amount = request.ExtractSafeUint("amount");
+					primary = request.ExtractRequestArg<string>("primary");
+					secondary = request.ExtractRequestArg<string>("secondary");
+					buy = request.ExtractRequestArg<bool>("buy");
 				}
 
 				CheckSafety(fillMode > -1, "Invalid fill mode!");
@@ -560,14 +554,8 @@ namespace jessielesbian.OpenCEX{
 			}
 			public override object Execute(Request request)
 			{
-				string pri;
-				string sec;
-				{
-					CheckSafety(request.args.TryGetValue("primary", out object temp));
-					pri = (string)temp;
-					CheckSafety(request.args.TryGetValue("secondary", out temp));
-					sec = (string)temp;
-				}
+				string pri = request.ExtractRequestArg<string>("primary");
+				string sec = request.ExtractRequestArg<string>("secondary");
 				
 				return new string[] {SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, true)), SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, false))};
 			}
@@ -885,17 +873,9 @@ namespace jessielesbian.OpenCEX{
 
 			public override void Execute2(Request request)
 			{
-				string username;
-				string password;
-				bool remember;
-				{
-					CheckSafety(request.args.TryGetValue("username", out object temp), "Missing username!");
-					username = (string)temp;
-					CheckSafety(request.args.TryGetValue("password", out temp), "Missing password!");
-					password = (string)temp;
-					CheckSafety(request.args.TryGetValue("renember", out temp), "Missing remember!");
-					remember = Convert.ToBoolean(temp);
-				}
+				string username = request.ExtractRequestArg<string>("username");
+				string password = request.ExtractRequestArg<string>("password");
+				bool remember = request.ExtractRequestArg<bool>("renember");
 
 				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("SELECT UserID, Passhash FROM Accounts WHERE Username = @username;");
 				mySqlCommand.Parameters.AddWithValue("@username", username);
@@ -947,17 +927,9 @@ namespace jessielesbian.OpenCEX{
 			public override object Execute(Request request)
 			{
 				ulong userid = request.GetUserID();
-				string token;
-				string address;
-				SafeUint amount;
-				{
-					CheckSafety(request.args.TryGetValue("token", out object temp), "Missing token!");
-					token = Convert.ToString(temp);
-					CheckSafety(request.args.TryGetValue("address", out temp), "Missing address!");
-					address = Convert.ToString(temp);
-					CheckSafety(request.args.TryGetValue("amount", out temp), "Missing amount!");
-					amount = GetSafeUint(Convert.ToString(temp));
-				}
+				string token = request.ExtractRequestArg<string>("token");
+				string address = request.ExtractRequestArg<string>("address");
+				SafeUint amount = request.ExtractSafeUint("amount");
 				BlockchainManager blockchainManager;
 				switch(token){
 					//LP tokens
@@ -1131,14 +1103,13 @@ namespace jessielesbian.OpenCEX{
 			}
 			public override object Execute(Request request)
 			{
-				CheckSafety(request.args.TryGetValue("captcha", out object temp), "Missing captcha!");
-				CheckSafety(temp is string, "Captcha response must be string!");
-
+				string temp = request.ExtractRequestArg<string>("captcha");
+				
 				WebRequest httpWebRequest = WebRequest.Create("https://www.google.com/recaptcha/api/siteverify");
 				httpWebRequest.Method = "POST";
 				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
 				
-				byte[] bytes2 = HttpUtility.UrlEncodeToBytes((string) temp);
+				byte[] bytes2 = HttpUtility.UrlEncodeToBytes(temp);
 
 				using (Stream stream = httpWebRequest.GetRequestStream())
 				{

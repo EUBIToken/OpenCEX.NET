@@ -551,6 +551,22 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
+		/// <summary>
+		/// Safe type checking for request args
+		/// </summary>
+		/// <returns></returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static T ExtractRequestArg<T>(this Request request, string key){
+			CheckSafety(key, "Key should not be null (should not reach here)!", true);
+			string postfix = key + '!';
+			CheckSafety(request.args.TryGetValue(key, out object temp), "Missing request argument: " + postfix);
+			try{
+				return (T)temp;
+			} catch{
+				throw new SafetyException("Incorrect type for request argument: " + postfix);
+			}
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void ThrowInternal2(string reason){
 			throw new SafetyException(reason, new Exception(reason));
