@@ -258,11 +258,19 @@ namespace jessielesbian.OpenCEX{
 				return lpreserve;
 			}
 			SafeUint ArbitrageIn = ComputeProfitMaximizingTrade(price, lpreserve, out bool arbitrageBuy);
-			if (!ArbitrageIn.isZero && arbitrageBuy == buy)
-			{
 
+
+			if(arbitrageBuy == buy){
 				ArbitrageIn = ArbitrageIn.Min(instance.Balance);
+			} else{
+				return lpreserve;
+			}
+			
 
+			if (ArbitrageIn.isZero)
+			{
+				return lpreserve;
+			} else{
 				//Partial order cancellation
 				if (buy)
 				{
@@ -275,8 +283,6 @@ namespace jessielesbian.OpenCEX{
 
 				//Swap using Uniswap.NET
 				return sqlCommandFactory.SwapLP(primary, secondary, instance.placedby, ArbitrageIn, buy, mutate, lpreserve, out _);
-			} else{
-				return lpreserve;
 			}
 		}
 	}
