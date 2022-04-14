@@ -378,77 +378,89 @@ namespace jessielesbian.OpenCEX{
 			protected override object ExecuteIMPL()
 			{
 				SQLCommandFactory sqlCommandFactory = GetSQL();
-				MySqlCommand prepared = sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp DESC FOR UPDATE;");
-				prepared.Parameters.AddWithValue("@primary", primary);
-				prepared.Parameters.AddWithValue("@secondary", secondary);
-				prepared.Prepare();
-				MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(prepared);
-				SafeUint start = new SafeUint(new BigInteger(DateTimeOffset.Now.ToUnixTimeSeconds()));
-				start = start.Sub(start.Mod(day));
-				SafeUint high;
-				SafeUint low;
-				SafeUint open;
-				SafeUint time;
-				SafeUint close = update;
-				bool append;
-				if (reader.HasRows)
-				{
-					time = GetSafeUint(reader.GetString("Timestamp"));
-					append = start.Sub(time) > day;
-					if (append)
+				bool commit;
+				try{
+					MySqlCommand prepared = sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp DESC FOR UPDATE;");
+					prepared.Parameters.AddWithValue("@primary", primary);
+					prepared.Parameters.AddWithValue("@secondary", secondary);
+					prepared.Prepare();
+					MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(prepared);
+					SafeUint start = new SafeUint(new BigInteger(DateTimeOffset.Now.ToUnixTimeSeconds()));
+					start = start.Sub(start.Mod(day));
+					SafeUint high;
+					SafeUint low;
+					SafeUint open;
+					SafeUint time;
+					SafeUint close = update;
+					bool append;
+					if (reader.HasRows)
 					{
-						open = GetSafeUint(reader.GetString("Close"));
-						high = open.Max(close);
-						low = open.Min(close);
-						time = start;
+						time = GetSafeUint(reader.GetString("Timestamp"));
+						append = start.Sub(time) > day;
+						if (append)
+						{
+							open = GetSafeUint(reader.GetString("Close"));
+							high = open.Max(close);
+							low = open.Min(close);
+							time = start;
+						}
+						else
+						{
+							open = GetSafeUint(reader.GetString("Open"));
+							high = GetSafeUint(reader.GetString("High"));
+							low = GetSafeUint(reader.GetString("Low"));
+						}
+
 					}
 					else
 					{
-						open = GetSafeUint(reader.GetString("Open"));
-						high = GetSafeUint(reader.GetString("High"));
-						low = GetSafeUint(reader.GetString("Low"));
+						open = zero;
+						low = zero;
+						high = close;
+						append = true;
+						time = start;
 					}
 
-				}
-				else
-				{
-					open = zero;
-					low = zero;
-					high = close;
-					append = true;
-					time = start;
-				}
+					sqlCommandFactory.SafeDestroyReader();
 
-				sqlCommandFactory.SafeDestroyReader();
+					if (append)
+					{
+						prepared = sqlCommandFactory.GetCommand("INSERT INTO HistoricalPrices (Open, High, Low, Close, Timestamp, Pri, Sec) VALUES (@open, @high, @low, @close, @timestamp, @primary, @secondary);");
+					}
+					else
+					{
+						prepared = sqlCommandFactory.GetCommand("UPDATE HistoricalPrices SET Open = @open, High = @high, Low = @low, Close = @close WHERE Timestamp = @timestamp AND Pri = @primary AND Sec = @secondary;");
+					}
 
-				if (append)
-				{
-					prepared = sqlCommandFactory.GetCommand("INSERT INTO HistoricalPrices (Open, High, Low, Close, Timestamp, Pri, Sec) VALUES (@open, @high, @low, @close, @timestamp, @primary, @secondary);");
-				}
-				else
-				{
-					prepared = sqlCommandFactory.GetCommand("UPDATE HistoricalPrices SET Open = @open, High = @high, Low = @low, Close = @close WHERE Timestamp = @timestamp AND Pri = @primary AND Sec = @secondary;");
-				}
+					if (close > high)
+					{
+						high = close;
+					}
 
-				if (close > high)
-				{
-					high = close;
-				}
+					if (close < low)
+					{
+						low = close;
+					}
 
-				if (close < low)
-				{
-					low = close;
+					prepared.Parameters.AddWithValue("@open", open.ToString());
+					prepared.Parameters.AddWithValue("@high", high.ToString());
+					prepared.Parameters.AddWithValue("@low", low.ToString());
+					prepared.Parameters.AddWithValue("@close", close.ToString());
+					prepared.Parameters.AddWithValue("@timestamp", time.ToString());
+					prepared.Parameters.AddWithValue("@primary", primary);
+					prepared.Parameters.AddWithValue("@secondary", secondary);
+					prepared.Prepare();
+					CheckSafety(prepared.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
+					commit = true;
+				} catch(Exception e){
+					Console.Error.WriteLine("Unexpected exception while writing chart: " + e.ToString());
+					commit = false;
 				}
-
-				prepared.Parameters.AddWithValue("@open", open.ToString());
-				prepared.Parameters.AddWithValue("@high", high.ToString());
-				prepared.Parameters.AddWithValue("@low", low.ToString());
-				prepared.Parameters.AddWithValue("@close", close.ToString());
-				prepared.Parameters.AddWithValue("@timestamp", time.ToString());
-				prepared.Parameters.AddWithValue("@primary", primary);
-				prepared.Parameters.AddWithValue("@secondary", secondary);
-				prepared.Prepare();
-				CheckSafety(prepared.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
+				try{
+					sqlCommandFactory.DestroyTransaction(commit, true);
+				} catch (Exception e){
+					Console.Error.WriteLine("Unexpected exception while closing chart: " + e.ToString());
+				}
 				return null;
 			}
 		}
