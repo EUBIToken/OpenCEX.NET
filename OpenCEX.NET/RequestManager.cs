@@ -142,7 +142,7 @@ namespace jessielesbian.OpenCEX{
 				mySqlDataReader.CheckSingletonResult();
 				request.sqlCommandFactory.SafeDestroyReader();
 
-				request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + target + "\";");
+				request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = " + target + ";");
 				request.Credit(refund, userid, amount);
 				return null;
 			}
@@ -306,9 +306,18 @@ namespace jessielesbian.OpenCEX{
 				}
 
 			admitted:
+				MySqlCommand update = request.sqlCommandFactory.GetCommand("UPDATE Orders SET Amount = @amt, TotalCost = @cost WHERE Id = @id;");
+				update.Parameters.AddWithValue("@amt", string.Empty);
+				update.Parameters.AddWithValue("@cost", string.Empty);
+				update.Parameters.AddWithValue("@id", 0UL);
+				update.Prepare();
+				MySqlCommand delete = request.sqlCommandFactory.GetCommand("DELETE FROM Orders WHERE Id = @id;");
+				delete.Parameters.AddWithValue("@id", 0UL);
+				delete.Prepare();
 
 				while (moddedOrders.TryDequeue(out Order modded))
 				{
+					MySqlCommand action;
 					if (modded.amount.isZero)
 					{
 						SafeUint balance = modded.Balance;
@@ -317,17 +326,20 @@ namespace jessielesbian.OpenCEX{
 							request.Credit(output, modded.placedby, balance);
 						}
 
-						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + modded.id + "\";");
+						action = delete;
 					}
 					else if (modded.Balance.isZero)
 					{
-						request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = \"" + modded.id + "\";");
+						action = delete;
 					}
 					else
 					{
-						request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Orders SET Amount = \"" + modded.amount.ToString() + "\", TotalCost = \"" + modded.totalCost.ToString() + "\"" + " WHERE Id = \"" + modded.id + "\";");
+						action = update;
+						action.Parameters["@amt"].Value = modded.amount.ToString();
+						action.Parameters["@cost"].Value = modded.totalCost.ToString();
 					}
-
+					action.Parameters["@id"].Value = modded.id;
+					action.SafeExecuteNonQuery();
 				}
 
 				//Credit funds to customers
@@ -336,79 +348,10 @@ namespace jessielesbian.OpenCEX{
 					request.Credit(selected, keyValuePair.Key, keyValuePair.Value);
 				}
 
-				//Update charts (NOTE: this is ported from OpenCEX PHP server)
 				if (close != null)
 				{
-					MySqlCommand prepared = request.sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp DESC FOR UPDATE;");
-					prepared.Parameters.AddWithValue("@primary", primary);
-					prepared.Parameters.AddWithValue("@secondary", secondary);
-					prepared.Prepare();
-					reader = request.sqlCommandFactory.SafeExecuteReader(prepared);
-					SafeUint start = new SafeUint(new BigInteger(DateTimeOffset.Now.ToUnixTimeSeconds()));
-					start = start.Sub(start.Mod(day));
-					SafeUint high;
-					SafeUint low;
-					SafeUint open;
-					SafeUint time;
-					bool append;
-					if (reader.HasRows)
-					{
-						time = GetSafeUint(reader.GetString("Timestamp"));
-						append = start.Sub(time) > day;
-						if (append)
-						{
-							open = GetSafeUint(reader.GetString("Close"));
-							high = open.Max(close);
-							low = open.Min(close);
-							time = start;
-						}
-						else
-						{
-							open = GetSafeUint(reader.GetString("Open"));
-							high = GetSafeUint(reader.GetString("High"));
-							low = GetSafeUint(reader.GetString("Low"));
-						}
-
-					}
-					else
-					{
-						open = zero;
-						low = zero;
-						high = close;
-						append = true;
-						time = start;
-					}
-
-					request.sqlCommandFactory.SafeDestroyReader();
-
-					if (append)
-					{
-						prepared = request.sqlCommandFactory.GetCommand("INSERT INTO HistoricalPrices (Open, High, Low, Close, Timestamp, Pri, Sec) VALUES (@open, @high, @low, @close, @timestamp, @primary, @secondary);");
-					}
-					else
-					{
-						prepared = request.sqlCommandFactory.GetCommand("UPDATE HistoricalPrices SET Open = @open, High = @high, Low = @low, Close = @close WHERE Timestamp = @timestamp AND Pri = @primary AND Sec = @secondary;");
-					}
-
-					if (close > high)
-					{
-						high = close;
-					}
-
-					if (close < low)
-					{
-						low = close;
-					}
-
-					prepared.Parameters.AddWithValue("@open", open.ToString());
-					prepared.Parameters.AddWithValue("@high", high.ToString());
-					prepared.Parameters.AddWithValue("@low", low.ToString());
-					prepared.Parameters.AddWithValue("@close", close.ToString());
-					prepared.Parameters.AddWithValue("@timestamp", time.ToString());
-					prepared.Parameters.AddWithValue("@primary", primary);
-					prepared.Parameters.AddWithValue("@secondary", secondary);
-					prepared.Prepare();
-					CheckSafety(prepared.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
+					//Async update chart to avoid blocking request/failure propagation
+					request.sqlCommandFactory.AfterCommit(new UpdateChart(primary, secondary, close));
 				}
 
 				return null;
@@ -416,6 +359,97 @@ namespace jessielesbian.OpenCEX{
 			protected override bool NeedSQL()
 			{
 				return true;
+			}
+		}
+
+		private sealed class UpdateChart : ConcurrentJob
+		{
+			private readonly string primary;
+			private readonly string secondary;
+			private readonly SafeUint update;
+
+			public UpdateChart(string primary, string secondary, SafeUint update)
+			{
+				this.primary = primary ?? throw new ArgumentNullException(nameof(primary));
+				this.secondary = secondary ?? throw new ArgumentNullException(nameof(secondary));
+				this.update = update ?? throw new ArgumentNullException(nameof(update));
+			}
+
+			protected override object ExecuteIMPL()
+			{
+				SQLCommandFactory sqlCommandFactory = GetSQL();
+				MySqlCommand prepared = sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp DESC FOR UPDATE;");
+				prepared.Parameters.AddWithValue("@primary", primary);
+				prepared.Parameters.AddWithValue("@secondary", secondary);
+				prepared.Prepare();
+				MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(prepared);
+				SafeUint start = new SafeUint(new BigInteger(DateTimeOffset.Now.ToUnixTimeSeconds()));
+				start = start.Sub(start.Mod(day));
+				SafeUint high;
+				SafeUint low;
+				SafeUint open;
+				SafeUint time;
+				SafeUint close = update;
+				bool append;
+				if (reader.HasRows)
+				{
+					time = GetSafeUint(reader.GetString("Timestamp"));
+					append = start.Sub(time) > day;
+					if (append)
+					{
+						open = GetSafeUint(reader.GetString("Close"));
+						high = open.Max(close);
+						low = open.Min(close);
+						time = start;
+					}
+					else
+					{
+						open = GetSafeUint(reader.GetString("Open"));
+						high = GetSafeUint(reader.GetString("High"));
+						low = GetSafeUint(reader.GetString("Low"));
+					}
+
+				}
+				else
+				{
+					open = zero;
+					low = zero;
+					high = close;
+					append = true;
+					time = start;
+				}
+
+				sqlCommandFactory.SafeDestroyReader();
+
+				if (append)
+				{
+					prepared = sqlCommandFactory.GetCommand("INSERT INTO HistoricalPrices (Open, High, Low, Close, Timestamp, Pri, Sec) VALUES (@open, @high, @low, @close, @timestamp, @primary, @secondary);");
+				}
+				else
+				{
+					prepared = sqlCommandFactory.GetCommand("UPDATE HistoricalPrices SET Open = @open, High = @high, Low = @low, Close = @close WHERE Timestamp = @timestamp AND Pri = @primary AND Sec = @secondary;");
+				}
+
+				if (close > high)
+				{
+					high = close;
+				}
+
+				if (close < low)
+				{
+					low = close;
+				}
+
+				prepared.Parameters.AddWithValue("@open", open.ToString());
+				prepared.Parameters.AddWithValue("@high", high.ToString());
+				prepared.Parameters.AddWithValue("@low", low.ToString());
+				prepared.Parameters.AddWithValue("@close", close.ToString());
+				prepared.Parameters.AddWithValue("@timestamp", time.ToString());
+				prepared.Parameters.AddWithValue("@primary", primary);
+				prepared.Parameters.AddWithValue("@secondary", secondary);
+				prepared.Prepare();
+				CheckSafety(prepared.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
+				return null;
 			}
 		}
 
@@ -1336,60 +1370,65 @@ namespace jessielesbian.OpenCEX{
 				return true;
 			}
 		}
-	}
-	sealed class PostWithdrawal : ConcurrentJob
-	{
-		private readonly WalletManager walletManager1;
-		private readonly string tx;
-
-		private readonly ulong userid;
-		private readonly string coin;
-		private readonly SafeUint refundIfFail;
-		private readonly bool backed;
-
-		public PostWithdrawal(WalletManager walletManager1, string tx, ulong userid, string coin, SafeUint refundIfFail, bool b)
+		private sealed class PostWithdrawal : ConcurrentJob
 		{
-			this.walletManager1 = walletManager1 ?? throw new ArgumentNullException(nameof(walletManager1));
-			this.tx = tx ?? throw new ArgumentNullException(nameof(tx));
-			this.userid = userid;
-			this.coin = coin ?? throw new ArgumentNullException(nameof(coin));
-			this.refundIfFail = refundIfFail ?? throw new ArgumentNullException(nameof(refundIfFail));
-			backed = b;
-		}
+			private readonly WalletManager walletManager1;
+			private readonly string tx;
 
-		protected override object ExecuteIMPL()
-		{
-			try
+			private readonly ulong userid;
+			private readonly string coin;
+			private readonly SafeUint refundIfFail;
+			private readonly bool backed;
+
+			public PostWithdrawal(WalletManager walletManager1, string tx, ulong userid, string coin, SafeUint refundIfFail, bool b)
 			{
-				walletManager1.SendRawTX(tx);
+				this.walletManager1 = walletManager1 ?? throw new ArgumentNullException(nameof(walletManager1));
+				this.tx = tx ?? throw new ArgumentNullException(nameof(tx));
+				this.userid = userid;
+				this.coin = coin ?? throw new ArgumentNullException(nameof(coin));
+				this.refundIfFail = refundIfFail ?? throw new ArgumentNullException(nameof(refundIfFail));
+				backed = b;
 			}
-			catch (Exception e)
+
+			protected override object ExecuteIMPL()
 			{
-				Console.Error.WriteLine("Exception while sending withdrawal: " + e.ToString());
-				SQLCommandFactory sql = StaticUtils.GetSQL();
-				bool commit;
 				try
 				{
-					sql.Credit(coin, userid, refundIfFail, backed);
-					commit = true;
-				} catch(Exception x){
-					commit = false;
-					Console.Error.WriteLine("Exception while crediting failed withdrawal back to user: " + x.ToString());
-					Console.Error.WriteLine("UnsafeCredit " + coin.ToString() + " " + userid.ToString() + " " + refundIfFail.ToString());
-					sql.DestroyTransaction(false, true);
+					walletManager1.SendRawTX(tx);
 				}
-				if(commit){
-					try{
-						sql.DestroyTransaction(true, true);
-					} catch (Exception x)
+				catch (Exception e)
+				{
+					Console.Error.WriteLine("Exception while sending withdrawal: " + e.ToString());
+					SQLCommandFactory sql = StaticUtils.GetSQL();
+					bool commit;
+					try
 					{
+						sql.Credit(coin, userid, refundIfFail, backed);
+						commit = true;
+					}
+					catch (Exception x)
+					{
+						commit = false;
 						Console.Error.WriteLine("Exception while crediting failed withdrawal back to user: " + x.ToString());
 						Console.Error.WriteLine("UnsafeCredit " + coin.ToString() + " " + userid.ToString() + " " + refundIfFail.ToString());
+						sql.DestroyTransaction(false, true);
+					}
+					if (commit)
+					{
+						try
+						{
+							sql.DestroyTransaction(true, true);
+						}
+						catch (Exception x)
+						{
+							Console.Error.WriteLine("Exception while crediting failed withdrawal back to user: " + x.ToString());
+							Console.Error.WriteLine("UnsafeCredit " + coin.ToString() + " " + userid.ToString() + " " + refundIfFail.ToString());
+						}
 					}
 				}
-			}
 
-			return null;
+				return null;
+			}
 		}
 	}
 }
