@@ -128,7 +128,7 @@ namespace jessielesbian.OpenCEX{
 
 				ulong userid = request.GetUserID();
 
-				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT PlacedBy, Pri, Sec, InitialAmount, TotalCost, Buy FROM Orders WHERE Id = \"" + target + "\" FOR UPDATE;"));
+				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT PlacedBy, Pri, Sec, InitialAmount, TotalCost, Buy FROM Orders WHERE Id = " + target + " FOR UPDATE;"));
 				CheckSafety(mySqlDataReader.HasRows, "Nonexistant order!");
 				CheckSafety(mySqlDataReader.GetUInt64("PlacedBy") == userid, "Attempted to cancel another user's order!");
 				string refund;
@@ -213,30 +213,6 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety2(amount.isZero, "Zero limit order size!");
 					CheckSafety2(amount < GetSafeUint(GetEnv("MinimumLimit_" + selected)), "Order is smaller than minimum limit order size!");
 				}
-
-				//Partially-atomic increment
-				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(request.sqlCommandFactory.GetCommand("SELECT Val FROM Misc WHERE Kei = \"OrderCounter\" FOR UPDATE;"));
-				ulong orderId;
-				if (reader.HasRows)
-				{
-					orderId = Convert.ToUInt64(reader.GetString("Val")) + 1;
-					reader.CheckSingletonResult();
-				}
-				else
-				{
-					orderId = 0;
-				}
-
-				request.sqlCommandFactory.SafeDestroyReader();
-
-				if (orderId == 0)
-				{
-					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Misc (Kei, Val) VALUES (\"OrderCounter\", \"0\");");
-				}
-				else
-				{
-					request.sqlCommandFactory.SafeExecuteNonQuery("UPDATE Misc SET Val = \"" + orderId + "\"WHERE Kei = \"OrderCounter\";");
-				}
 				
 				Queue<Order> moddedOrders = new Queue<Order>();
 				Dictionary<ulong, SafeUint> tmpbalances = new Dictionary<ulong, SafeUint>();
@@ -246,14 +222,14 @@ namespace jessielesbian.OpenCEX{
 				request.Debit(selected, userid, amount);
 				request.Credit(output, userid, zero);
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
-				reader = request.sqlCommandFactory.SafeExecuteReader(counter);
-				Order instance = new Order(price, amt2, amount, zero, userid, orderId.ToString());
+				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(counter);
+				Order instance = new Order(price, amt2, amount, zero, userid, 0);
 				if (reader.HasRows)
 				{
 					bool read = true;
 					while (read)
 					{
-						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetString("Id"));
+						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetUInt64("Id"));
 						lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, other.price, false, lpreserve);
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
@@ -316,12 +292,11 @@ namespace jessielesbian.OpenCEX{
 					{
 						CheckSafety2(fillMode == 2, "Fill or kill order canceled due to insufficient liquidity!");
 					}
-					StringBuilder stringBuilder = new StringBuilder("INSERT INTO Orders (Pri, Sec, Price, Amount, InitialAmount, TotalCost, Id, PlacedBy, Buy) VALUES (@primary, @secondary, \"");
+					StringBuilder stringBuilder = new StringBuilder("INSERT INTO Orders (Pri, Sec, Price, Amount, InitialAmount, TotalCost, PlacedBy, Buy) VALUES (@primary, @secondary, \"");
 					stringBuilder.Append(instance.price.ToString() + "\", \"");
 					stringBuilder.Append(amount3.ToString() + "\", \"");
 					stringBuilder.Append(amount.ToString() + "\", \"");
 					stringBuilder.Append(instance.totalCost.ToString() + "\", \"");
-					stringBuilder.Append(instance.id + "\", \"");
 					stringBuilder.Append(userid.ToString() + (buy ? "\", 1);" : "\", 0);"));
 					MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand(stringBuilder.ToString());
 					mySqlCommand.Parameters.AddWithValue("@primary", primary);
@@ -475,15 +450,15 @@ namespace jessielesbian.OpenCEX{
 			public readonly SafeUint initialAmount;
 			public SafeUint totalCost;
 			public readonly ulong placedby;
-			public readonly string id;
+			public readonly ulong id;
 
-			public Order(SafeUint price, SafeUint amount, SafeUint initialAmount, SafeUint totalCost, ulong placedby, string id)
+			public Order(SafeUint price, SafeUint amount, SafeUint initialAmount, SafeUint totalCost, ulong placedby, ulong id)
 			{
 				this.initialAmount = initialAmount ?? throw new ArgumentNullException(nameof(initialAmount));
 				this.totalCost = totalCost ?? throw new ArgumentNullException(nameof(totalCost));
 				this.price = price ?? throw new ArgumentNullException(nameof(price));
 				this.amount = amount ?? throw new ArgumentNullException(nameof(amount));
-				this.id = id ?? throw new ArgumentNullException(nameof(id));
+				this.id = id;
 				this.placedby = placedby;
 			}
 			public void Debit(SafeUint amt, SafeUint price = null)
@@ -895,8 +870,9 @@ namespace jessielesbian.OpenCEX{
 					randomNumberGenerator.GetBytes(SessionToken);
 					randomNumberGenerator.Dispose();
 					SHA256 sha256 = SHA256.Create();
-					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + DateTimeOffset.Now.AddSeconds(2592000).ToUnixTimeSeconds() + ");");
-					string cookie = "__Secure-OpenCEX_session =" + WebUtility.UrlEncode(Convert.ToBase64String(SessionToken)) + (remember ? ("; Domain=" + CookieOrigin + "; Max-Age=2592000; Path=/; Secure; HttpOnly; SameSite=None") : ("; Domain=" + CookieOrigin + "; Path=/; Secure; HttpOnly; SameSite=None"));
+					DateTimeOffset expiry = DateTimeOffset.Now.AddSeconds(2592000);
+					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + expiry.ToUnixTimeSeconds() + ");");
+					string cookie = "__Secure-OpenCEX_session =" + WebUtility.UrlEncode(Convert.ToBase64String(SessionToken)) + (remember ? ("; Domain=" + CookieOrigin + "; Expires=" + expiry.ToUniversalTime().ToString("r") + "; Path=/; Secure; HttpOnly; SameSite=None") : ("; Domain=" + CookieOrigin + "; Path=/; Secure; HttpOnly; SameSite=None"));
 					lock (request.httpListenerContext){
 						request.httpListenerContext.Response.AddHeader("Set-Cookie", cookie);
 					}
@@ -1211,7 +1187,7 @@ namespace jessielesbian.OpenCEX{
 						buffer[2] = mySqlDataReader.GetString("Price");
 						buffer[3] = mySqlDataReader.GetString("InitialAmount");
 						buffer[4] = mySqlDataReader.GetString("TotalCost");
-						buffer[5] = mySqlDataReader.GetString("Id");
+						buffer[5] = mySqlDataReader.GetUInt64("Id").ToString();
 						buffer[6] = mySqlDataReader.GetBoolean("Buy");
 						objects.Enqueue(buffer);
 					}
