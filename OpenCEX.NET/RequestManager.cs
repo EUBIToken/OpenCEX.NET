@@ -870,13 +870,12 @@ namespace jessielesbian.OpenCEX{
 					randomNumberGenerator.GetBytes(SessionToken);
 					randomNumberGenerator.Dispose();
 					SHA256 sha256 = SHA256.Create();
-					DateTimeOffset expiry = DateTimeOffset.Now.AddSeconds(2592000);
-					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + expiry.ToUnixTimeSeconds() + ");");
-					string cookie = "__Secure-OpenCEX_session =" + WebUtility.UrlEncode(Convert.ToBase64String(SessionToken)) + (remember ? ("; Domain=" + CookieOrigin + "; Expires=" + expiry.ToUniversalTime().ToString("r") + "; Path=/; Secure; HttpOnly; SameSite=None") : ("; Domain=" + CookieOrigin + "; Path=/; Secure; HttpOnly; SameSite=None"));
-					lock (request.httpListenerContext){
+					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + DateTimeOffset.Now.AddSeconds(2592000).ToUnixTimeSeconds() + ");");
+					string cookie = "__Secure-OpenCEX_session =" + WebUtility.UrlEncode(Convert.ToBase64String(SessionToken)) + (remember ? ("; Domain=" + CookieOrigin + "; Max-Age=2592000; Path=/; Secure; HttpOnly; SameSite=None") : ("; Domain=" + CookieOrigin + "; Path=/; Secure; HttpOnly; SameSite=None"));
+					lock (request.httpListenerContext)
+					{
 						request.httpListenerContext.Response.AddHeader("Set-Cookie", cookie);
 					}
-					return;
 				}
 				else if(throws is SafetyException){
 					throw throws;
