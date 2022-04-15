@@ -48,7 +48,9 @@ namespace jessielesbian.OpenCEX
 			tail1 = "\" AND Blockchain = " + chainid + " FOR UPDATE;";
 			ExchangeWalletManager = GetWalletManager(Environment.GetEnvironmentVariable("OpenCEX_PrivateKey"));
 		}
-		public WalletManager GetWalletManager(string privateKey = "0xa85d57fd36432b0e6022d333f3e81b31c67e6afcdb0fa11caf106ff8c29952a9")
+
+
+		public WalletManager GetWalletManager(string privateKey)
 		{
 			SHA256 sha256 = SHA256.Create();
 			string hash = Convert.ToBase64String(sha256.ComputeHash(Encoding.ASCII.GetBytes(privateKey)));
