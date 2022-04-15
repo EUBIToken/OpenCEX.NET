@@ -72,10 +72,46 @@ namespace jessielesbian.OpenCEX{
 			
 		}
 
-		public void UpdateOrAdd(K key, T val, out bool doupdate){
+		public void UpdateOrAdd(K key, T val){
 			StaticUtils.CheckSafety(locks.TryGetValue(key, out ReaderWriterLockSlim rwlock), "Cache write-lock not acquired (should not reach here)!", true);
 			StaticUtils.CheckSafety(rwlock.IsWriteLockHeld, "Cache write-lock not acquired (should not reach here)!", true);
-			GetOrAdd(key, (K _) => { return val; }, out doupdate);
+			lock(lok){
+				if (gen1.Count == maxsize)
+				{
+					if (gen1.ContainsKey(key))
+					{
+						gen1[key] = val;
+					}
+					else
+					{
+						Dictionary<K, T> swap = gen2;
+
+						//If generation 2 is full
+						//And we are not already cached
+						//Perform cache swap
+						if (swap.Count == maxsize)
+						{
+							if (swap.ContainsKey(key))
+							{
+								swap[key] = val;
+							} else{
+								swap.Clear();
+								gen2 = gen1;
+								gen1 = swap;
+							}	
+						}
+						else if(!swap.TryAdd(key, val))
+						{
+							swap[key] = val;
+						}
+					}
+					
+				}
+				else if (!gen1.TryAdd(key, val))
+				{
+					gen1[key] = val;
+				}
+			}
 		}
 
 		public void LockWrite(K key){

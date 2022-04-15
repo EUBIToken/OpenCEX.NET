@@ -80,7 +80,7 @@ namespace jessielesbian.OpenCEX{
 						update.Parameters.AddWithValue("@old", string.Empty);
 						update.Prepare();
 
-						MySqlCommand insert = GetCommand("INSERT INTO Balances(Balance, UserID, Coin) VALUES(@balance, @userid, @coin);");
+						MySqlCommand insert = GetCommand("INSERT INTO Balances(Balance, UserID, Coin) VALUES (@balance, @userid, @coin);");
 						insert.Parameters.AddWithValue("@balance", string.Empty);
 						insert.Parameters.AddWithValue("@userid", 0UL);
 						insert.Parameters.AddWithValue("@coin", string.Empty);
@@ -138,7 +138,8 @@ namespace jessielesbian.OpenCEX{
 						while (pendingFlush.TryDequeue(out KeyValuePair<string, SafeUint> result))
 						{
 							try{
-								L3BalancesCache2.UpdateOrAdd(result.Key, result.Value, out _);
+								L3BalancesCache2.UpdateOrAdd(result.Key, result.Value);
+								
 							} catch (Exception e){
 								Console.Error.WriteLine("Invalidating balances cache entry due to exception: " + e.ToString());
 							}
@@ -316,7 +317,9 @@ namespace jessielesbian.OpenCEX{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void SafeExecuteNonQuery(this MySqlCommand mySqlCommand)
 		{
-			CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
+			int delta = mySqlCommand.ExecuteNonQuery();
+			CheckSafety2(delta == 0, "Insufficent write effect (should not reach here)!", true);
+			CheckSafety2(delta > 1, "Excessive write effect (should not reach here)!", true);
 		}
 	}
 }
