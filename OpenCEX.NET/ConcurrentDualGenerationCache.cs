@@ -136,13 +136,6 @@ namespace jessielesbian.OpenCEX{
 			} else{
 				throw new SafetyException("Cache lock not acquired (should not reach here)!", new Exception("Cache lock not acquired (should not reach here)!"));
 			}
-
-			//If dictionary is overloaded, we can evict lock
-			if(locks.Count > maxsize){
-				if(locks.TryRemove(key, out _)){
-					rwlock.Dispose();
-				}
-			}
 		}
 
 		public void Clear(K key){
