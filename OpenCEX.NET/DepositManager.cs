@@ -7,9 +7,9 @@ using System.Collections.Generic;
 using System.Threading;
 namespace jessielesbian.OpenCEX{
 	public static partial class StaticUtils{
-		public static readonly WalletManager defaultMintMEWallet = BlockchainManager.MintME.GetWalletManager();
-		public static readonly WalletManager defaultBSCWallet = BlockchainManager.BinanceSmartChain.GetWalletManager();
-		public static readonly WalletManager defaultPolyWallet = BlockchainManager.Polygon.GetWalletManager();
+		public static readonly WalletManager defaultMintMEWallet = BlockchainManager.MintME.ExchangeWalletManager;
+		public static readonly WalletManager defaultBSCWallet = BlockchainManager.BinanceSmartChain.ExchangeWalletManager;
+		public static readonly WalletManager defaultPolyWallet = BlockchainManager.Polygon.ExchangeWalletManager;
 		private static void DepositManager(){
 			while(!abort){
 				if(watchdogCounter > MaximumWatchdogLag){
@@ -136,21 +136,21 @@ namespace jessielesbian.OpenCEX{
 					case "MintME":
 					case "EUBI":
 					case "1000x":
-						walletManager = BlockchainManager.MintME.GetWalletManager();
+						walletManager = BlockchainManager.MintME.ExchangeWalletManager;
 						backed = false;
 						break;
 					case "BNB":
-						walletManager = BlockchainManager.BinanceSmartChain.GetWalletManager();
+						walletManager = BlockchainManager.BinanceSmartChain.ExchangeWalletManager;
 						backed = false;
 						break;
 					case "MATIC":
 					case "PolyEUBI":
 					case "Dai":
-						walletManager = BlockchainManager.Polygon.GetWalletManager();
+						walletManager = BlockchainManager.Polygon.ExchangeWalletManager;
 						backed = false;
 						break;
 					case "WMintME":
-						walletManager = BlockchainManager.Polygon.GetWalletManager();
+						walletManager = BlockchainManager.Polygon.ExchangeWalletManager;
 						backed = true;
 						url3 = "MintME";
 						break;
