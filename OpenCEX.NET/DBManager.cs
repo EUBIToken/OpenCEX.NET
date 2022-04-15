@@ -239,7 +239,6 @@ namespace jessielesbian.OpenCEX{
 
 		private readonly Dictionary<string, SafeUint> dirtyBalances = new Dictionary<string, SafeUint>();
 		private readonly Dictionary<string, string> OriginalBalances = new Dictionary<string, string>();
-		private static volatile int balancesCacheCounter = 0;
 		private static readonly ConcurrentDualGenerationCache<string, SafeUint> L3BalancesCache2 = new ConcurrentDualGenerationCache<string, SafeUint>(StaticUtils.MaximumBalanceCacheSize);
 		private readonly Queue<string> pendingLockRelease = new Queue<string>();
 
@@ -265,7 +264,11 @@ namespace jessielesbian.OpenCEX{
 					pendingLockRelease.Enqueue(key);
 				}
 				
-				return L3BalancesCache2.GetOrAdd(key, FetchBalanceIMPL, out _);
+				balance = L3BalancesCache2.GetOrAdd(key, FetchBalanceIMPL, out bool update);
+				if(update){
+					StaticUtils.CheckSafety(OriginalBalances.TryAdd(key, balance.ToString()), "Unable to register balances caching safety check (should not reach here)!", true);
+				}
+				return balance;
 			}
 		}
 
