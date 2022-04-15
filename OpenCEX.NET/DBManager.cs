@@ -14,11 +14,16 @@ namespace jessielesbian.OpenCEX{
 		private MySqlTransaction mySqlTransaction;
 		private bool disposedValue;
 		private MySqlDataReader dataReader = null;
+		private readonly MySqlCommand readBalance;
 
 		public SQLCommandFactory(MySqlConnection mySqlConnection, MySqlTransaction mySqlTransaction)
 		{
 			this.mySqlConnection = mySqlConnection ?? throw new ArgumentNullException(nameof(mySqlConnection));
 			this.mySqlTransaction = mySqlTransaction ?? throw new ArgumentNullException(nameof(mySqlTransaction));
+			readBalance = GetCommand("SELECT Balance FROM Balances WHERE Coin = @coin AND UserID = @userid");
+			readBalance.Parameters.AddWithValue("@coin", string.Empty);
+			readBalance.Parameters.AddWithValue("@userid", 0UL);
+			readBalance.Prepare();
 		}
 
 		public MySqlDataReader SafeExecuteReader(MySqlCommand mySqlCommand){
@@ -61,32 +66,65 @@ namespace jessielesbian.OpenCEX{
 				if (commit)
 				{
 					StaticUtils.CheckSafety2(dataReader, "Data reader still open!");
+					Queue<KeyValuePair<string, SafeUint>> pendingFlush;
+					bool doflush2;
+					if (dirtyBalances.Count == 0)
+					{
+						pendingFlush = null;
+						doflush2 = false;
+					} else{
+						MySqlCommand update = GetCommand("UPDATE Balances SET Balance = @balance WHERE UserID = @userid AND Coin = @coin AND Balance = @old;");
+						update.Parameters.AddWithValue("@balance", string.Empty);
+						update.Parameters.AddWithValue("@userid", 0UL);
+						update.Parameters.AddWithValue("@coin", string.Empty);
+						update.Parameters.AddWithValue("@old", string.Empty);
+						update.Prepare();
 
-					
-					Queue<KeyValuePair<string, SafeUint>> pendingFlush = new Queue<KeyValuePair<string, SafeUint>>();
-					foreach(KeyValuePair<string, SafeUint> balanceUpdate in dirtyBalances){
-						//Flush dirty balances
-						string key = balanceUpdate.Key;
-						MySqlCommand command = GetCommand(balanceUpdateCommands[key]);
-						command.Parameters.AddWithValue("@balance", balanceUpdate.Value.ToString());
-						command.Parameters.AddWithValue("@coin", key.Substring(key.IndexOf('_') + 1));
-						command.Prepare();
+						MySqlCommand insert = GetCommand("INSERT INTO Balances(Balance, UserID, Coin) VALUES(@balance, @userid, @coin);");
+						insert.Parameters.AddWithValue("@balance", string.Empty);
+						insert.Parameters.AddWithValue("@userid", 0UL);
+						insert.Parameters.AddWithValue("@coin", string.Empty);
+						insert.Prepare();
 
-						try{
-							command.SafeExecuteNonQuery();
-						} catch(Exception e){
-							Console.Error.WriteLine("Clearing balances cache due to exception: " + e.ToString());
-							lock (L3Blacklist)
+						pendingFlush = new Queue<KeyValuePair<string, SafeUint>>();
+						foreach (KeyValuePair<string, SafeUint> balanceUpdate in dirtyBalances)
+						{
+							//Flush dirty balances
+							string key = balanceUpdate.Key;
+							int pivot = key.IndexOf('_');
+
+							MySqlCommand command;
+							if (OriginalBalances.TryGetValue(key, out string oldbal))
 							{
-								L3BalancesCache.Clear();
-								L3Blacklist.Clear();
+								command = update;
+								command.Parameters["@old"].Value = oldbal;
 							}
-							throw e;
-						}
+							else
+							{
+								command = insert;
+							}
 
-						//Prepare to write to cache
-						pendingFlush.Enqueue(balanceUpdate);
+							command.Parameters["@balance"].Value = balanceUpdate.Value.ToString();
+							command.Parameters["@userid"].Value = Convert.ToUInt64(key.Substring(0, pivot));
+							command.Parameters["@coin"].Value = key.Substring(pivot + 1);
+
+							try
+							{
+								command.SafeExecuteNonQuery();
+							}
+							catch (Exception e)
+							{
+								Console.Error.WriteLine("Invalidating balances cache entry due to exception: " + e.ToString());
+								L3BalancesCache2.Clear(key);
+								throw e;
+							}
+
+							//Prepare to write to cache
+							pendingFlush.Enqueue(balanceUpdate);
+						}
+						doflush2 = true;
 					}
+
 
 					mySqlTransaction.Commit();
 					mySqlTransaction = null;
@@ -96,28 +134,29 @@ namespace jessielesbian.OpenCEX{
 						StaticUtils.Append(postCommit);
 						postCommit = null;
 					}
-
-					try
-					{
+					if(doflush2){
 						while (pendingFlush.TryDequeue(out KeyValuePair<string, SafeUint> result))
 						{
-							L3BalancesCache[result.Key].Value = result.Value;
+							try{
+								L3BalancesCache2.UpdateOrAdd(result.Key, result.Value, out _);
+							} catch (Exception e){
+								Console.Error.WriteLine("Invalidating balances cache entry due to exception: " + e.ToString());
+							}
 						}
 
-						//Release balance cache locks
-						while (release.TryDequeue(out PooledManualResetEvent result))
+						//Release balances cache locks (battle override active)
+						while (pendingLockRelease.TryDequeue(out string result))
 						{
-							result.Set();
+							try
+							{
+								L3BalancesCache2.Unlock(result);
+							}
+							catch (Exception e)
+							{
+								Console.Error.WriteLine("Error while unlocking balances cache: " + e.ToString());
+							}
 						}
-
-						
-					} catch (Exception e){
-						Console.Error.WriteLine("Clearing balances cache due to exception: " + e.ToString());
-						lock(L3Blacklist){
-							L3BalancesCache.Clear();
-							L3Blacklist.Clear();
-						}
-					}
+					}	
 				}
 				else
 				{
@@ -128,21 +167,14 @@ namespace jessielesbian.OpenCEX{
 						}
 						mySqlTransaction.Rollback();
 						mySqlTransaction.Dispose();
-						try
+
+						//Release balances cache locks (battle override active)
+						while (pendingLockRelease.TryDequeue(out string result))
 						{
-							//Release balance cache locks
-							while (release.TryDequeue(out PooledManualResetEvent result))
-							{
-								result.Set();
-							}
-						}
-						catch (Exception e)
-						{
-							Console.Error.WriteLine("Clearing balances cache due to exception: " + e.ToString());
-							lock (L3Blacklist)
-							{
-								L3BalancesCache.Clear();
-								L3Blacklist.Clear();
+							try{
+								L3BalancesCache2.Unlock(result);
+							} catch(Exception e){
+								Console.Error.WriteLine("Error while unlocking balances cache: " + e.ToString());
 							}
 						}
 					} finally{
@@ -205,180 +237,68 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
-		private readonly Dictionary<string, SafeUint> cachedBalances = new Dictionary<string, SafeUint>();
 		private readonly Dictionary<string, SafeUint> dirtyBalances = new Dictionary<string, SafeUint>();
-		private readonly Dictionary<string, string> balanceUpdateCommands = new Dictionary<string, string>();
+		private readonly Dictionary<string, string> OriginalBalances = new Dictionary<string, string>();
 		private static volatile int balancesCacheCounter = 0;
-		private sealed class L3Balance{
-			private SafeUint balance;
-			private int counter;
-			public SafeUint Value {
-				get{
-					counter = Interlocked.Increment(ref balancesCacheCounter);
-					return balance;
-				}
-				set{
-					counter = Interlocked.Increment(ref balancesCacheCounter);
-					balance = value;
-				}
-			}
-			public int Counter => counter;
+		private static readonly ConcurrentDualGenerationCache<string, SafeUint> L3BalancesCache2 = new ConcurrentDualGenerationCache<string, SafeUint>(StaticUtils.MaximumBalanceCacheSize);
+		private readonly Queue<string> pendingLockRelease = new Queue<string>();
 
-			public readonly PooledManualResetEvent syncer = PooledManualResetEvent.GetInstance(true);
-
-			public L3Balance(SafeUint value)
-			{
-				balance = value ?? throw new ArgumentNullException(nameof(value));
-				counter = Interlocked.Increment(ref balancesCacheCounter);
-			}
-		}
-		private static readonly ConcurrentDictionary<string, L3Balance> L3BalancesCache = new ConcurrentDictionary<string, L3Balance>();
-		private static readonly ConcurrentDictionary<string, int> L3Blacklist = new ConcurrentDictionary<string, int>();
-		private Queue<PooledManualResetEvent> release = new Queue<PooledManualResetEvent>();
-
+		/// <summary>
+		/// Should not be called directly
+		/// </summary>
 		public SafeUint GetBalance(string coin, ulong userid){
 			string key = userid + "_" + coin;
-			SafeUint balance;
-			if (dirtyBalances.TryGetValue(key, out balance))
+			if (dirtyBalances.TryGetValue(key, out SafeUint balance))
 			{
-				return balance;
-			}
-			else if(cachedBalances.TryGetValue(key, out balance)){
 				return balance;
 			}
 			else if (StaticUtils.Multiserver)
 			{
-				balance = FetchBalanceIMPL(key);
-				cachedBalances.Add(key, balance);
-				return balance;
+				return FetchBalanceIMPL(key);
 			}
 			else
 			{
-
-				bool newcache = true;
-				lock (evlock)
-				{
-					byte[] rngbuffer = new byte[4];
-					if (cachedBalances.Count > StaticUtils.MaximumBalanceCacheSize)
-					{
-						RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
-						ICollection<string> keys = L3BalancesCache.Keys;
-						string[] k2 = new string[keys.Count];
-						keys.CopyTo(k2, 0);
-
-						randomNumberGenerator.GetBytes(rngbuffer);
-						int limit = StaticUtils.MaximumBalanceCacheSize > 16 ? (StaticUtils.MaximumBalanceCacheSize / 16) : 1;
-						string evict = null;
-						int oldest = int.MaxValue;
-						PooledManualResetEvent dispose = null;
-
-						//Hybrid LRU/RR cache eviction
-						for (int i = 0; i < limit; ++i)
-						{
-							string key2 = k2[BitConverter.ToUInt32(rngbuffer, 0) % ((uint)keys.Count)];
-							if(L3BalancesCache.TryGetValue(key2, out L3Balance l3balance)){
-								int ctr = l3balance.Counter;
-								if (ctr <= oldest)
-								{
-									evict = key2;
-									oldest = ctr;
-									dispose = l3balance.syncer;
-								}
-							} else{
-								++limit;
-							}
-						}
-
-						if(evict != null){
-							lock(L3Blacklist){
-								if(L3BalancesCache.ContainsKey(evict)){
-									StaticUtils.CheckSafety(L3Blacklist.TryAdd(evict, 0), "Unable to blacklist balance from cache (should not reach here)!", true);
-									dispose.Wait3();
-									dispose.Dispose();
-								} else{
-									newcache = false;
-									goto noremove;
-								}
-							}
-							
-							newcache = L3BalancesCache.TryRemove(evict, out _);
-							StaticUtils.CheckSafety(L3Blacklist.TryRemove(evict, out _), "Unable to remove balances cache blacklisting (should not reach here)!", true);
-						}
-						noremove:
-
-						randomNumberGenerator.Dispose();
-					}
-					
+				//Battle override C# safety
+				try{
+					L3BalancesCache2.LockWrite(key);
+				} finally{
+					pendingLockRelease.Enqueue(key);
 				}
-				L3Balance service;
-				lock (L3Blacklist)
-				{
-					if (L3Blacklist.ContainsKey(key))
-					{
-						service = null;
-					}
-					else
-					{
-						service = L3BalancesCache.GetOrAdd(key, FetchBalance2);
-						service.syncer.Wait2();
-					}
+				
+				balance = L3BalancesCache2.GetOrAdd(key, FetchBalanceIMPL, out bool update);
+				if(update){
+					//Cache consistency safety checking
+					OriginalBalances.Add(key, balance.ToString());
 				}
-
-				if (service is null)
-				{
-					balance = FetchBalanceIMPL(key);
-					cachedBalances.Add(key, balance);
-					return balance;
-				}
-				else
-				{
-					release.Enqueue(service.syncer);
-					balance = service.Value;
-					if(cachedBalances.TryAdd(key, balance)){
-						balanceUpdateCommands.Add(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin AND Balance = \"" + balance.ToString() + "\";");
-					}
-					return balance;
-				}
+				return balance;
 			}
 		}
 
-		private static readonly object evlock = new object();
 		private SafeUint FetchBalanceIMPL(string key){
 			int pivot = key.IndexOf('_');
-			string userid = key.Substring(0, pivot);
 
 			//Fetch balance from database
-			MySqlCommand command = GetCommand("SELECT Balance FROM Balances WHERE UserID = " + userid + " AND Coin = @coin FOR UPDATE;");
-			command.Parameters.AddWithValue("@coin", key.Substring(pivot + 1));
-			command.Prepare();
-			MySqlDataReader reader = SafeExecuteReader(command);
+			readBalance.Parameters["@userid"].Value = Convert.ToUInt64(key.Substring(0, pivot));
+			readBalance.Parameters["@coin"].Value = key.Substring(pivot + 1);
+			MySqlDataReader reader = SafeExecuteReader(readBalance);
 			SafeUint balance;
 			if (reader.HasRows)
 			{
 				balance = StaticUtils.GetSafeUint(reader.GetString("Balance"));
 				reader.CheckSingletonResult();
-				balanceUpdateCommands.Add(key, "UPDATE Balances SET Balance = @balance WHERE UserID = " + userid + " AND Coin = @coin AND Balance = \"" + balance.ToString() + "\";");
 			}
 			else
 			{
 				balance = StaticUtils.zero;
-				balanceUpdateCommands.Add(key, "INSERT INTO Balances (Balance, UserID, Coin) VALUES (@balance, " + userid + ", @coin);");
 			}
 
 			SafeDestroyReader();
-			cachedBalances.Add(key, balance);
 			return balance;
-		}
-
-		private L3Balance FetchBalance2(string key)
-		{
-			return new L3Balance(FetchBalanceIMPL(key));
 		}
 
 		public void UpdateBalance(string coin, ulong userid, SafeUint balance)
 		{
 			string key = userid + "_" + coin;
-			StaticUtils.CheckSafety(cachedBalances.ContainsKey(key), "Attempted to update uncached balance (should not reach here)!", true);
 
 			if (!dirtyBalances.TryAdd(key, balance))
 			{

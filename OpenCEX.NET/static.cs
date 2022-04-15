@@ -200,6 +200,7 @@ namespace jessielesbian.OpenCEX{
 		private static readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
 		public static readonly int MaximumBalanceCacheSize = (int)(Convert.ToUInt32(GetEnv("MaximumBalanceCacheSize")) - 1);
+		public static readonly ushort thrlimit = Convert.ToUInt16(GetEnv("ExecutionThreadCount"));
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
@@ -223,7 +224,6 @@ namespace jessielesbian.OpenCEX{
 
 			//Start threads
 			Thread thread;
-			ushort thrlimit = Convert.ToUInt16(GetEnv("ExecutionThreadCount"));
 			for (ushort i = 0; i < thrlimit;)
 			{
 				thread = new Thread(ExecutionThread);
