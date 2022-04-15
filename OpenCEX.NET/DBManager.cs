@@ -264,8 +264,9 @@ namespace jessielesbian.OpenCEX{
 					pendingLockRelease.Enqueue(key);
 				}
 				
-				balance = L3BalancesCache2.GetOrAdd(key, FetchBalanceIMPL, out bool update);
-				if(update){
+				balance = L3BalancesCache2.GetOrAdd(key, FetchBalanceIMPL, out bool called);
+				if(!called)
+				{
 					StaticUtils.CheckSafety(OriginalBalances.TryAdd(key, balance.ToString()), "Unable to register balances caching safety check (should not reach here)!", true);
 				}
 				return balance;
