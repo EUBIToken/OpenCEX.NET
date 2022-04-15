@@ -265,12 +265,7 @@ namespace jessielesbian.OpenCEX{
 					pendingLockRelease.Enqueue(key);
 				}
 				
-				balance = L3BalancesCache2.GetOrAdd(key, FetchBalanceIMPL, out bool update);
-				if(update){
-					//Cache consistency safety checking
-					OriginalBalances.Add(key, balance.ToString());
-				}
-				return balance;
+				return L3BalancesCache2.GetOrAdd(key, FetchBalanceIMPL, out _);
 			}
 		}
 
@@ -286,6 +281,7 @@ namespace jessielesbian.OpenCEX{
 			{
 				balance = StaticUtils.GetSafeUint(reader.GetString("Balance"));
 				reader.CheckSingletonResult();
+				StaticUtils.CheckSafety(OriginalBalances.TryAdd(key, balance.ToString()), "Unable to register balances caching safety check (should not reach here)!", true);
 			}
 			else
 			{
