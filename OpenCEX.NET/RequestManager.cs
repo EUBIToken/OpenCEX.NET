@@ -709,10 +709,10 @@ namespace jessielesbian.OpenCEX{
 					
 					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					string abi = "0x64d7cd50" + postfix + amount.ToHex(false);
-					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi);
-					SafeUint gasFees = gas.Mul(gasPrice);
+					CheckSafety(walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi) == basegas, "Withdraw to contract not supported");
+					SafeUint gasFees = basegas.Mul(gasPrice);
 					request.Debit(gastoken, userid, gasFees, false); //Debit gas token to pay for gas
-					tx = walletManager.SignEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, gas, abi);
+					tx = walletManager.SignEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, basegas, abi);
 					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, tx, userid, gastoken, gasFees, false));
 				}
 

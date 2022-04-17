@@ -33,7 +33,7 @@ namespace jessielesbian.OpenCEX
 	public sealed class BlockchainManager{
 		public readonly string node;
 		public readonly ulong chainid;
-		public static readonly BlockchainManager MintME = new BlockchainManager("https://node1.mintme.com", 24734);
+		public static readonly BlockchainManager MintME = new BlockchainManager("https://mintme.polyeubitoken.com/", 24734);
 
 		public static readonly BlockchainManager Polygon = new BlockchainManager("https://polygon-rpc.com", 137);
 		public static readonly BlockchainManager BinanceSmartChain = new BlockchainManager("https://bscrpc.com", 56);
