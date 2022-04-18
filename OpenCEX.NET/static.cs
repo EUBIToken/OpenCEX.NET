@@ -489,8 +489,9 @@ namespace jessielesbian.OpenCEX{
 					}
 
 					Queue<Request> secondExecute = new Queue<Request>();
-					while (requests.Count != 0){
-						Request request = requests.Dequeue();
+					Request request;
+					while (requests.TryDequeue(out request))
+					{
 						concurrentJobs.Enqueue(request);
 						secondExecute.Enqueue(request);
 					}
@@ -498,9 +499,8 @@ namespace jessielesbian.OpenCEX{
 					secondExecute = null;
 					manualResetEventSlim.Set();
 					Queue<object> returns = new Queue<object>();
-					while (requests.Count != 0)
+					while (requests.TryDequeue(out request))
 					{
-						Request request = requests.Dequeue();
 						returns.Enqueue(request.Wait());
 						if(request.method is Deposit && !Multiserver){
 							depositBlocker.Set();

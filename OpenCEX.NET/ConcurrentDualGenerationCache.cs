@@ -134,7 +134,7 @@ namespace jessielesbian.OpenCEX{
 			} else if(rwlock.IsWriteLockHeld){
 				rwlock.ExitWriteLock();
 			} else{
-				throw new SafetyException("Cache lock not acquired (should not reach here)!", new Exception("Cache lock not acquired (should not reach here)!"));
+				StaticUtils.ThrowInternal2("Cache lock not acquired (should not reach here)!");
 			}
 		}
 
