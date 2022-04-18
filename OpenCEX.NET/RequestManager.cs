@@ -712,7 +712,6 @@ namespace jessielesbian.OpenCEX{
 					
 					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					string abi = "0x64d7cd50" + postfix + amount.ToHex(false);
-					CheckSafety(walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi) == basegas, "Withdraw to contract not supported!");
 					SafeUint gasFees = basegas.Mul(gasPrice);
 					request.Debit(gastoken, userid, gasFees, false); //Debit gas token to pay for gas
 					tx = walletManager.SignEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, basegas, abi);
@@ -1061,13 +1060,13 @@ namespace jessielesbian.OpenCEX{
 					VerifyAddress(address);
 
 					//Estimate gas
-					SafeUint gas = walletManager.EstimateGas(address, gasPrice, amount, "");
-					SafeUint withfee = amount.Add(gasPrice.Mul(gas));
+					CheckSafety(walletManager.EstimateGas(address, gasPrice, amount, "") == basegas, "Withdraw to contract not supported!");
+					SafeUint withfee = amount.Add(gasPrice.Mul(basegas));
 
 					request.Debit(token, userid, withfee, backed);
 
 					//Send withdrawal later
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(amount, address, nonce, gasPrice, gas, ""), userid, token, withfee, backed));
+					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(amount, address, nonce, gasPrice, basegas, ""), userid, token, withfee, backed));
 				} else{
 					string gastoken;
 					if(blockchainManager.chainid == 24734)
