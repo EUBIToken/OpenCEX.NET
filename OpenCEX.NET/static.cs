@@ -45,11 +45,12 @@ namespace jessielesbian.OpenCEX{
 			if(exception == null){
 				return returns;
 			} else{
-				if(StaticUtils.debug){
-					throw new SafetyException("Concurrent job failed!", exception);
-				} else{
+				if(exception is SafetyException){
 					throw exception;
+				} else{
+					throw new SafetyException("Concurrent job failed!", exception);
 				}
+				
 			}
 		}
 

@@ -52,16 +52,15 @@ namespace jessielesbian.OpenCEX.RequestManager
 					{
 						sqlCommandFactory.DestroyTransaction(false, true);
 					}
-				} finally{
-					if (StaticUtils.debug)
-					{
-						throw new SafetyException("Unable to execute request", e);
-					}
-					else
-					{
-						throw e;
-					}
-				}	
+				} catch{
+					
+				}
+				if(e is SafetyException){
+					throw e;
+				} else{
+					throw new SafetyException("Unable to execute request!", e);
+				}
+				
 			}
 			return ret;
 			
