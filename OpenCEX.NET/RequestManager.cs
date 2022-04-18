@@ -599,6 +599,7 @@ namespace jessielesbian.OpenCEX{
 					//Traditional tokens
 					case "EUBI":
 					case "1000x":
+					case "CLICK":
 						blockchainManager = BlockchainManager.MintME;
 						break;
 					case "MATIC":
@@ -641,6 +642,9 @@ namespace jessielesbian.OpenCEX{
 
 				string token_address;
 				switch(token){
+					case "CLICK":
+						token_address = "0xf4811b341af177bde2407b976311af66c4b08021";
+						break;
 					case "1000x":
 						token_address = "0x7b535379bbafd9cd12b35d91addabf617df902b2";
 						break;
@@ -978,6 +982,7 @@ namespace jessielesbian.OpenCEX{
 						break;
 					case "EUBI":
 					case "1000x":
+					case "CLICK":
 						blockchainManager = BlockchainManager.MintME;
 						break;
 					case "BNB":
@@ -1411,7 +1416,7 @@ namespace jessielesbian.OpenCEX{
 				catch (Exception e)
 				{
 					Console.Error.WriteLine("Exception while sending withdrawal: " + e.ToString());
-					SQLCommandFactory sql = StaticUtils.GetSQL();
+					SQLCommandFactory sql = GetSQL();
 					bool commit;
 					try
 					{

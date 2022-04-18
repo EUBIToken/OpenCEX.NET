@@ -572,6 +572,6 @@ namespace jessielesbian.OpenCEX{
 			throw new SafetyException(reason, new Exception(reason));
 		}
 
-		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x", "Dai", "LP_MATIC_PolyEUBI", "LP_MintME_MATIC", "LP_MintME_BNB", "LP_MintME_PolyEUBI", "LP_MintME_EUBI", "LP_MintME_1000x", "LP_BNB_PolyEUBI", "LP_shitcoin_scamcoin", "LP_Dai_MATIC", "LP_Dai_BNB", "LP_Dai_MintME", "LP_Dai_PolyEUBI"};
+		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "CLICK", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x", "Dai", "LP_MATIC_PolyEUBI", "LP_MintME_MATIC", "LP_MintME_BNB", "LP_MintME_PolyEUBI", "LP_MintME_EUBI", "LP_MintME_1000x", "LP_BNB_PolyEUBI", "LP_shitcoin_scamcoin", "LP_Dai_MATIC", "LP_Dai_BNB", "LP_Dai_MintME", "LP_Dai_PolyEUBI", "LP_CLICK_MintME"};
 	}
 }
