@@ -200,6 +200,18 @@ namespace jessielesbian.OpenCEX{
 					} finally{
 						mySqlTransaction = null;
 						netBalanceEffects.Clear();
+						//Release balances cache locks (battle override active)
+						while (pendingLockRelease.TryDequeue(out string result))
+						{
+							try
+							{
+								L3BalancesCache2.Unlock(result);
+							}
+							catch (Exception e)
+							{
+								Console.Error.WriteLine("Error while unlocking balances cache: " + e.ToString());
+							}
+						}
 					}
 					
 				}
