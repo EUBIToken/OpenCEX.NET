@@ -1071,13 +1071,14 @@ namespace jessielesbian.OpenCEX{
 					//Estimate gas
 					SafeUint gas = walletManager.EstimateGas(tokenAddress, gasPrice, zero, data);
 
-					//Debit unbacked gas fees 
-					request.Debit(gastoken, userid, gasPrice.Mul(gas), false);
+					//Debit unbacked gas fees
+					SafeUint gasCosts = gasPrice.Mul(gas);
+					request.Debit(gastoken, userid, gasCosts, false);
 
 					request.Debit(token, userid, amount, backed);
 
 					//Send withdrawal later
-					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, tokenAddress, gasPrice, gas, data, userid, false, token, amount, token);
+					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, tokenAddress, gasPrice, gas, data, userid, false, token, gasCosts, gastoken);
 				}
 				
 				return null;
