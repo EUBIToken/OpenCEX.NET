@@ -380,7 +380,7 @@ namespace jessielesbian.OpenCEX
 						}
 
 						mySqlDataReader.Close();
-						while(taskDescriptors.TryDequeue(out TaskDescriptor res)){
+						while(taskDescriptors.TryDequeue(out TaskDescriptor res) && !abort){
 							getNonce.Parameters["@a"].Value = res.walletManager.address;
 							getNonce.Parameters["@b"].Value = res.walletManager.blockchainManager.chainid;
 							mySqlDataReader = getNonce.ExecuteReader();
