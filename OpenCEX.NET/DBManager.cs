@@ -98,17 +98,12 @@ namespace jessielesbian.OpenCEX{
 
 							updates.Sort();
 
-							for (int i = 0; i < limit3; i++)
-							{
-
-							}
-
 							order = updates.ToArray();
 						}
 						
 						for(int i = 0; i < limit3; ){
 							string key = order[i++];
-							StaticUtils.CheckSafety(netBalanceEffects.TryGetValue(key, out BigInteger bigInteger), "Unable to retrieve net effects key (should not reach here)!", true);
+							StaticUtils.CheckSafety(netBalanceEffects.TryGetValue(key, out BigInteger bigInteger), "Unable to retrieve net effects (should not reach here)!", true);
 							int pivot = key.IndexOf('_');
 							int sign = bigInteger.Sign;
 							if(sign > 0){
@@ -117,6 +112,8 @@ namespace jessielesbian.OpenCEX{
 								CreditOrDebit(key.Substring(pivot + 1), Convert.ToUInt64(key.Substring(0, pivot)), new SafeUint(bigInteger * BigInteger.MinusOne), false);
 							}
 						}
+
+						netBalanceEffects.Clear();
 
 						pendingFlush = new Queue<KeyValuePair<string, SafeUint>>();
 						foreach (KeyValuePair<string, SafeUint> balanceUpdate in dirtyBalances)
@@ -202,6 +199,7 @@ namespace jessielesbian.OpenCEX{
 						mySqlTransaction.Dispose();
 					} finally{
 						mySqlTransaction = null;
+						netBalanceEffects.Clear();
 					}
 					
 				}
