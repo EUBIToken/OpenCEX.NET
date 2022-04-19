@@ -429,8 +429,10 @@ namespace jessielesbian.OpenCEX
 						
 					} catch (Exception e){
 						Console.Error.WriteLine("Exception in transaction sending manager: " + e.ToString());
+					} finally{
+						sql.DestroyTransaction(true, false);
 					}
-					sql.DestroyTransaction(true, false);
+					
 					if (deposited && !Multiserver){
 						depositBlocker.Set();
 						deposited = false;
