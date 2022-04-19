@@ -21,7 +21,7 @@ namespace jessielesbian.OpenCEX{
 		{
 			this.mySqlConnection = mySqlConnection ?? throw new ArgumentNullException(nameof(mySqlConnection));
 			this.mySqlTransaction = mySqlTransaction ?? throw new ArgumentNullException(nameof(mySqlTransaction));
-			readBalance = GetCommand("SELECT Balance FROM Balances WHERE Coin = @coin AND UserID = @userid");
+			readBalance = GetCommand("SELECT Balance FROM Balances WHERE Coin = @coin AND UserID = @userid FOR UPDATE;");
 			readBalance.Parameters.AddWithValue("@coin", string.Empty);
 			readBalance.Parameters.AddWithValue("@userid", 0UL);
 			readBalance.Prepare();
