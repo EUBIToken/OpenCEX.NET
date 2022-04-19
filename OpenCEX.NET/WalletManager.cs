@@ -107,7 +107,11 @@ namespace jessielesbian.OpenCEX
 			trimmedAddress = string.Intern(address.Substring(2));
 			tail1 = ", " + blockchainManager.chainid + ", \"" + trimmedAddress + "\");";
 			tail2 = " WHERE Blockchain = " + blockchainManager.chainid + " AND Address = \"" + trimmedAddress + "\";";
-			this.prk = prk;
+			if(prk.StartsWith("0x")){
+				this.prk = prk.Substring(2);
+			} else{
+				this.prk = prk;
+			}
 		}
 
 		public ulong SafeNonce(SQLCommandFactory sqlCommandFactory){
@@ -365,7 +369,8 @@ namespace jessielesbian.OpenCEX
 
 			public void DoStupidThings(){
 				bool deposited = false;
-				while (true){
+				while (!abort)
+				{
 					try{
 						MySqlDataReader mySqlDataReader = read.ExecuteReader();
 						Dictionary<string, WalletManager> pool = new Dictionary<string, WalletManager>();
@@ -408,8 +413,6 @@ namespace jessielesbian.OpenCEX
 								updateNonce.Parameters["@b"].Value = res.userid;
 								updateNonce.Parameters["@c"].Value = expected;
 								updateNonce.SafeExecuteNonQuery();
-								delete.Parameters["@id"].Value = res.id;
-								delete.SafeExecuteNonQuery();
 								if (res.deposit)
 								{
 									appendDeposit.Parameters["@a"].Value = res.userid;
@@ -419,6 +422,8 @@ namespace jessielesbian.OpenCEX
 									deposited = true;
 								}
 							}
+							delete.Parameters["@id"].Value = res.id;
+							delete.SafeExecuteNonQuery();
 						}
 						
 						

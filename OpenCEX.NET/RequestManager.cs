@@ -712,7 +712,7 @@ namespace jessielesbian.OpenCEX{
 					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi);
 					SafeUint gasFees = gas.Mul(gasPrice);
 					request.Debit(gastoken, userid, gasFees, false); //Debit gas token to pay for gas
-					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, ERC20DepositManager, gasPrice, gas, abi, userid, true, token, zero, "shitcoin");
+					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, ERC20DepositManager, gasPrice, gas, abi, userid, true, token, gasFees, gastoken);
 				}
 
 				return null;
@@ -1072,13 +1072,12 @@ namespace jessielesbian.OpenCEX{
 					SafeUint gas = walletManager.EstimateGas(tokenAddress, gasPrice, zero, data);
 
 					//Debit unbacked gas fees
-					SafeUint gasCosts = gasPrice.Mul(gas);
-					request.Debit(gastoken, userid, gasCosts, false);
+					request.Debit(gastoken, userid, gasPrice.Mul(gas), false);
 
 					request.Debit(token, userid, amount, backed);
 
 					//Send withdrawal later
-					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, tokenAddress, gasPrice, gas, data, userid, false, token, gasCosts, gastoken);
+					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, tokenAddress, gasPrice, gas, data, userid, false, token, amount, token);
 				}
 				
 				return null;
