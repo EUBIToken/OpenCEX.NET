@@ -159,7 +159,7 @@ namespace jessielesbian.OpenCEX{
 						throw new Exception("Unknown token!");
 				}
 
-				TransactionReceipt transaction = walletManager.GetTransactionReceipt(misc[0]);
+				TransactionReceipt transaction = walletManager.GetTransactionReceipt("0x" + misc[0]);
 				ulong safeheight = walletManager.SafeBlockheight;
 				if (safeheight == 0){
 					if(!Multiserver){

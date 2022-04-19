@@ -184,6 +184,8 @@ namespace jessielesbian.OpenCEX{
 					
 				}
 
+				dirtyBalances.Clear();
+
 				if (destroy)
 				{
 					Dispose();

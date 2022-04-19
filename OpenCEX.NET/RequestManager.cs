@@ -673,16 +673,13 @@ namespace jessielesbian.OpenCEX{
 
 				//Boost gas price to reduce server waiting time.
 				gasPrice = gasPrice.Add(gasPrice.Div(ten));
-				string tx;
 				SafeUint amount;
 
 				if (token_address is null)
 				{
 					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!", false);
 					CheckSafety2(amount.isZero, "Zero-value deposit!");
-					ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
-					tx = walletManager.SignEther(amount, ExchangeWalletAddress, nonce, gasPrice, basegas);
-					walletManager.SendRawTX(tx);
+					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, ExchangeWalletAddress, gasPrice, basegas, null, userid, true, token, zero, "shitcoin");
 				} else{
 					string formattedTokenAddress = ExpandABIAddress(token_address);
 					string postfix = formattedTokenAddress + ExpandABIAddress(walletManager.address);
@@ -712,19 +709,12 @@ namespace jessielesbian.OpenCEX{
 					
 					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					string abi = "0x64d7cd50" + postfix + amount.ToHex(false);
-					SafeUint gasFees = basegas.Mul(gasPrice);
+					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi);
+					SafeUint gasFees = gas.Mul(gasPrice);
 					request.Debit(gastoken, userid, gasFees, false); //Debit gas token to pay for gas
-					tx = walletManager.SignEther(zero, ERC20DepositManager, walletManager.SafeNonce(request.sqlCommandFactory), gasPrice, basegas, abi);
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, tx, userid, gastoken, gasFees, false));
+					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, ERC20DepositManager, gasPrice, gas, abi, userid, true, token, zero, "shitcoin");
 				}
 
-				//Re-use existing table for compartiability
-				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO WorkerTasks (Status, LastTouched, URL, URL2) VALUES (0, " + userid + ", @token, \"0x" + TransactionUtils.CalculateTransactionHash(tx) + "_" + amount.ToString() + "\");");
-				mySqlCommand.Parameters.AddWithValue("@token", token);
-				mySqlCommand.Prepare();
-				CheckSafety(mySqlCommand.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
-
-				//NOTE: the deposits manager will do the rest of the werk for us.
 				return null;
 			}
 
@@ -1053,7 +1043,6 @@ namespace jessielesbian.OpenCEX{
 						break;
 				}
 
-				ulong nonce = walletManager.SafeNonce(request.sqlCommandFactory);
 				if (tokenAddress is null)
 				{
 					//Verify address
@@ -1063,10 +1052,10 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety(walletManager.EstimateGas(address, gasPrice, amount, "") == basegas, "Withdraw to contract not supported!");
 					SafeUint withfee = amount.Add(gasPrice.Mul(basegas));
 
-					request.Debit(token, userid, withfee, backed);
+					request.Debit(token, userid, withfee, false);
 
 					//Send withdrawal later
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(amount, address, nonce, gasPrice, basegas, ""), userid, token, withfee, backed));
+					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, address, gasPrice, basegas, null, userid, false, token, withfee, token);
 				} else{
 					string gastoken;
 					if(blockchainManager.chainid == 24734)
@@ -1088,7 +1077,7 @@ namespace jessielesbian.OpenCEX{
 					request.Debit(token, userid, amount, backed);
 
 					//Send withdrawal later
-					request.sqlCommandFactory.AfterCommit(new PostWithdrawal(walletManager, walletManager.SignEther(zero, tokenAddress, nonce, gasPrice, gas, data), userid, token, amount, backed));
+					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, tokenAddress, gasPrice, gas, data, userid, false, token, amount, token);
 				}
 				
 				return null;

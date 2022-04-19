@@ -237,8 +237,14 @@ namespace jessielesbian.OpenCEX{
 			thread.Start();
 
 			if(leadServer){
+				//Start deposit manager
 				thread = new Thread(DepositManager);
 				thread.Name = "OpenCEX.NET deposit manager thread";
+				thread.Start();
+
+				//Start transaction sending manager
+				thread = new Thread(SendingManagerThread.instance.DoStupidThings);
+				thread.Name = "OpenCEX.NET transaction sending manager thread";
 				thread.Start();
 			}
 		}

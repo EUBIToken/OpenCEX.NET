@@ -22,6 +22,7 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using Nethereum.Contracts.ContractHandlers;
 using Nethereum.RPC.Eth.DTOs;
+using Nethereum.Util;
 
 namespace jessielesbian.OpenCEX
 {
@@ -52,11 +53,8 @@ namespace jessielesbian.OpenCEX
 
 		public WalletManager GetWalletManager(string privateKey)
 		{
-			SHA256 sha256 = SHA256.Create();
-			string hash = Convert.ToBase64String(sha256.ComputeHash(Encoding.ASCII.GetBytes(privateKey)));
-			sha256.Dispose();
 			Account account = new Account(privateKey, chainid);
-			return new WalletManager(this, new Web3(account, node).Eth, string.Intern(account.Address.ToLower()));
+			return new WalletManager(this, new Web3(account, node).Eth, string.Intern(account.Address.ToLower()), privateKey);
 		}
 
 		public T SendRequestSync<T>(RpcRequest rpcRequest){
@@ -75,7 +73,6 @@ namespace jessielesbian.OpenCEX
 		public readonly string trimmedAddress;
 		private readonly string tail1;
 		private readonly string tail2;
-		private readonly IEtherTransferService etherTransferService;
 		public ulong SafeBlockheight { get; private set; } = 0;
 		private sealed class UpdateChainInfo : ConcurrentJob
 		{
@@ -97,18 +94,20 @@ namespace jessielesbian.OpenCEX
 			return new UpdateChainInfo(this);
 		}
 
+		private readonly string prk;
+
 		/// <summary>
 		/// DO NOT USE!
 		/// </summary>
-		public WalletManager(BlockchainManager blockchainManager, IEthApiContractService ethApiContractService, string address)
+		public WalletManager(BlockchainManager blockchainManager, IEthApiContractService ethApiContractService, string address, string prk)
 		{
 			this.blockchainManager = blockchainManager ?? throw new ArgumentNullException(nameof(blockchainManager));
 			this.ethApiContractService = ethApiContractService ?? throw new ArgumentNullException(nameof(ethApiContractService));
 			this.address = address ?? throw new ArgumentNullException(nameof(address));
 			trimmedAddress = string.Intern(address.Substring(2));
-			etherTransferService = ethApiContractService.GetEtherTransferService();
 			tail1 = ", " + blockchainManager.chainid + ", \"" + trimmedAddress + "\");";
 			tail2 = " WHERE Blockchain = " + blockchainManager.chainid + " AND Address = \"" + trimmedAddress + "\";";
+			this.prk = prk;
 		}
 
 		public ulong SafeNonce(SQLCommandFactory sqlCommandFactory){
@@ -206,10 +205,45 @@ namespace jessielesbian.OpenCEX
 			return blockchainManager.SendRequestSync<TransactionReceipt>(ethApiContractService.Transactions.GetTransactionReceipt.BuildRequest(txid));
 		}
 
-		private sealed class RpcResult1{
-			public object id;
-			public object jsonrpc;
-			public Dictionary<string, object> result;
+		//SafeSend: mitigation for freezer vulnerability
+		public void Unsafe_SafeSendEther(SQLCommandFactory sql, SafeUint amount, string to, SafeUint gasPrice, SafeUint gas, string data, ulong userid, bool deposit, string token, SafeUint failureRebate, string failureRebateToken)
+		{
+			MySqlCommand cmd = sql.GetCommand("INSERT INTO PendingTransactions (DataOrAmount, SendEther, Blockchain, Gas, GasPrice, UserID, CreditTokenSuccess, CreditAmountSuccess, CreditTokenFailure, CreditAmountFailure, Deposit, Dest, FromPrivateKey) VALUES (@a, @b, @c, @d, @e, @f, @g, @h, @i, @j, @k, @l, @m);");
+
+			if (data is null)
+			{
+				data = amount.ToString();
+				cmd.Parameters.AddWithValue("@a", data);
+				cmd.Parameters.AddWithValue("@b", true);
+			}
+			else
+			{
+				cmd.Parameters.AddWithValue("@a", data);
+				cmd.Parameters.AddWithValue("@b", false);
+				data = amount.ToString();
+			}
+			cmd.Parameters.AddWithValue("@c", blockchainManager.chainid);
+			cmd.Parameters.AddWithValue("@d", gas.ToString());
+			cmd.Parameters.AddWithValue("@e", gasPrice.ToString());
+			cmd.Parameters.AddWithValue("@f", userid);
+			if(deposit){
+				cmd.Parameters.AddWithValue("@g", token);
+				cmd.Parameters.AddWithValue("@h", data);
+			} else{
+				cmd.Parameters.AddWithValue("@g", "scamcoin");
+				cmd.Parameters.AddWithValue("@h", "0");
+			}
+			cmd.Parameters.AddWithValue("@i", failureRebateToken);
+			cmd.Parameters.AddWithValue("@j", failureRebate.ToString());
+			cmd.Parameters.AddWithValue("@k", deposit);
+			cmd.Parameters.AddWithValue("@l", to);
+			cmd.Parameters.AddWithValue("@m", prk);
+			cmd.Prepare();
+			cmd.SafeExecuteNonQuery();
+		}
+
+		public ulong GetNonce(){
+			return Convert.ToUInt64(StaticUtils.GetSafeUint(blockchainManager.SendRequestSync<string>(ethApiContractService.Transactions.GetTransactionCount.BuildRequest(address, StaticUtils.latestBlock))).ToString());
 		}
 	}
 
@@ -217,6 +251,190 @@ namespace jessielesbian.OpenCEX
 		public object blockNumber = null;
 		public object transactionHash = null;
 		public object status = null;
+	}
+
+	public static partial class StaticUtils{
+		private sealed class SendingManagerThread{
+			public static readonly SendingManagerThread instance = new SendingManagerThread();
+			private readonly SQLCommandFactory sql;
+			private readonly MySqlCommand read;
+			private readonly MySqlCommand delete;
+			private readonly MySqlCommand getNonce;
+			private readonly MySqlCommand putNonce1;
+			private readonly MySqlCommand putNonce2;
+			private readonly MySqlCommand appendDeposit;
+			private SendingManagerThread(){
+				sql = GetSQL();
+
+				read = sql.GetCommand("SELECT * FROM PendingTransactions ORDER BY Id FOR UPDATE;");
+
+				delete = sql.GetCommand("DELETE FROM PendingTransactions WHERE Id = @id;");
+				delete.Parameters.AddWithValue("@id", 0UL);
+				delete.Prepare();
+
+				getNonce = sql.GetCommand("SELECT ExpectedValue FROM Nonces WHERE Address = @a AND Blockchain = @b FOR UPDATE;");
+				getNonce.Parameters.AddWithValue("@a", string.Empty);
+				getNonce.Parameters.AddWithValue("@b", 0UL);
+				getNonce.Prepare();
+
+				putNonce1 = sql.GetCommand("INSERT INTO Nonces (Address, Blockchain, ExpectedValue) VALUES (@a, @b, @c);");
+				putNonce1.Parameters.AddWithValue("@a", string.Empty);
+				putNonce1.Parameters.AddWithValue("@b", 0UL);
+				putNonce1.Parameters.AddWithValue("@c", 0UL);
+				putNonce1.Prepare();
+
+				putNonce2 = sql.GetCommand("UPDATE Nonces SET ExpectedValue = @c WHERE Address = @a AND Blockchain = @b;");
+				putNonce2.Parameters.AddWithValue("@a", string.Empty);
+				putNonce2.Parameters.AddWithValue("@b", 0UL);
+				putNonce2.Parameters.AddWithValue("@c", 0UL);
+				putNonce2.Prepare();
+
+				appendDeposit = sql.GetCommand("INSERT INTO WorkerTasks (LastTouched, URL, URL2) VALUES (@a, @b, @c);");
+				appendDeposit.Parameters.AddWithValue("@a", 0UL);
+				appendDeposit.Parameters.AddWithValue("@b", string.Empty);
+				appendDeposit.Parameters.AddWithValue("@c", string.Empty);
+				appendDeposit.Prepare();
+			}
+
+			private sealed class TaskDescriptor{
+				public readonly string data;
+				public readonly SafeUint amt;
+				public readonly SafeUint gas;
+				public readonly SafeUint gasPrice;
+				public readonly bool deposit;
+				public readonly SafeUint compensationAmount;
+				public readonly string compensationToken;
+				public readonly string token;
+				public readonly string dest;
+				public readonly ulong userid;
+				public readonly WalletManager walletManager;
+				public readonly ulong id;
+				public readonly SafeUint cred2;
+
+				public TaskDescriptor(MySqlDataReader mySqlDataReader, IDictionary<string, WalletManager> pool)
+				{
+					if (mySqlDataReader.GetBoolean("SendEther"))
+					{
+						data = string.Empty;
+						amt = GetSafeUint(mySqlDataReader.GetString("DataOrAmount"));
+					}
+					else
+					{
+						data = mySqlDataReader.GetString("DataOrAmount");
+						amt = zero;
+					}
+					BlockchainManager blockchainManager;
+					switch (mySqlDataReader.GetUInt64("Blockchain"))
+					{
+						case 24734:
+							blockchainManager = BlockchainManager.MintME;
+							break;
+						case 137:
+							blockchainManager = BlockchainManager.Polygon;
+							break;
+						case 56:
+							blockchainManager = BlockchainManager.BinanceSmartChain;
+							break;
+						default:
+							throw new Exception("Invalid blockchain (should not reach here)!");
+					}
+					gas = GetSafeUint(mySqlDataReader.GetString("Gas"));
+					cred2 = GetSafeUint(mySqlDataReader.GetString("CreditAmountSuccess"));
+					gasPrice = GetSafeUint(mySqlDataReader.GetString("GasPrice"));
+					deposit = mySqlDataReader.GetBoolean("Deposit");
+
+					compensationAmount = GetSafeUint(mySqlDataReader.GetString("CreditAmountFailure"));
+					compensationToken = mySqlDataReader.GetString("CreditTokenFailure");
+					token = mySqlDataReader.GetString("CreditTokenSuccess");
+					dest = mySqlDataReader.GetString("Dest");
+					userid = mySqlDataReader.GetUInt64("UserID");
+					id = mySqlDataReader.GetUInt64("Id");
+					{
+						WalletManager walletManager1;
+						string privateKey = mySqlDataReader.GetString("FromPrivateKey");
+						string selector = blockchainManager.chainid + '_' + privateKey;
+						if (!pool.TryGetValue(selector, out walletManager1))
+						{
+							walletManager1 = blockchainManager.GetWalletManager(privateKey);
+							CheckSafety(pool.TryAdd(selector, walletManager1), "Unable to pool wallet manager!");
+						}
+						walletManager = walletManager1;
+					}
+				}
+			}
+
+			public void DoStupidThings(){
+				bool deposited = false;
+				while (true){
+					try{
+						MySqlDataReader mySqlDataReader = read.ExecuteReader();
+						Dictionary<string, WalletManager> pool = new Dictionary<string, WalletManager>();
+						Queue<TaskDescriptor> taskDescriptors = new Queue<TaskDescriptor>();
+						while(mySqlDataReader.Read()){
+							taskDescriptors.Enqueue(new TaskDescriptor(mySqlDataReader, pool));
+						}
+
+						mySqlDataReader.Close();
+						while(taskDescriptors.TryDequeue(out TaskDescriptor res)){
+							getNonce.Parameters["@a"].Value = res.walletManager.address;
+							getNonce.Parameters["@b"].Value = res.walletManager.blockchainManager.chainid;
+							mySqlDataReader = getNonce.ExecuteReader();
+							ulong expected;
+							MySqlCommand updateNonce;
+							if(mySqlDataReader.Read()){
+								expected = mySqlDataReader.GetUInt64("ExpectedValue") + 1;
+								updateNonce = putNonce2;
+								CheckSafety2(res.walletManager.GetNonce() > expected, "Exchange wallet compromised!");
+							} else{
+								expected = res.walletManager.GetNonce();
+								updateNonce = putNonce1;
+							}
+							mySqlDataReader.CheckSingletonResult();
+							mySqlDataReader.Close();
+							string txid;
+							try{
+								string tx = res.walletManager.SignEther(res.amt, res.dest, expected, res.gasPrice, res.gas, res.data);
+								res.walletManager.SendRawTX(tx);
+								txid = TransactionUtils.CalculateTransactionHash(tx);
+							} catch (Exception e){
+								Console.Error.WriteLine("Unable to send transaction: " + e);
+								txid = null;
+							}
+
+							if(txid is null){
+								sql.Credit(res.compensationToken, res.userid, res.compensationAmount, res.compensationToken == "WMintME");
+							} else{
+								updateNonce.Parameters["@a"].Value = res.walletManager.address;
+								updateNonce.Parameters["@b"].Value = res.userid;
+								updateNonce.Parameters["@c"].Value = expected;
+								updateNonce.SafeExecuteNonQuery();
+								delete.Parameters["@id"].Value = res.id;
+								delete.SafeExecuteNonQuery();
+								if (res.deposit)
+								{
+									appendDeposit.Parameters["@a"].Value = res.userid;
+									appendDeposit.Parameters["@b"].Value = res.token;
+									appendDeposit.Parameters["@c"].Value = txid + "_" + res.cred2.ToString();
+									appendDeposit.SafeExecuteNonQuery();
+									deposited = true;
+								}
+							}
+						}
+						
+						
+					} catch (Exception e){
+						Console.Error.WriteLine("Exception in transaction sending manager: " + e.ToString());
+					}
+					sql.DestroyTransaction(true, false);
+					if (deposited && !Multiserver){
+						depositBlocker.Set();
+						deposited = false;
+					}
+					Thread.Sleep(1237);
+					sql.BeginTransaction();
+				}
+			}
+		}
 	}
 }
 
