@@ -599,6 +599,7 @@ namespace jessielesbian.OpenCEX{
 					case "EUBI":
 					case "1000x":
 					case "CLICK":
+					case "MS-Coin":
 						blockchainManager = BlockchainManager.MintME;
 						break;
 					case "MATIC":
@@ -643,6 +644,9 @@ namespace jessielesbian.OpenCEX{
 				switch(token){
 					case "CLICK":
 						token_address = "0xf4811b341af177bde2407b976311af66c4b08021";
+						break;
+					case "MS-Coin":
+						token_address = "0x34c171a4ee5a3e6ad7ea1b356600e30d7c333d5e";
 						break;
 					case "1000x":
 						token_address = "0x7b535379bbafd9cd12b35d91addabf617df902b2";
@@ -971,6 +975,7 @@ namespace jessielesbian.OpenCEX{
 					case "EUBI":
 					case "1000x":
 					case "CLICK":
+					case "MS-Coin":
 						blockchainManager = BlockchainManager.MintME;
 						break;
 					case "BNB":
@@ -1009,6 +1014,14 @@ namespace jessielesbian.OpenCEX{
 				bool backed;
 				switch (token)
 				{
+					case "MS-Coin":
+						tokenAddress = "0x34c171a4ee5a3e6ad7ea1b356600e30d7c333d5e";
+						backed = false;
+						break;
+					case "CLICK":
+						tokenAddress = "0xf4811b341af177bde2407b976311af66c4b08021";
+						backed = false;
+						break;
 					case "PolyEUBI":
 						tokenAddress = "0x553e77f7f71616382b1545d4457e2c1ee255fa7a";
 						backed = false;
