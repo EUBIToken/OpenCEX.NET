@@ -1170,7 +1170,12 @@ namespace jessielesbian.OpenCEX{
 				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO Accounts (Username, Passhash, DepositPrivateKey) VALUES (@username, @passhash, \"" + BitConverter.ToString(privatekey).Replace("-", string.Empty).ToLower() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@username", username);
 				mySqlCommand.Parameters.AddWithValue("@passhash", OpenBsdBCrypt.Generate(password.ToCharArray(), salt, 16));
-				mySqlCommand.SafeExecuteNonQuery();
+				try{
+					mySqlCommand.SafeExecuteNonQuery();
+				} catch{
+					throw new SafetyException("Username not available!");
+				}
+				
 
 				//HACK: Hijack existing request method
 				request.args.Add("renember", true);

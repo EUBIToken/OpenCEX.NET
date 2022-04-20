@@ -371,44 +371,56 @@ namespace jessielesbian.OpenCEX
 				bool deposited = false;
 				while (!abort)
 				{
-					try{
+					try
+					{
 						MySqlDataReader mySqlDataReader = read.ExecuteReader();
 						Dictionary<string, WalletManager> pool = new Dictionary<string, WalletManager>();
 						Queue<TaskDescriptor> taskDescriptors = new Queue<TaskDescriptor>();
-						while(mySqlDataReader.Read()){
+						while (mySqlDataReader.Read())
+						{
 							taskDescriptors.Enqueue(new TaskDescriptor(mySqlDataReader, pool));
 						}
 
 						mySqlDataReader.Close();
-						while(taskDescriptors.TryDequeue(out TaskDescriptor res) && !abort){
+						while (taskDescriptors.TryDequeue(out TaskDescriptor res) && !abort)
+						{
 							getNonce.Parameters["@a"].Value = res.walletManager.address;
 							getNonce.Parameters["@b"].Value = res.walletManager.blockchainManager.chainid;
 							mySqlDataReader = getNonce.ExecuteReader();
 							ulong expected;
 							MySqlCommand updateNonce;
-							if(mySqlDataReader.Read()){
+							if (mySqlDataReader.Read())
+							{
 								expected = mySqlDataReader.GetUInt64("ExpectedValue") + 1;
 								updateNonce = putNonce2;
 								CheckSafety2(res.walletManager.GetNonce() > expected, "Exchange wallet compromised!");
-							} else{
+							}
+							else
+							{
 								expected = res.walletManager.GetNonce();
 								updateNonce = putNonce1;
 							}
 							mySqlDataReader.CheckSingletonResult();
 							mySqlDataReader.Close();
 							string txid;
-							try{
+							try
+							{
 								string tx = res.walletManager.SignEther(res.amt, res.dest, expected, res.gasPrice, res.gas, res.data);
 								res.walletManager.SendRawTX(tx);
 								txid = TransactionUtils.CalculateTransactionHash(tx);
-							} catch (Exception e){
+							}
+							catch (Exception e)
+							{
 								Console.Error.WriteLine("Unable to send transaction: " + e);
 								txid = null;
 							}
 
-							if(txid is null){
+							if (txid is null)
+							{
 								sql.Credit(res.compensationToken, res.userid, res.compensationAmount, res.compensationToken == "WMintME");
-							} else{
+							}
+							else
+							{
 								updateNonce.Parameters["@a"].Value = res.walletManager.address;
 								updateNonce.Parameters["@b"].Value = res.userid;
 								updateNonce.Parameters["@c"].Value = expected;
@@ -425,21 +437,24 @@ namespace jessielesbian.OpenCEX
 							delete.Parameters["@id"].Value = res.id;
 							delete.SafeExecuteNonQuery();
 						}
-						
-						
-					} catch (Exception e){
-						Console.Error.WriteLine("Exception in transaction sending manager: " + e.ToString());
-					} finally{
-						sql.DestroyTransaction(true, false);
+
+
 					}
-					
-					if (deposited && !Multiserver){
+					catch (Exception e)
+					{
+						Console.Error.WriteLine("Exception in transaction sending manager: " + e.ToString());
+					}
+					sql.DestroyTransaction(true, false);
+
+					if (deposited && !Multiserver)
+					{
 						depositBlocker.Set();
 						deposited = false;
 					}
 					Thread.Sleep(1237);
 					sql.BeginTransaction();
 				}
+				Console.WriteLine(Thread.CurrentThread.Name + " stopped!");
 			}
 		}
 	}

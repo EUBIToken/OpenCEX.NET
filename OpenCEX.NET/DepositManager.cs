@@ -11,11 +11,15 @@ namespace jessielesbian.OpenCEX{
 		public static readonly WalletManager defaultBSCWallet = BlockchainManager.BinanceSmartChain.ExchangeWalletManager;
 		public static readonly WalletManager defaultPolyWallet = BlockchainManager.Polygon.ExchangeWalletManager;
 		private static void DepositManager(){
-			while(!abort){
-				if(watchdogCounter > MaximumWatchdogLag){
+			while (!abort)
+			{
+				if (watchdogCounter > MaximumWatchdogLag)
+				{
 					Thread.Sleep(3);
 					continue;
-				} else{
+				}
+				else
+				{
 					ConcurrentJob[] updates = new ConcurrentJob[] { defaultMintMEWallet.getUpdate(), defaultBSCWallet.getUpdate(), defaultPolyWallet.getUpdate() };
 					Append(updates);
 					try
@@ -38,10 +42,12 @@ namespace jessielesbian.OpenCEX{
 					}
 				}
 				Thread.Sleep(10000);
-				if (!Multiserver){
+				if (!Multiserver)
+				{
 					depositBlocker.Wait();
 				}
 			}
+			Console.WriteLine(Thread.CurrentThread.Name + " stopped!");
 		}
 
 		private static ConcurrentJob[] empty = new ConcurrentJob[0];

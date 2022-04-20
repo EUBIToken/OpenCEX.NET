@@ -202,6 +202,41 @@ namespace jessielesbian.OpenCEX{
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
 		public static readonly int MaximumBalanceCacheSize = (int)(Convert.ToUInt32(GetEnv("MaximumBalanceCacheSize")) - 1);
 		public static readonly ushort thrlimit = Convert.ToUInt16(GetEnv("ExecutionThreadCount"));
+
+		//OpenCEX.NET Managed Thread
+		private sealed class ManagedAbortThread{
+			private readonly ManagedAbortThread inner;
+			private static ManagedAbortThread instance = null;
+			private readonly Thread monitor;
+			private static readonly object locker = new object();
+
+			private ManagedAbortThread(ManagedAbortThread inner, Thread monitor)
+			{
+				this.inner = inner;
+				this.monitor = monitor ?? throw new ArgumentNullException(nameof(monitor));
+			}
+
+			public static void Append(Thread thread){
+				lock(locker){
+					instance = new ManagedAbortThread(instance, thread);
+				}
+			}
+			private void Join(){
+				if(inner != null){
+					inner.Join();
+				}
+				monitor.Join();
+			}
+			public static void JoinAll(){
+				lock (locker)
+				{
+					if (instance != null)
+					{
+						instance.Join();
+					}
+				}
+			}
+		}
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
@@ -228,24 +263,27 @@ namespace jessielesbian.OpenCEX{
 			for (ushort i = 0; i < thrlimit;)
 			{
 				thread = new Thread(ExecutionThread);
-				thread.IsBackground = true;
 				thread.Name = "OpenCEX.NET Execution Thread #" + (++i).ToString();
 				thread.Start();
+				ManagedAbortThread.Append(thread);
 			}
 			thread = new Thread(QOSWatchdog);
-			thread.Name = "OpenCEX.NET Quality-Of-Service Watchdog Thread";
+			thread.Name = "OpenCEX.NET Watchdog Thread";
 			thread.Start();
+			ManagedAbortThread.Append(thread);
 
-			if(leadServer){
+			if (leadServer){
 				//Start deposit manager
 				thread = new Thread(DepositManager);
 				thread.Name = "OpenCEX.NET deposit manager thread";
 				thread.Start();
+				ManagedAbortThread.Append(thread);
 
 				//Start transaction sending manager
 				thread = new Thread(SendingManagerThread.instance.DoStupidThings);
 				thread.Name = "OpenCEX.NET transaction sending manager thread";
 				thread.Start();
+				ManagedAbortThread.Append(thread);
 			}
 		}
 
@@ -286,14 +324,20 @@ namespace jessielesbian.OpenCEX{
 
 		private static readonly PooledManualResetEvent manualResetEventSlim = PooledManualResetEvent.GetInstance(false);
 		private static void ExecutionThread(){
-			while(true){
-				if(concurrentJobs.TryDequeue(out ConcurrentJob concurrentJob)){
+			//Critical section (abort not allowed)
+			while (!abort)
+			{
+				if (concurrentJobs.TryDequeue(out ConcurrentJob concurrentJob))
+				{
 					concurrentJob.Execute();
-				} else{
+				}
+				else
+				{
 					manualResetEventSlim.Reset();
-					manualResetEventSlim.Wait(1);
+					manualResetEventSlim.Wait(100);
 				}
 			}
+			Console.WriteLine(Thread.CurrentThread.Name + " stopped!");
 		}
 
 		private sealed class ProcessHTTP : ConcurrentJob
@@ -389,7 +433,8 @@ namespace jessielesbian.OpenCEX{
 		private static readonly int MaximumWatchdogLag = Convert.ToInt32(GetEnv("MaximumWatchdogLag"));
 
 		private static void QOSWatchdog(){
-			while(!abort){
+			while (!abort)
+			{
 				if ((Interlocked.Increment(ref watchdogCounter) - 1) == MaximumWatchdogLag)
 				{
 					Console.Error.WriteLine("Watchdog: Server overloaded, stop processing requests!");
@@ -397,6 +442,7 @@ namespace jessielesbian.OpenCEX{
 				Append(new WatchdogPing());
 				Thread.Sleep(20);
 			}
+			Console.WriteLine(Thread.CurrentThread.Name + " stopped!");
 		}
 
 		private static void CurrentDomain_ProcessExit(object sender, EventArgs e)
@@ -419,6 +465,7 @@ namespace jessielesbian.OpenCEX{
 					httpListener.Stop();
 				}
 			}
+			ManagedAbortThread.JoinAll();
 		}
 		[JsonObject(MemberSerialization.Fields)]
 		private sealed class FailedRequest{
