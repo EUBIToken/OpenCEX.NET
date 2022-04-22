@@ -226,7 +226,9 @@ namespace jessielesbian.OpenCEX{
 			}
 			catch (Exception e)
 			{
-				if (StaticUtils.debug)
+				if(e is SafetyException){
+					throw e;
+				} else if (StaticUtils.debug)
 				{
 					throw new SafetyException("Unable to destroy MySQL transaction!", e);
 				}
