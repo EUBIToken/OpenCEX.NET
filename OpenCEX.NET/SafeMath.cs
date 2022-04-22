@@ -27,7 +27,7 @@ namespace jessielesbian.OpenCEX
 		public static SafeUint GetSafeUint(string number){
 			if (number.StartsWith("0x"))
 			{
-				number = number.Substring(2);
+				number = number[2..];
 				if (number[0] != '0'){
 					number = '0' + number;
 				}
@@ -197,14 +197,14 @@ namespace jessielesbian.OpenCEX.SafeMath{
 		}
 
 		public string ToHex(bool prefix = true, bool pad256 = true){
-			string postfix = new HexBigInteger(bigInteger).HexValue.ToLower().Substring(2);
+			string postfix = new HexBigInteger(bigInteger).HexValue.ToLower()[2..];
 			if(pad256)
 			{
 				StaticUtils.CheckSafety2(postfix.Length > 64, "256-bit integer overflow!");
 				postfix = postfix.PadLeft(64, '0');
 			} else{
 				while(postfix.StartsWith('0')){
-					postfix = postfix.Substring(1);
+					postfix = postfix[1..];
 				}
 				if (postfix == string.Empty){
 					postfix = "0";

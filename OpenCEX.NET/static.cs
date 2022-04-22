@@ -80,7 +80,7 @@ namespace jessielesbian.OpenCEX{
 		public static void CheckSafety(bool status, string message = "An unknown error have occoured!", bool critical = false){
 			if(!status){
 				if(critical){
-					throw new Exception(message);
+					ThrowInternal2(message);
 				} else{
 					throw new SafetyException(message);
 				}
@@ -94,7 +94,7 @@ namespace jessielesbian.OpenCEX{
 			{
 				if (critical)
 				{
-					throw new Exception(message);
+					ThrowInternal2(message);
 				}
 				else
 				{
@@ -110,7 +110,7 @@ namespace jessielesbian.OpenCEX{
 			{
 				if (critical)
 				{
-					throw new Exception(message);
+					ThrowInternal2(message);
 				}
 				else
 				{
@@ -126,7 +126,7 @@ namespace jessielesbian.OpenCEX{
 			{
 				if (critical)
 				{
-					throw new Exception(message);
+					ThrowInternal2(message);
 				}
 				else
 				{
@@ -152,9 +152,9 @@ namespace jessielesbian.OpenCEX{
 
 		public static bool Multiserver = Convert.ToBoolean(GetEnv("Multiserver"));
 
-		private static PooledManualResetEvent depositBlocker = PooledManualResetEvent.GetInstance(false);
+		private static readonly PooledManualResetEvent depositBlocker = PooledManualResetEvent.GetInstance(false);
 
-		private static string SQLConnectionString = GetEnv("SQLConnectionString");
+		private static readonly string SQLConnectionString = GetEnv("SQLConnectionString");
 
 		public static SQLCommandFactory GetSQL(){
 			MySqlConnection mySqlConnection = null;
@@ -262,26 +262,34 @@ namespace jessielesbian.OpenCEX{
 			Thread thread;
 			for (ushort i = 0; i < thrlimit;)
 			{
-				thread = new Thread(ExecutionThread);
-				thread.Name = "OpenCEX.NET Execution Thread #" + (++i).ToString();
+				thread = new Thread(ExecutionThread)
+				{
+					Name = "OpenCEX.NET Execution Thread #" + (++i).ToString()
+				};
 				thread.Start();
 				ManagedAbortThread.Append(thread);
 			}
-			thread = new Thread(QOSWatchdog);
-			thread.Name = "OpenCEX.NET Watchdog Thread";
+			thread = new Thread(QOSWatchdog)
+			{
+				Name = "OpenCEX.NET Watchdog Thread"
+			};
 			thread.Start();
 			ManagedAbortThread.Append(thread);
 
 			if (leadServer){
 				//Start deposit manager
-				thread = new Thread(DepositManager);
-				thread.Name = "OpenCEX.NET deposit manager thread";
+				thread = new Thread(DepositManager)
+				{
+					Name = "OpenCEX.NET deposit manager thread"
+				};
 				thread.Start();
 				ManagedAbortThread.Append(thread);
 
 				//Start transaction sending manager
-				thread = new Thread(SendingManagerThread.instance.DoStupidThings);
-				thread.Name = "OpenCEX.NET transaction sending manager thread";
+				thread = new Thread(SendingManagerThread.instance.DoStupidThings)
+				{
+					Name = "OpenCEX.NET transaction sending manager thread"
+				};
 				thread.Start();
 				ManagedAbortThread.Append(thread);
 			}
@@ -377,6 +385,7 @@ namespace jessielesbian.OpenCEX{
 
 		public static void Start(){
 			//Start HTTP listening
+			ManagedAbortThread.Append(Thread.CurrentThread);
 			AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 			ushort port = Convert.ToUInt16(GetEnv("PORT"));
 			lock (httpListener){
@@ -469,8 +478,14 @@ namespace jessielesbian.OpenCEX{
 		}
 		[JsonObject(MemberSerialization.Fields)]
 		private sealed class FailedRequest{
+#pragma warning disable CS0414
+#pragma warning disable IDE0051 // Remove unused private members
 			private readonly string status = "error";
+#pragma warning restore IDE0051 // Remove unused private members
+#pragma warning restore CS0414
+#pragma warning disable IDE0052 // Remove unread private members
 			private readonly string reason;
+#pragma warning restore IDE0052 // Remove unread private members
 
 			public FailedRequest(string reason)
 			{
@@ -481,8 +496,10 @@ namespace jessielesbian.OpenCEX{
 
 		[JsonObject(MemberSerialization.Fields)]
 		private sealed class UnprocessedRequest{
+#pragma warning disable CS0649
 			public string method;
 			public IDictionary<string, object> data;
+#pragma warning restore CS0649
 		}
 
 		private static readonly string origin = GetEnv("Origin");
@@ -514,7 +531,7 @@ namespace jessielesbian.OpenCEX{
 					string body = streamReader.ReadToEnd();
 
 					CheckSafety(body.StartsWith("OpenCEX_request_body="), "Missing request body!");
-					body = HttpUtility.UrlDecode(body.Substring(21));
+					body = HttpUtility.UrlDecode(body[21..]);
 
 					CheckSafety2(watchdogCounter > MaximumWatchdogLag, "Server overloaded, please try again later!");
 
@@ -533,27 +550,22 @@ namespace jessielesbian.OpenCEX{
 						return;
 					}
 
-					Queue<Request> requests = new Queue<Request>();
-					foreach(UnprocessedRequest unprocessedRequest in unprocessedRequests){
-						CheckSafety(unprocessedRequest.method, "Missing request method!");
-						RequestMethod requestMethod = null;
-						CheckSafety(requestMethods.TryGetValue(unprocessedRequest.method, out requestMethod), "Unknown request method!");
-						IDictionary<string, object> data = (unprocessedRequest.data == null) ? new Dictionary<string, object>(0) : unprocessedRequest.data;
-						requests.Enqueue(new Request(requestMethod.needSQL ? GetSQL() : null, requestMethod, httpListenerContext, data));
-					}
-
-					Queue<Request> secondExecute = new Queue<Request>();
 					Request request;
-					while (requests.TryDequeue(out request))
-					{
-						concurrentJobs.Enqueue(request);
+					Queue<Request> secondExecute = new Queue<Request>();
+					foreach (UnprocessedRequest unprocessedRequest in unprocessedRequests){
+						CheckSafety(unprocessedRequest.method, "Missing request method!");
+						CheckSafety(requestMethods.TryGetValue(unprocessedRequest.method, out RequestMethod requestMethod), "Unknown request method!");
+						IDictionary<string, object> data = unprocessedRequest.data ?? new Dictionary<string, object>(0);
+
+						request = new Request(requestMethod.needSQL ? GetSQL() : null, requestMethod, httpListenerContext, data);
 						secondExecute.Enqueue(request);
 					}
-					requests = secondExecute;
-					secondExecute = null;
+
+
+					Append(secondExecute.ToArray());
 					manualResetEventSlim.Set();
 					Queue<object> returns = new Queue<object>();
-					while (requests.TryDequeue(out request))
+					while (secondExecute.TryDequeue(out request))
 					{
 						returns.Enqueue(request.Wait());
 						if(request.method is Deposit && !Multiserver){
@@ -569,19 +581,24 @@ namespace jessielesbian.OpenCEX{
 					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(error)));
 				}
 				catch (SafetyException e){
-					string error = debug ? e.ToString() : e.Message;
-					if(!debug){
+					string str = e.ToString();
+					if (!debug){
 						Exception inner = e.InnerException;
 						while (inner != null){
 							if(inner is SafetyException){
 								inner = inner.InnerException;
 							} else{
-								Console.Error.WriteLine("Unexpected internal server error: " + e.ToString());
+								Console.Error.WriteLine("Unexpected internal server error: " + str);
 								break;
 							}
 						}
 					}
-					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(error)));
+					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(debug ? str : e.Message)));
+				}
+				catch (CriticalSafetyException e){
+					string str = e.ToString();
+					Console.Error.WriteLine("Unexpected internal server error: " + str);
+					streamWriter.Write(JsonConvert.SerializeObject(new FailedRequest(debug ? str : e.Message)));
 				}
 				catch (Exception e){
 					string error;
@@ -623,7 +640,13 @@ namespace jessielesbian.OpenCEX{
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void ThrowInternal2(string reason){
-			throw new SafetyException(reason, new Exception(reason));
+			throw new CriticalSafetyException(reason);
+		}
+		private sealed class CriticalSafetyException : Exception
+		{
+			public CriticalSafetyException(string message) : base(message)
+			{
+			}
 		}
 
 		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "CLICK", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x", "Dai", "MS-Coin", "LP_MATIC_PolyEUBI", "LP_MintME_MATIC", "LP_MintME_BNB", "LP_MintME_PolyEUBI", "LP_MintME_EUBI", "LP_MintME_1000x", "LP_BNB_PolyEUBI", "LP_shitcoin_scamcoin", "LP_Dai_MATIC", "LP_Dai_BNB", "LP_Dai_MintME", "LP_Dai_PolyEUBI", "LP_MintME_CLICK", "LP_MintME_MS-Coin"};

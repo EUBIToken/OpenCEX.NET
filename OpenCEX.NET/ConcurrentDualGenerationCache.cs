@@ -8,7 +8,7 @@ namespace jessielesbian.OpenCEX{
 	public sealed class ConcurrentDualGenerationCache<K, T>{
 		private Dictionary<K, T> gen1;
 		private Dictionary<K, T> gen2;
-		private ConcurrentDictionary<K, ReaderWriterLockSlim> locks;
+		private readonly ConcurrentDictionary<K, ReaderWriterLockSlim> locks;
 		private readonly int maxsize;
 		private readonly object lok = new object();
 

@@ -20,7 +20,7 @@ namespace jessielesbian.OpenCEX{
 				}
 				else
 				{
-					ConcurrentJob[] updates = new ConcurrentJob[] { defaultMintMEWallet.getUpdate(), defaultBSCWallet.getUpdate(), defaultPolyWallet.getUpdate() };
+					ConcurrentJob[] updates = new ConcurrentJob[] { defaultMintMEWallet.GetUpdate(), defaultBSCWallet.GetUpdate(), defaultPolyWallet.GetUpdate() };
 					Append(updates);
 					try
 					{
@@ -50,7 +50,7 @@ namespace jessielesbian.OpenCEX{
 			Console.WriteLine(Thread.CurrentThread.Name + " stopped!");
 		}
 
-		private static ConcurrentJob[] empty = new ConcurrentJob[0];
+		private static readonly ConcurrentJob[] empty = new ConcurrentJob[0];
 		private static void HandleDepositsIMPL(MySqlDataReader mySqlDataReader, ConcurrentJob[] updates)
 		{
 			ConcurrentJob[] arr = empty;
@@ -163,7 +163,8 @@ namespace jessielesbian.OpenCEX{
 						url3 = "MintME";
 						break;
 					default:
-						throw new Exception("Unknown token!");
+						ThrowInternal2("Unknown token in Deposit Manager (should not reach here)!");
+						return null;
 				}
 
 				TransactionReceipt transaction = walletManager.GetTransactionReceipt("0x" + misc[0]);

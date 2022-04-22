@@ -142,7 +142,7 @@ namespace jessielesbian.OpenCEX{
 				request.sqlCommandFactory.SafeDestroyReader();
 
 				request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Orders WHERE Id = " + target + ";");
-				request.Credit(refund, userid, amount);
+				request.Credit(refund, userid, amount, true);
 				return null;
 			}
 
@@ -214,12 +214,11 @@ namespace jessielesbian.OpenCEX{
 				}
 				
 				Queue<Order> moddedOrders = new Queue<Order>();
-				Dictionary<ulong, SafeUint> tmpbalances = new Dictionary<ulong, SafeUint>();
 				SafeUint close = null;
 
 				ulong userid = request.GetUserID();
-				request.Debit(selected, userid, amount);
-				request.Credit(output, userid, zero);
+				request.Debit(selected, userid, amount, true);
+				request.Credit(output, userid, zero, true);
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
 				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(counter);
 				Order instance = new Order(price, amt2, amount, zero, userid, 0);
@@ -241,15 +240,8 @@ namespace jessielesbian.OpenCEX{
 							moddedOrders.Enqueue(other);
 							close = other.price;
 							SafeUint outamt = oldamt1.Sub(instance.Balance);
-							request.Credit(output, userid, oldamt2.Sub(other.Balance));
-							if (tmpbalances.TryGetValue(other.placedby, out SafeUint temp3))
-							{
-								tmpbalances[other.placedby] = temp3.Add(outamt);
-							}
-							else
-							{
-								tmpbalances.Add(other.placedby, outamt);
-							}
+							request.Credit(output, userid, oldamt2.Sub(other.Balance), true);
+							request.Credit(selected, other.placedby, outamt, true);
 							read = reader.Read();
 							lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, sell, other, other.price, false, lpreserve);
 						}
@@ -284,7 +276,7 @@ namespace jessielesbian.OpenCEX{
 					if (instance.amount.isZero || fillMode == 1)
 					{
 						//Cancel order
-						request.Credit(selected, userid, instance.Balance);
+						request.Credit(selected, userid, instance.Balance, true);
 						goto admitted;
 					}
 					else
@@ -322,7 +314,7 @@ namespace jessielesbian.OpenCEX{
 						SafeUint balance = modded.Balance;
 						if (!balance.isZero)
 						{
-							request.Credit(output, modded.placedby, balance);
+							request.Credit(output, modded.placedby, balance, true);
 						}
 
 						action = delete;
@@ -339,12 +331,6 @@ namespace jessielesbian.OpenCEX{
 					}
 					action.Parameters["@id"].Value = modded.id;
 					action.SafeExecuteNonQuery();
-				}
-
-				//Credit funds to customers
-				foreach (KeyValuePair<ulong, SafeUint> keyValuePair in tmpbalances)
-				{
-					request.Credit(selected, keyValuePair.Key, keyValuePair.Value);
 				}
 
 				if (close != null)
@@ -618,16 +604,12 @@ namespace jessielesbian.OpenCEX{
 							CheckSafety(request.args.TryGetValue("blockchain", out object tm), "Must specify blockchain for multichain token!");
 							blockchain = (string)tm;
 						}
-						switch(blockchain){
-							case "MintME":
-								blockchainManager = BlockchainManager.MintME;
-								break;
-							case "Polygon":
-								blockchainManager = BlockchainManager.Polygon;
-								break;
-							default:
-								throw new SafetyException("Unsupported blockchain!");
-						}
+						blockchainManager = blockchain switch
+						{
+							"MintME" => BlockchainManager.MintME,
+							"Polygon" => BlockchainManager.Polygon,
+							_ => throw new SafetyException("Unsupported blockchain!"),
+						};
 						break;
 					//Unknown tokens
 					default:
@@ -989,17 +971,12 @@ namespace jessielesbian.OpenCEX{
 							CheckSafety(request.args.TryGetValue("blockchain", out object tm), "Must specify blockchain for multichain token!");
 							blockchain = (string)tm;
 						}
-						switch (blockchain)
+						blockchainManager = blockchain switch
 						{
-							case "MintME":
-								blockchainManager = BlockchainManager.MintME;
-								break;
-							case "Polygon":
-								blockchainManager = BlockchainManager.Polygon;
-								break;
-							default:
-								throw new SafetyException("Unsupported blockchain!");
-						}
+							"MintME" => BlockchainManager.MintME,
+							"Polygon" => BlockchainManager.Polygon,
+							_ => throw new SafetyException("Unsupported blockchain!"),
+						};
 						break;
 
 					//Unsupported tokens

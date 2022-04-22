@@ -100,22 +100,23 @@ namespace jessielesbian.OpenCEX{
 
 							order = updates.ToArray();
 						}
-						
-						for(int i = 0; i < limit3; ){
+						IDictionary<string, SafeUint> dirtyBalances = new Dictionary<string, SafeUint>(limit3);
+						for (int i = 0; i < limit3; ){
 							string key = order[i++];
 							StaticUtils.CheckSafety(netBalanceEffects.TryGetValue(key, out BigInteger bigInteger), "Unable to retrieve net effects (should not reach here)!", true);
 							int pivot = key.IndexOf('_');
 							int sign = bigInteger.Sign;
 							if(sign > 0){
-								CreditOrDebit(key.Substring(pivot + 1), Convert.ToUInt64(key.Substring(0, pivot)), new SafeUint(bigInteger), true);
+								CreditOrDebit(key[(pivot + 1)..], Convert.ToUInt64(key.Substring(0, pivot)), new SafeUint(bigInteger), true, dirtyBalances);
 							} else if(sign < 0){
-								CreditOrDebit(key.Substring(pivot + 1), Convert.ToUInt64(key.Substring(0, pivot)), new SafeUint(bigInteger * BigInteger.MinusOne), false);
+								CreditOrDebit(key[(pivot + 1)..], Convert.ToUInt64(key.Substring(0, pivot)), new SafeUint(bigInteger * BigInteger.MinusOne), false, dirtyBalances);
 							}
 						}
 
 						netBalanceEffects.Clear();
 
 						pendingFlush = new Queue<KeyValuePair<string, SafeUint>>();
+						
 						foreach (KeyValuePair<string, SafeUint> balanceUpdate in dirtyBalances)
 						{
 							//Flush dirty balances
@@ -135,7 +136,7 @@ namespace jessielesbian.OpenCEX{
 
 							command.Parameters["@balance"].Value = balanceUpdate.Value.ToString();
 							command.Parameters["@userid"].Value = Convert.ToUInt64(key.Substring(0, pivot));
-							command.Parameters["@coin"].Value = key.Substring(pivot + 1);
+							command.Parameters["@coin"].Value = key[(pivot + 1)..];
 
 							try
 							{
@@ -213,10 +214,7 @@ namespace jessielesbian.OpenCEX{
 							}
 						}
 					}
-					
 				}
-
-				dirtyBalances.Clear();
 
 				if (destroy)
 				{
@@ -243,10 +241,11 @@ namespace jessielesbian.OpenCEX{
 		/// <summary>
 		/// Executes query and restricts effect to single row
 		/// </summary>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void SafeExecuteNonQuery(string query){
 			StaticUtils.CheckSafety(GetCommand(query).ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
 		}
-
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void BeginTransaction()
 		{
 			StaticUtils.CheckSafety2(disposedValue, "MySQL connection already disposed!");
@@ -275,7 +274,6 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private readonly Dictionary<string, BigInteger> netBalanceEffects = new Dictionary<string, BigInteger>();
-		private readonly Dictionary<string, SafeUint> dirtyBalances = new Dictionary<string, SafeUint>();
 		private readonly Dictionary<string, string> OriginalBalances = new Dictionary<string, string>();
 		private static readonly ConcurrentDualGenerationCache<string, SafeUint> L3BalancesCache2 = new ConcurrentDualGenerationCache<string, SafeUint>(StaticUtils.MaximumBalanceCacheSize);
 		private readonly Queue<string> pendingLockRelease = new Queue<string>();
@@ -312,7 +310,7 @@ namespace jessielesbian.OpenCEX{
 
 			//Fetch balance from database
 			readBalance.Parameters["@userid"].Value = Convert.ToUInt64(key.Substring(0, pivot));
-			readBalance.Parameters["@coin"].Value = key.Substring(pivot + 1);
+			readBalance.Parameters["@coin"].Value = key[(pivot + 1)..];
 			MySqlDataReader reader = SafeExecuteReader(readBalance);
 			SafeUint balance;
 			if (reader.HasRows)
@@ -330,17 +328,7 @@ namespace jessielesbian.OpenCEX{
 			return balance;
 		}
 
-		public void UpdateBalance(string coin, ulong userid, SafeUint balance)
-		{
-			string key = userid + "_" + coin;
-
-			if (!dirtyBalances.TryAdd(key, balance))
-			{
-				dirtyBalances[key] = balance;
-			}
-		}
-
-		private void CreditOrDebit(string coin, ulong userid, SafeUint amount, bool credit)
+		private void CreditOrDebit(string coin, ulong userid, SafeUint amount, bool credit, IDictionary<string, SafeUint> dirtyBalances)
 		{
 			SafeUint balance = GetBalance(coin, userid);
 			if (credit)
@@ -351,9 +339,14 @@ namespace jessielesbian.OpenCEX{
 			{
 				balance = balance.Sub(amount, "Insufficent balance!", false);
 			}
-			UpdateBalance(coin, userid, balance);
-		}
+			string key = userid + "_" + coin;
 
+			if (!dirtyBalances.TryAdd(key, balance))
+			{
+				dirtyBalances[key] = balance;
+			}
+		}
+		
 		private void ShiftBalance(string key, BigInteger bigInteger){
 			if(netBalanceEffects.TryGetValue(key, out BigInteger balanceEffect)){
 				netBalanceEffects[key] = balanceEffect + bigInteger;
@@ -365,7 +358,8 @@ namespace jessielesbian.OpenCEX{
 		/// <summary>
 		/// Credit funds to a customer account.
 		/// </summary>
-		public void Credit(string coin, ulong userid, SafeUint amount, bool safe = true)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void Credit(string coin, ulong userid, SafeUint amount, bool safe)
 		{
 			StaticUtils.CheckSafety2(userid == 0, "Unexpected credit to null account!");
 			if (safe)
@@ -379,7 +373,8 @@ namespace jessielesbian.OpenCEX{
 		/// <summary>
 		/// Debit funds from a customer account.
 		/// </summary>
-		public void Debit(string coin, ulong userid, SafeUint amount, bool safe = true)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void Debit(string coin, ulong userid, SafeUint amount, bool safe)
 		{
 			StaticUtils.CheckSafety2(userid == 0, "Unexpected debit from null account!");
 			if (safe)

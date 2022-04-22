@@ -90,7 +90,7 @@ namespace jessielesbian.OpenCEX
 			}
 		}
 
-		public ConcurrentJob getUpdate(){
+		public ConcurrentJob GetUpdate(){
 			return new UpdateChainInfo(this);
 		}
 
@@ -104,18 +104,18 @@ namespace jessielesbian.OpenCEX
 			this.blockchainManager = blockchainManager ?? throw new ArgumentNullException(nameof(blockchainManager));
 			this.ethApiContractService = ethApiContractService ?? throw new ArgumentNullException(nameof(ethApiContractService));
 			this.address = address ?? throw new ArgumentNullException(nameof(address));
-			trimmedAddress = string.Intern(address.Substring(2));
+			trimmedAddress = string.Intern(address[2..]);
 			tail1 = ", " + blockchainManager.chainid + ", \"" + trimmedAddress + "\");";
 			tail2 = " WHERE Blockchain = " + blockchainManager.chainid + " AND Address = \"" + trimmedAddress + "\";";
 			if(prk.StartsWith("0x")){
-				this.prk = prk.Substring(2);
+				this.prk = prk[2..];
 			} else{
 				this.prk = prk;
 			}
 		}
 
 		public ulong SafeNonce(SQLCommandFactory sqlCommandFactory){
-			MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(sqlCommandFactory.GetCommand("SELECT ExpectedValue FROM Nonces WHERE Address = \"" + address.Substring(2) + blockchainManager.tail1));
+			MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(sqlCommandFactory.GetCommand("SELECT ExpectedValue FROM Nonces WHERE Address = \"" + address[2..] + blockchainManager.tail1));
 			ulong nonce = Convert.ToUInt64(StaticUtils.GetSafeUint(blockchainManager.SendRequestSync<string>(ethApiContractService.Transactions.GetTransactionCount.BuildRequest(address, StaticUtils.latestBlock))).ToString());
 
 			ulong xnonce;
@@ -159,8 +159,10 @@ namespace jessielesbian.OpenCEX
 
 		public string SignEther(SafeUint amount, string to, ulong nonce, SafeUint gasPrice, SafeUint gas, string data = "")
 		{
-			TransactionInput transactionInput = new TransactionInput(data, to, address, gas.bigInteger.ToHexBigInteger(), gasPrice.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger());
-			transactionInput.Nonce = nonce.ToHexBigInteger();
+			TransactionInput transactionInput = new TransactionInput(data, to, address, gas.bigInteger.ToHexBigInteger(), gasPrice.bigInteger.ToHexBigInteger(), amount.bigInteger.ToHexBigInteger())
+			{
+				Nonce = nonce.ToHexBigInteger()
+			};
 
 			string ret = StaticUtils.Await2(ethApiContractService.TransactionManager.SignTransactionAsync(transactionInput));
 			StaticUtils.CheckSafety(ret, "Null transaction!");
@@ -340,7 +342,8 @@ namespace jessielesbian.OpenCEX
 							blockchainManager = BlockchainManager.BinanceSmartChain;
 							break;
 						default:
-							throw new Exception("Invalid blockchain (should not reach here)!");
+							ThrowInternal2("Invalid blockchain (should not reach here)!");
+							return;
 					}
 					gas = GetSafeUint(mySqlDataReader.GetString("Gas"));
 					cred2 = GetSafeUint(mySqlDataReader.GetString("CreditAmountSuccess"));
@@ -354,10 +357,9 @@ namespace jessielesbian.OpenCEX
 					userid = mySqlDataReader.GetUInt64("UserID");
 					id = mySqlDataReader.GetUInt64("Id");
 					{
-						WalletManager walletManager1;
 						string privateKey = mySqlDataReader.GetString("FromPrivateKey");
 						string selector = blockchainManager.chainid + '_' + privateKey;
-						if (!pool.TryGetValue(selector, out walletManager1))
+						if (!pool.TryGetValue(selector, out WalletManager walletManager1))
 						{
 							walletManager1 = blockchainManager.GetWalletManager(privateKey);
 							CheckSafety(pool.TryAdd(selector, walletManager1), "Unable to pool wallet manager!");
@@ -371,12 +373,13 @@ namespace jessielesbian.OpenCEX
 				bool deposited = false;
 				while (!abort)
 				{
+					byte lim = 0;
 					try
 					{
 						MySqlDataReader mySqlDataReader = read.ExecuteReader();
 						Dictionary<string, WalletManager> pool = new Dictionary<string, WalletManager>();
 						Queue<TaskDescriptor> taskDescriptors = new Queue<TaskDescriptor>();
-						while (mySqlDataReader.Read())
+						while (mySqlDataReader.Read() && ++lim < 10)
 						{
 							taskDescriptors.Enqueue(new TaskDescriptor(mySqlDataReader, pool));
 						}
@@ -451,7 +454,9 @@ namespace jessielesbian.OpenCEX
 						depositBlocker.Set();
 						deposited = false;
 					}
-					Thread.Sleep(1237);
+					if(lim == 0){
+						Thread.Sleep(1237);
+					}
 					sql.BeginTransaction();
 				}
 				Console.WriteLine(Thread.CurrentThread.Name + " stopped!");
