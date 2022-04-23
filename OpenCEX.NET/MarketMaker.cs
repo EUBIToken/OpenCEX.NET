@@ -173,9 +173,9 @@ namespace jessielesbian.OpenCEX{
 
 		
 		/// <summary>
-		/// Swaps tokens using Uniswap.NET
+		/// Swaps tokens using Uniswap.NET (NO MUTATE)
 		/// </summary>
-		public static LPReserve SwapLP(this SQLCommandFactory sql, string pri, string sec, ulong userid, SafeUint input, bool buy, bool mutate, LPReserve lpreserve, out SafeUint output){
+		public static LPReserve SwapLP(this SQLCommandFactory sql, string pri, string sec, ulong userid, SafeUint input, bool buy, LPReserve lpreserve, out SafeUint output){
 			CheckSafety2(input.isZero, "Uniswap.NET: Insufficent input amount!");
 			SafeUint reserveIn;
 			SafeUint reserveOut;
@@ -206,11 +206,6 @@ namespace jessielesbian.OpenCEX{
 			{
 				lpreserve = new LPReserve(lpreserve.reserve0.Sub(output), lpreserve.reserve1.Add(input), lpreserve.totalSupply, false);
 			}
-			if(mutate)
-			{
-				WriteLP(sql, pri, sec, lpreserve);
-			}
-			
 			return lpreserve;
 		}
 
@@ -249,7 +244,10 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 		}
-		private static LPReserve TryArb(this SQLCommandFactory sqlCommandFactory, string primary, string secondary, bool buy, Order instance, SafeUint price, bool mutate, LPReserve lpreserve)
+		/// <summary>
+		/// Fills order using Uniswap.NET (NO MUTATE)
+		/// </summary>
+		private static LPReserve TryArb(this SQLCommandFactory sqlCommandFactory, string primary, string secondary, bool buy, Order instance, SafeUint price, LPReserve lpreserve)
 		{
 			if(lpreserve.reserve0.isZero || lpreserve.reserve1.isZero){
 				return lpreserve;
@@ -279,7 +277,7 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				//Swap using Uniswap.NET
-				return sqlCommandFactory.SwapLP(primary, secondary, instance.placedby, ArbitrageIn, buy, mutate, lpreserve, out _);
+				return sqlCommandFactory.SwapLP(primary, secondary, instance.placedby, ArbitrageIn, buy, lpreserve, out _);
 			}
 		}
 	}

@@ -337,7 +337,8 @@ namespace jessielesbian.OpenCEX{
 			}
 			else
 			{
-				balance = balance.Sub(amount, "Insufficent balance!", false);
+				bool crit = userid == 0;
+				balance = balance.Sub(amount, crit ? "Attempted to credit unbacked balances (should not reach here)!" : "Insufficent balance!", crit);
 			}
 			string key = userid + "_" + coin;
 

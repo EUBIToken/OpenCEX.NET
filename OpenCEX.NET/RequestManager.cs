@@ -228,7 +228,7 @@ namespace jessielesbian.OpenCEX{
 					while (read)
 					{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetUInt64("Id"));
-						lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, other.price, false, lpreserve);
+						lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, other.price, lpreserve);
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
 						if (oldamt1.isZero || instance.amount.isZero)
@@ -243,7 +243,7 @@ namespace jessielesbian.OpenCEX{
 							request.Credit(output, userid, oldamt2.Sub(other.Balance), true);
 							request.Credit(selected, other.placedby, outamt, true);
 							read = reader.Read();
-							lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, sell, other, other.price, false, lpreserve);
+							lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, sell, other, other.price, lpreserve);
 						}
 						else
 						{
@@ -254,12 +254,10 @@ namespace jessielesbian.OpenCEX{
 
 				request.sqlCommandFactory.SafeDestroyReader();
 				SafeUint balance2 = instance.Balance;
-				if (balance2.isZero)
+				if (!balance2.isZero)
 				{
-					WriteLP(request.sqlCommandFactory, primary, secondary, lpreserve);
-				} else{
 					//Fill the rest of the order with Uniswap.NET
-					TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, instance.price, true, lpreserve);
+					lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, instance.price, lpreserve);
 
 					//Tail safety check
 					SafeUint amount3;
@@ -297,6 +295,7 @@ namespace jessielesbian.OpenCEX{
 				}
 
 			admitted:
+				WriteLP(request.sqlCommandFactory, primary, secondary, lpreserve);
 				MySqlCommand update = request.sqlCommandFactory.GetCommand("UPDATE Orders SET Amount = @amt, TotalCost = @cost WHERE Id = @id;");
 				update.Parameters.AddWithValue("@amt", string.Empty);
 				update.Parameters.AddWithValue("@cost", string.Empty);
