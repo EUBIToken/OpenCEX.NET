@@ -286,12 +286,7 @@ namespace jessielesbian.OpenCEX{
 				ManagedAbortThread.Append(thread);
 
 				//Start transaction sending manager
-				thread = new Thread(SendingManagerThread.instance.DoStupidThings)
-				{
-					Name = "OpenCEX.NET transaction sending manager thread"
-				};
-				thread.Start();
-				ManagedAbortThread.Append(thread);
+				SendingManagerThread.Start();
 			}
 		}
 

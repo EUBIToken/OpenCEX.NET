@@ -261,7 +261,14 @@ namespace jessielesbian.OpenCEX
 
 	public static partial class StaticUtils{
 		private sealed class SendingManagerThread{
-			public static readonly SendingManagerThread instance = new SendingManagerThread();
+			public static void Start(){
+				Thread thr = new Thread(new SendingManagerThread().DoStupidThings)
+				{
+					Name = "OpenCEX.NET transaction sending manager thread"
+				};
+				thr.Start();
+				ManagedAbortThread.Append(thr);
+			}
 			private readonly SQLCommandFactory sql;
 			private readonly MySqlCommand read;
 			private readonly MySqlCommand delete;
@@ -269,6 +276,7 @@ namespace jessielesbian.OpenCEX
 			private readonly MySqlCommand putNonce1;
 			private readonly MySqlCommand putNonce2;
 			private readonly MySqlCommand appendDeposit;
+			private readonly MySqlCommand blacklist;
 			private SendingManagerThread(){
 				sql = GetSQL();
 
@@ -300,6 +308,10 @@ namespace jessielesbian.OpenCEX
 				appendDeposit.Parameters.AddWithValue("@b", string.Empty);
 				appendDeposit.Parameters.AddWithValue("@c", string.Empty);
 				appendDeposit.Prepare();
+
+				blacklist = sql.GetCommand("UPDATE PendingTransactions SET AlreadySent = 1 WHERE Id = @id;");
+				blacklist.Parameters.AddWithValue("@id", 0UL);
+				blacklist.Prepare();
 			}
 
 			private sealed class TaskDescriptor{
@@ -316,6 +328,7 @@ namespace jessielesbian.OpenCEX
 				public readonly WalletManager walletManager;
 				public readonly ulong id;
 				public readonly SafeUint cred2;
+				public readonly bool blacklisted;
 
 				public TaskDescriptor(MySqlDataReader mySqlDataReader, IDictionary<string, WalletManager> pool)
 				{
@@ -366,12 +379,13 @@ namespace jessielesbian.OpenCEX
 						}
 						walletManager = walletManager1;
 					}
+					blacklisted = mySqlDataReader.GetBoolean("AlreadySent");
 				}
 			}
 
 			public void DoStupidThings(){
 				bool deposited = false;
-				while (!abort)
+				while (true)
 				{
 					byte lim = 0;
 					try
@@ -379,7 +393,7 @@ namespace jessielesbian.OpenCEX
 						MySqlDataReader mySqlDataReader = read.ExecuteReader();
 						Dictionary<string, WalletManager> pool = new Dictionary<string, WalletManager>();
 						Queue<TaskDescriptor> taskDescriptors = new Queue<TaskDescriptor>();
-						while (mySqlDataReader.Read() && ++lim < 10)
+						while (mySqlDataReader.Read() && ++lim != 255)
 						{
 							taskDescriptors.Enqueue(new TaskDescriptor(mySqlDataReader, pool));
 						}
@@ -405,18 +419,58 @@ namespace jessielesbian.OpenCEX
 							}
 							mySqlDataReader.CheckSingletonResult();
 							mySqlDataReader.Close();
-							string txid;
-							try
-							{
-								string tx = res.walletManager.SignEther(res.amt, res.dest, expected, res.gasPrice, res.gas, res.data);
-								res.walletManager.SendRawTX(tx);
-								txid = TransactionUtils.CalculateTransactionHash(tx);
+
+							string tx = res.walletManager.SignEther(res.amt, res.dest, expected, res.gasPrice, res.gas, res.data);
+							string txid = TransactionUtils.CalculateTransactionHash(tx);
+							if (!res.blacklisted){							
+								bool switch2 = false;
+								try
+								{
+									res.walletManager.SendRawTX(tx);
+								}
+								catch (Exception e)
+								{
+									Console.Error.WriteLine("Unable to send transaction: " + e);
+									txid = null;
+								} finally{
+									blacklist.Parameters["@id"].Value = res.id;
+									
+									try{
+										blacklist.SafeExecuteNonQuery();
+									} catch (Exception e){
+										Console.Error.WriteLine("Restarting transaction sending manager due to unexpected exception in battle-shorted sending manager section: " + e);
+										switch2 = true;
+									}
+									if (!switch2)
+									{
+										switch2 = true;
+										try
+										{
+											sql.DestroyTransaction(true, false);
+											switch2 = false;
+										}
+										catch (Exception e)
+										{
+											Console.Error.WriteLine("Restarting transaction sending manager due to unexpected exception in battle-shorted sending manager section: " + e);
+										}
+									}
+								}
+								if(switch2){
+									//The best course of action if we gets here
+									//Is to restart transaction sending manager
+									Start();
+									return;
+								} else{
+									try{
+										sql.BeginTransaction();
+									} catch (Exception e){
+										Console.Error.WriteLine("Restarting transaction sending manager due to unexpected exception while re-opening MySQL transaction: " + e);
+										Start();
+										return;
+									}
+								}
 							}
-							catch (Exception e)
-							{
-								Console.Error.WriteLine("Unable to send transaction: " + e);
-								txid = null;
-							}
+							tx = null;
 
 							if (txid is null)
 							{
@@ -440,14 +494,20 @@ namespace jessielesbian.OpenCEX
 							delete.Parameters["@id"].Value = res.id;
 							delete.SafeExecuteNonQuery();
 						}
-
-
 					}
 					catch (Exception e)
 					{
 						Console.Error.WriteLine("Exception in transaction sending manager: " + e.ToString());
 					}
-					sql.DestroyTransaction(true, false);
+					try{
+						sql.DestroyTransaction(true, false);
+					} catch (Exception e){
+						Console.Error.WriteLine("Restarting transaction sending manager due to unexpected exception while destroying MySQL transaction: " + e);
+						//The best course of action if we gets here
+						//Is to restart transaction sending manager
+						Start();
+						return;
+					}
 
 					if (deposited && !Multiserver)
 					{
@@ -457,7 +517,19 @@ namespace jessielesbian.OpenCEX
 					if(lim == 0){
 						Thread.Sleep(1237);
 					}
-					sql.BeginTransaction();
+					if(abort){
+						break;
+					} else{
+						try{
+							sql.BeginTransaction();
+						} catch (Exception e){
+							Console.Error.WriteLine("Restarting transaction sending manager due to unexpected exception while opening MySQL transaction: " + e);
+							//The best course of action if we gets here
+							//Is to restart transaction sending manager
+							Start();
+							return;
+						}
+					}
 				}
 				Console.WriteLine(Thread.CurrentThread.Name + " stopped!");
 			}
