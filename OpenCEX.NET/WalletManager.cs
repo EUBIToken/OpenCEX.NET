@@ -479,7 +479,7 @@ namespace jessielesbian.OpenCEX
 							else
 							{
 								updateNonce.Parameters["@a"].Value = res.walletManager.address;
-								updateNonce.Parameters["@b"].Value = res.userid;
+								updateNonce.Parameters["@b"].Value = res.walletManager.blockchainManager.chainid;
 								updateNonce.Parameters["@c"].Value = expected;
 								updateNonce.SafeExecuteNonQuery();
 								if (res.deposit)
