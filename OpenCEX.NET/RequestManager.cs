@@ -222,6 +222,7 @@ namespace jessielesbian.OpenCEX{
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, primary, secondary);
 				MySqlDataReader reader = request.sqlCommandFactory.SafeExecuteReader(counter);
 				Order instance = new Order(price, amt2, amount, zero, userid, 0);
+				SafeUint old = lpreserve.reserve0;
 				if (reader.HasRows)
 				{
 					bool read = true;
@@ -229,6 +230,9 @@ namespace jessielesbian.OpenCEX{
 					{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetUInt64("Id"));
 						lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, other.price, lpreserve);
+						if (old != lpreserve.reserve0){
+							close = lpreserve.reserve0.Mul(ether).Div(lpreserve.reserve1);
+						}
 						SafeUint oldamt1 = instance.Balance;
 						SafeUint oldamt2 = other.Balance;
 						if (oldamt1.isZero || instance.amount.isZero)
@@ -257,7 +261,12 @@ namespace jessielesbian.OpenCEX{
 				if (!balance2.isZero)
 				{
 					//Fill the rest of the order with Uniswap.NET
+					old = lpreserve.reserve0;
 					lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, instance.price, lpreserve);
+					if (old != lpreserve.reserve0)
+					{
+						close = lpreserve.reserve0.Mul(ether).Div(lpreserve.reserve1);
+					}
 
 					//Tail safety check
 					SafeUint amount3;
