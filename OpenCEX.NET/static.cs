@@ -146,7 +146,7 @@ namespace jessielesbian.OpenCEX{
 				throw new SafetyException("Unable to cast enviroment variable to string!");
 			}
 			
-			CheckSafety(temp, "Unknown enviroment variable!");
+			CheckSafety(temp, "Unknown enviroment variable!", true);
 			return temp;
 		}
 
