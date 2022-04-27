@@ -513,6 +513,12 @@ namespace jessielesbian.OpenCEX{
 				amount = amount.Sub(amt, "Negative order amount (should not reach here)!", true);
 				totalCost = temp;
 			}
+			public void Debit2(SafeUint amt){
+				SafeUint temp = totalCost.Add(amt);
+				CheckSafety2(temp > initialAmount, "Negative order size (should not reach here)!", true);
+				amount = amount.Sub(amt.Mul(amount).Div(Balance), "Negative order amount (should not reach here)!", true);
+				totalCost = temp;
+			}
 
 			public SafeUint MaxOutput(bool sell){
 				if(sell)
