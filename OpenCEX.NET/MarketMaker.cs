@@ -267,14 +267,7 @@ namespace jessielesbian.OpenCEX{
 				return lpreserve;
 			} else{
 				//Partial order cancellation
-				if (buy)
-				{
-					instance.Debit(ArbitrageIn.Mul(ether).Div(price), price);
-				}
-				else
-				{
-					instance.Debit(ArbitrageIn);
-				}
+				instance.Debit(ArbitrageIn);
 
 				//Swap using Uniswap.NET
 				return sqlCommandFactory.SwapLP(primary, secondary, instance.placedby, ArbitrageIn, buy, lpreserve, out _);

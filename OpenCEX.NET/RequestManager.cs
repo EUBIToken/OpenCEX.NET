@@ -58,7 +58,7 @@ namespace jessielesbian.OpenCEX.RequestManager
 				if(e is SafetyException){
 					throw e;
 				} else{
-					throw new SafetyException("Unable to execute request!", e);
+					throw new SafetyException("Unexpected internal server error!", e);
 				}
 				
 			}
