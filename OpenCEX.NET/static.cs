@@ -584,7 +584,7 @@ namespace jessielesbian.OpenCEX{
 					if (!debug){
 						Exception inner = e.InnerException;
 						while (inner != null){
-							if(inner is ISafetyException)
+							if(inner is SafetyException)
 							{
 								inner = inner.InnerException;
 							} else{
