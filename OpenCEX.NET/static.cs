@@ -16,7 +16,7 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
 namespace jessielesbian.OpenCEX{
-	public sealed class SafetyException : Exception
+	public sealed class SafetyException : Exception, ISafetyException
 	{
 		public SafetyException()
 		{
@@ -45,7 +45,8 @@ namespace jessielesbian.OpenCEX{
 			if(exception == null){
 				return returns;
 			} else{
-				if(exception is SafetyException){
+				if(exception is ISafetyException)
+				{
 					throw exception;
 				} else{
 					throw new SafetyException("Concurrent job failed!", exception);
@@ -150,11 +151,11 @@ namespace jessielesbian.OpenCEX{
 			return temp;
 		}
 
-		public static bool Multiserver = Convert.ToBoolean(GetEnv("Multiserver"));
+		public static bool Multiserver = ReducedInitSelector.set ? false : Convert.ToBoolean(GetEnv("Multiserver"));
 
 		private static readonly PooledManualResetEvent depositBlocker = PooledManualResetEvent.GetInstance(false);
 
-		private static readonly string SQLConnectionString = GetEnv("SQLConnectionString");
+		private static readonly string SQLConnectionString = ReducedInitSelector.set ? null : GetEnv("SQLConnectionString");
 
 		public static SQLCommandFactory GetSQL(){
 			MySqlConnection mySqlConnection = null;
@@ -200,8 +201,8 @@ namespace jessielesbian.OpenCEX{
 		private static readonly HttpListener httpListener = new HttpListener();
 		private static readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
-		public static readonly int MaximumBalanceCacheSize = (int)(Convert.ToUInt32(GetEnv("MaximumBalanceCacheSize")) - 1);
-		public static readonly ushort thrlimit = Convert.ToUInt16(GetEnv("ExecutionThreadCount"));
+		public static readonly int MaximumBalanceCacheSize = ReducedInitSelector.set ? 65536 : (int)(Convert.ToUInt32(GetEnv("MaximumBalanceCacheSize")) - 1);
+		public static readonly ushort thrlimit = ReducedInitSelector.set ? ((ushort)64) : Convert.ToUInt16(GetEnv("ExecutionThreadCount"));
 
 		//OpenCEX.NET Managed Thread
 		private sealed class ManagedAbortThread{
@@ -240,6 +241,9 @@ namespace jessielesbian.OpenCEX{
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
+			if (ReducedInitSelector.set){
+				return;
+			}
 
 			//Native request methods
 			requestMethods.Add("get_test_tokens", TestShitcoins.instance);
@@ -321,7 +325,7 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
-		public static readonly string CookieOrigin = GetEnv("CookieOrigin");
+		public static readonly string CookieOrigin = ReducedInitSelector.set ? null : GetEnv("CookieOrigin");
 
 		private static readonly ConcurrentQueue<ConcurrentJob> concurrentJobs = new ConcurrentQueue<ConcurrentJob>();
 
@@ -434,7 +438,7 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		private static volatile int watchdogCounter = 0;
-		private static readonly int MaximumWatchdogLag = Convert.ToInt32(GetEnv("MaximumWatchdogLag"));
+		private static readonly int MaximumWatchdogLag = ReducedInitSelector.set ? 3 : Convert.ToInt32(GetEnv("MaximumWatchdogLag"));
 
 		private static void QOSWatchdog(){
 			while (!abort)
@@ -487,7 +491,7 @@ namespace jessielesbian.OpenCEX{
 				this.reason = reason ?? throw new ArgumentNullException(nameof(reason));
 			}
 		}
-		public static readonly bool debug = Convert.ToBoolean(GetEnv("Debug"));
+		public static readonly bool debug = ReducedInitSelector.set ? true : Convert.ToBoolean(GetEnv("Debug"));
 
 		[JsonObject(MemberSerialization.Fields)]
 		private sealed class UnprocessedRequest{
@@ -497,10 +501,10 @@ namespace jessielesbian.OpenCEX{
 #pragma warning restore CS0649
 		}
 
-		private static readonly string origin = GetEnv("Origin");
+		private static readonly string origin = ReducedInitSelector.set ? null : GetEnv("Origin");
 
 		//The lead server is responsible for deposit finalization.
-		public static bool leadServer = GetEnv("DYNO") == "web.1";
+		public static bool leadServer = ReducedInitSelector.set ? true : (GetEnv("DYNO") == "web.1");
 
 		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
 			
@@ -580,7 +584,8 @@ namespace jessielesbian.OpenCEX{
 					if (!debug){
 						Exception inner = e.InnerException;
 						while (inner != null){
-							if(inner is SafetyException){
+							if(inner is ISafetyException)
+							{
 								inner = inner.InnerException;
 							} else{
 								Console.Error.WriteLine("Unexpected internal server error: " + str);
@@ -637,7 +642,7 @@ namespace jessielesbian.OpenCEX{
 		public static void ThrowInternal2(string reason){
 			throw new CriticalSafetyException(reason);
 		}
-		private sealed class CriticalSafetyException : Exception
+		private sealed class CriticalSafetyException : Exception, ISafetyException
 		{
 			public CriticalSafetyException(string message) : base(message)
 			{
@@ -646,5 +651,13 @@ namespace jessielesbian.OpenCEX{
 
 		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "CLICK", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x", "Dai", "MS-Coin", "LP_MATIC_PolyEUBI", "LP_MintME_MATIC", "LP_MintME_BNB", "LP_MintME_PolyEUBI", "LP_MintME_EUBI", "LP_MintME_1000x", "LP_BNB_PolyEUBI", "LP_shitcoin_scamcoin", "LP_Dai_MATIC", "LP_Dai_BNB", "LP_Dai_MintME", "LP_Dai_PolyEUBI", "LP_MintME_CLICK", "LP_MintME_MS-Coin"};
 
+	}
+	public interface ISafetyException
+	{
+
+	}
+
+	public static class ReducedInitSelector{
+		public static bool set = false;
 	}
 }

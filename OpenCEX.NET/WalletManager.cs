@@ -47,7 +47,7 @@ namespace jessielesbian.OpenCEX
 			this.chainid = chainid;
 			rpc = new RpcClient(new Uri(node));
 			tail1 = "\" AND Blockchain = " + chainid + " FOR UPDATE;";
-			ExchangeWalletManager = GetWalletManager(Environment.GetEnvironmentVariable("OpenCEX_PrivateKey"));
+			ExchangeWalletManager = GetWalletManager(ReducedInitSelector.set ? "0x5dffe214f70dfe96b1060c5b280721562738588b6ebde8012208c93a576625cd" : Environment.GetEnvironmentVariable("OpenCEX_PrivateKey"));
 		}
 
 

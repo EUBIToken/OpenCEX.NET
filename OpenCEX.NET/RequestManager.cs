@@ -55,8 +55,9 @@ namespace jessielesbian.OpenCEX.RequestManager
 				} catch{
 					
 				}
-				if(e is SafetyException){
-					throw e;
+				if(e is ISafetyException)
+				{
+					throw;
 				} else{
 					throw new SafetyException("Unexpected internal server error!", e);
 				}
@@ -229,6 +230,10 @@ namespace jessielesbian.OpenCEX{
 					while (read)
 					{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetUInt64("Id"));
+						if(other.Balance.isZero){
+							read = reader.Read();
+							continue;
+						}
 						lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, other.price, lpreserve);
 						if (old != lpreserve.reserve0){
 							close = lpreserve.reserve0.Mul(ether).Div(lpreserve.reserve1);
@@ -247,7 +252,9 @@ namespace jessielesbian.OpenCEX{
 							request.Credit(output, userid, oldamt2.Sub(other.Balance), true);
 							request.Credit(selected, other.placedby, outamt, true);
 							read = reader.Read();
-							lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, sell, other, other.price, lpreserve);
+							if(!other.Balance.isZero){
+								lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, sell, other, other.price, lpreserve);
+							}
 						}
 						else
 						{
@@ -458,7 +465,7 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
-		private static bool MatchOrders(Order first, Order second, bool buy){
+		public static bool MatchOrders(Order first, Order second, bool buy){
 			SafeUint ret = first.amount.Min(second.amount);
 			if (buy){
 				ret = ret.Min(first.Balance.Mul(ether).Div(second.price)).Min(second.Balance);
@@ -478,11 +485,12 @@ namespace jessielesbian.OpenCEX{
 					second.Debit(ret, second.price);
 				}
 			}
+			CheckSafety(first.Balance.isZero || second.Balance.isZero, "Orders not fully matched (should not reach here)!", true);
 			CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!", true);
 			return true;
 		}
 
-		private class Order
+		public class Order
 		{
 			public readonly SafeUint price;
 			public SafeUint amount;
@@ -915,7 +923,8 @@ namespace jessielesbian.OpenCEX{
 						request.httpListenerContext.Response.AddHeader("Set-Cookie", cookie);
 					}
 				}
-				else if(throws is SafetyException){
+				else if(throws is ISafetyException)
+				{
 					throw throws;
 				} else{
 					throw new SafetyException("Unexpected internal server error while logging in (should not reach here)!", throws);

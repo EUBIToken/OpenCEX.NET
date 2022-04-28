@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31729.503
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenCEX.NET", "OpenCEX.NET\OpenCEX.NET.csproj", "{537DC39A-23C5-4C4E-BC16-DE3666290774}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenCEX.NET", "OpenCEX.NET\OpenCEX.NET.csproj", "{537DC39A-23C5-4C4E-BC16-DE3666290774}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenCEX.Tests", "OpenCEX.Tests\OpenCEX.Tests.csproj", "{56DBBC73-C59A-4D21-9AB1-90A0CB5C220F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{537DC39A-23C5-4C4E-BC16-DE3666290774}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{537DC39A-23C5-4C4E-BC16-DE3666290774}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{537DC39A-23C5-4C4E-BC16-DE3666290774}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56DBBC73-C59A-4D21-9AB1-90A0CB5C220F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56DBBC73-C59A-4D21-9AB1-90A0CB5C220F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56DBBC73-C59A-4D21-9AB1-90A0CB5C220F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56DBBC73-C59A-4D21-9AB1-90A0CB5C220F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
