@@ -923,7 +923,7 @@ namespace jessielesbian.OpenCEX{
 						request.httpListenerContext.Response.AddHeader("Set-Cookie", cookie);
 					}
 				}
-				else if(throws is ISafetyException)
+				else if(throws is SafetyException)
 				{
 					throw throws;
 				} else{

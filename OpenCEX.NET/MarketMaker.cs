@@ -58,27 +58,27 @@ namespace jessielesbian.OpenCEX{
 		}
 		private static bool ReadLP(SQLCommandFactory sql, string primary, string secondary, out SafeUint reserve0, out SafeUint reserve1, out SafeUint totalSupply)
 		{
-			MySqlCommand mySqlCommand = sql.GetCommand("SELECT Reserve0, Reserve1, TotalSupply FROM UniswapReserves WHERE Pri = @pri AND Sec = @sec;");
+			MySqlCommand mySqlCommand = sql.GetCommand("SELECT Reserve0, Reserve1, TotalSupply FROM UniswapReserves WHERE Pri = @pri AND Sec = @sec FOR UPDATE;");
 			mySqlCommand.Parameters.AddWithValue("@pri", primary);
 			mySqlCommand.Parameters.AddWithValue("@sec", secondary);
-			MySqlDataReader mySqlDataReader = sql.SafeExecuteReader(mySqlCommand);
-			if (mySqlDataReader.HasRows)
-			{
-				reserve0 = GetSafeUint(mySqlDataReader.GetString("Reserve0"));
-				reserve1 = GetSafeUint(mySqlDataReader.GetString("Reserve1"));
-				totalSupply = GetSafeUint(mySqlDataReader.GetString("TotalSupply"));
-				mySqlDataReader.CheckSingletonResult();
-				sql.SafeDestroyReader();
-				return false;
+			using(MySqlDataReader mySqlDataReader = mySqlCommand.ExecuteReader()){
+				if (mySqlDataReader.Read())
+				{
+					reserve0 = GetSafeUint(mySqlDataReader.GetString("Reserve0"));
+					reserve1 = GetSafeUint(mySqlDataReader.GetString("Reserve1"));
+					totalSupply = GetSafeUint(mySqlDataReader.GetString("TotalSupply"));
+					CheckSafety2(mySqlDataReader.Read(), "Uniswap.NET: Duplicate LP records (should not reach here)!", true);
+					return false;
+				}
+				else
+				{
+					reserve0 = zero;
+					reserve1 = zero;
+					totalSupply = zero;
+					return true;
+				}
 			}
-			else
-			{
-				reserve0 = zero;
-				reserve1 = zero;
-				totalSupply = zero;
-				sql.SafeDestroyReader();
-				return true;
-			}
+			
 			
 		}
 
@@ -104,14 +104,6 @@ namespace jessielesbian.OpenCEX{
 			mySqlCommand.Parameters.AddWithValue("@sec", secondary);
 			mySqlCommand.Prepare();
 			mySqlCommand.SafeExecuteNonQuery();
-		}
-
-		/// <summary>
-		/// Mints Uniswap.NET LP tokens to trader
-		/// </summary>
-		public static LPReserve MintLP(this SQLCommandFactory sql, string pri, string sec, SafeUint amount0, SafeUint amount1, ulong to)
-		{
-			return sql.MintLP(pri, sec, amount0, amount1, to, new LPReserve(sql, pri, sec));
 		}
 
 		/// <summary>
@@ -177,6 +169,7 @@ namespace jessielesbian.OpenCEX{
 		/// </summary>
 		public static LPReserve SwapLP(this SQLCommandFactory sql, string pri, string sec, ulong userid, SafeUint input, bool buy, LPReserve lpreserve, out SafeUint output){
 			CheckSafety2(input.isZero, "Uniswap.NET: Insufficent input amount!");
+			CheckSafety2(lpreserve.insert, "Uniswap.NET: Pool does not exist!");
 			SafeUint reserveIn;
 			SafeUint reserveOut;
 			string out_token;

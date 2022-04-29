@@ -45,7 +45,7 @@ namespace jessielesbian.OpenCEX{
 			if(exception == null){
 				return returns;
 			} else{
-				if(exception is ISafetyException)
+				if(exception is SafetyException)
 				{
 					throw exception;
 				} else{
@@ -71,7 +71,6 @@ namespace jessielesbian.OpenCEX{
 	public static partial class StaticUtils{
 		public static void CheckSingletonResult(this MySqlDataReader mySqlDataReader){
 			if(mySqlDataReader.NextResult()){
-				mySqlDataReader.Close();
 				throw new SafetyException("Unexpected trailing data (should not reach here)!");
 			}
 		}
@@ -136,6 +135,7 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string GetEnv(string temp){
 			if (!(temp == "PORT" || temp == "DYNO"))
 			{
@@ -144,14 +144,29 @@ namespace jessielesbian.OpenCEX{
 			try{
 				temp = (string)config[temp];
 			} catch{
-				throw new SafetyException("Unable to cast enviroment variable to string!");
+				ThrowInternal2("Unable to cast enviroment variable to string (should not reach here)!");
 			}
 			
-			CheckSafety(temp, "Unknown enviroment variable!", true);
+			CheckSafety(temp, "Unknown enviroment variable (should not reach here)!", true);
 			return temp;
 		}
 
-		public static bool Multiserver = ReducedInitSelector.set ? false : Convert.ToBoolean(GetEnv("Multiserver"));
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string GetEnv2(string temp, string def)
+		{
+			try{
+				return GetEnv("debug_" + temp);
+			} catch{
+				return def;
+			}
+		}
+
+		//Balances update replay mode
+		//Normally, we can't detect which line caused an unbacked balance incident due to effects flattening
+		//But when we run in testing, we use a "balances update replay cache" to detect flash floating and unbacked balances
+		public static readonly bool ReplayBalanceUpdates = Convert.ToBoolean(GetEnv2("ReplayBalanceUpdates", "false"));
+
+		public static readonly bool Multiserver = ReducedInitSelector.set ? false : Convert.ToBoolean(GetEnv("Multiserver"));
 
 		private static readonly PooledManualResetEvent depositBlocker = PooledManualResetEvent.GetInstance(false);
 

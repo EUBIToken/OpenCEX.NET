@@ -494,20 +494,36 @@ namespace jessielesbian.OpenCEX
 							delete.Parameters["@id"].Value = res.id;
 							delete.SafeExecuteNonQuery();
 						}
+						try
+						{
+							sql.DestroyTransaction(true, false);
+						}
+						catch (Exception e)
+						{
+							Console.Error.WriteLine("Restarting transaction sending manager due to unexpected exception while destroying MySQL transaction: " + e);
+							//The best course of action if we gets here
+							//Is to restart transaction sending manager
+							Start();
+							return;
+						}
 					}
 					catch (Exception e)
 					{
 						Console.Error.WriteLine("Exception in transaction sending manager: " + e.ToString());
+						try
+						{
+							sql.DestroyTransaction(true, false);
+						}
+						catch (Exception x)
+						{
+							Console.Error.WriteLine("Restarting transaction sending manager due to unexpected exception while destroying MySQL transaction: " + x);
+							//The best course of action if we gets here
+							//Is to restart transaction sending manager
+							Start();
+							return;
+						}
 					}
-					try{
-						sql.DestroyTransaction(true, false);
-					} catch (Exception e){
-						Console.Error.WriteLine("Restarting transaction sending manager due to unexpected exception while destroying MySQL transaction: " + e);
-						//The best course of action if we gets here
-						//Is to restart transaction sending manager
-						Start();
-						return;
-					}
+					
 
 					if (deposited && !Multiserver)
 					{

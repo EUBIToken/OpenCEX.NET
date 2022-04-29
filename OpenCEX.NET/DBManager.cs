@@ -101,17 +101,45 @@ namespace jessielesbian.OpenCEX{
 							order = updates.ToArray();
 						}
 						IDictionary<string, SafeUint> dirtyBalances = new Dictionary<string, SafeUint>(limit3);
-						for (int i = 0; i < limit3; ){
-							string key = order[i++];
-							StaticUtils.CheckSafety(netBalanceEffects.TryGetValue(key, out BigInteger bigInteger), "Unable to retrieve net effects (should not reach here)!", true);
-							int pivot = key.IndexOf('_');
-							int sign = bigInteger.Sign;
-							if(sign > 0){
-								CreditOrDebit(key[(pivot + 1)..], Convert.ToUInt64(key.Substring(0, pivot)), new SafeUint(bigInteger), true, dirtyBalances);
-							} else if(sign < 0){
-								CreditOrDebit(key[(pivot + 1)..], Convert.ToUInt64(key.Substring(0, pivot)), new SafeUint(bigInteger * BigInteger.MinusOne), false, dirtyBalances);
+						if (StaticUtils.ReplayBalanceUpdates)
+						{
+							while (replayedBalanceUpdates.TryDequeue(out ReplayedBalanceUpdate replayed))
+							{
+								int pivot = replayed.key.IndexOf('_');
+								int sign = replayed.shift.Sign;
+								if (sign > 0)
+								{
+									CreditOrDebit(replayed.key[(pivot + 1)..], Convert.ToUInt64(replayed.key.Substring(0, pivot)), new SafeUint(replayed.shift), true, dirtyBalances);
+								}
+								else if (sign < 0)
+								{
+									try{
+										CreditOrDebit(replayed.key[(pivot + 1)..], Convert.ToUInt64(replayed.key.Substring(0, pivot)), new SafeUint(replayed.shift * BigInteger.MinusOne), false, dirtyBalances);
+									} catch{
+										Console.Error.WriteLine("Error while replaying debit: " + replayed.failure);
+										throw;
+									}
+									
+								}
+							}
+						} else{
+							for (int i = 0; i < limit3;)
+							{
+								string key = order[i++];
+								StaticUtils.CheckSafety(netBalanceEffects.TryGetValue(key, out BigInteger bigInteger), "Unable to retrieve net effects (should not reach here)!", true);
+								int pivot = key.IndexOf('_');
+								int sign = bigInteger.Sign;
+								if (sign > 0)
+								{
+									CreditOrDebit(key[(pivot + 1)..], Convert.ToUInt64(key.Substring(0, pivot)), new SafeUint(bigInteger), true, dirtyBalances);
+								}
+								else if (sign < 0)
+								{
+									CreditOrDebit(key[(pivot + 1)..], Convert.ToUInt64(key.Substring(0, pivot)), new SafeUint(bigInteger * BigInteger.MinusOne), false, dirtyBalances);
+								}
 							}
 						}
+						
 
 						netBalanceEffects.Clear();
 
@@ -343,12 +371,30 @@ namespace jessielesbian.OpenCEX{
 				dirtyBalances[key] = balance;
 			}
 		}
+
+		private struct ReplayedBalanceUpdate{
+			public readonly string key;
+			public readonly BigInteger shift;
+			public readonly string failure;
+
+			public ReplayedBalanceUpdate(string key, BigInteger shift)
+			{
+				this.key = key ?? throw new ArgumentNullException(nameof(key));
+				this.shift = shift;
+				failure = Environment.StackTrace;
+			}
+		}
+
+		private readonly Queue<ReplayedBalanceUpdate> replayedBalanceUpdates = StaticUtils.ReplayBalanceUpdates ? new Queue<ReplayedBalanceUpdate>() : null;
 		
 		private void ShiftBalance(string key, BigInteger bigInteger){
 			if(netBalanceEffects.TryGetValue(key, out BigInteger balanceEffect)){
 				netBalanceEffects[key] = balanceEffect + bigInteger;
 			} else{
 				StaticUtils.CheckSafety(netBalanceEffects.TryAdd(key, bigInteger), "Unable to add balance to effects optimization cache (should not reach here)!", true);
+			}
+			if(StaticUtils.ReplayBalanceUpdates){
+				replayedBalanceUpdates.Enqueue(new ReplayedBalanceUpdate(key, bigInteger));
 			}
 		}
 
