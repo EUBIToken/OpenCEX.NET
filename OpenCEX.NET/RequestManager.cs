@@ -278,12 +278,19 @@ namespace jessielesbian.OpenCEX{
 					//Tail safety check
 					SafeUint amount3;
 					balance2 = instance.Balance;
-					if (buy){
+					if (buy) {
 						amount3 = balance2.Mul(ether).Div(price);
-					} else{
+					} else {
 						amount3 = balance2;
 					}
-					CheckSafety2(amount3 > instance.amount, "Corrupted order (should not reach here)!", true);
+					if (amount3 > instance.amount) {
+						SafeUint refund = amount3.Sub(instance.amount);
+						if (buy){
+							refund = refund.Mul(price).Div(ether);
+						}
+						request.Credit(selected, userid, refund, true);
+						instance.amount = amount3;
+					}
 
 
 					//We only save the order to database if it's a limit order and it's not fully executed.
@@ -485,7 +492,7 @@ namespace jessielesbian.OpenCEX{
 					second.Debit(ret, second.price);
 				}
 			}
-			CheckSafety(first.Balance.isZero || second.Balance.isZero, "Orders not fully matched (should not reach here)!", true);
+			CheckSafety(first.amount.isZero || second.amount.isZero, "Orders not fully matched (should not reach here)!", true);
 			CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!", true);
 			return true;
 		}
