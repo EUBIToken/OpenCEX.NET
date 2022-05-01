@@ -171,6 +171,9 @@ namespace jessielesbian.OpenCEX{
 				string primary = request.ExtractRequestArg<string>("primary");
 				string secondary = request.ExtractRequestArg<string>("secondary");
 				bool buy = request.ExtractRequestArg<bool>("buy");
+				if(buy){
+					CheckSafety2(price.isZero, "Zero-price buy order!");
+				}
 
 				CheckSafety(fillMode > -1, "Invalid fill mode!");
 				CheckSafety(fillMode < 3, "Invalid fill mode!");
@@ -230,10 +233,15 @@ namespace jessielesbian.OpenCEX{
 					while (read)
 					{
 						Order other = new Order(GetSafeUint(reader.GetString("Price")), GetSafeUint(reader.GetString("Amount")), GetSafeUint(reader.GetString("InitialAmount")), GetSafeUint(reader.GetString("TotalCost")), reader.GetUInt64("PlacedBy"), reader.GetUInt64("Id"));
-						if(other.Balance.isZero){
+						if ((buy && instance.price < other.price) || (sell && instance.price > other.price))
+						{
+							break;
+						}
+						if (other.Balance.isZero || other.amount.isZero){
 							read = reader.Read();
 							continue;
 						}
+						
 						lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, other.price, lpreserve);
 						if (old != lpreserve.reserve0){
 							close = lpreserve.reserve0.Mul(ether).Div(lpreserve.reserve1);
@@ -283,15 +291,6 @@ namespace jessielesbian.OpenCEX{
 					} else {
 						amount3 = balance2;
 					}
-					if (amount3 > instance.amount) {
-						SafeUint refund = amount3.Sub(instance.amount);
-						if (buy){
-							refund = refund.Mul(price).Div(ether);
-						}
-						request.Credit(selected, userid, refund, true);
-						instance.amount = amount3;
-					}
-
 
 					//We only save the order to database if it's a limit order and it's not fully executed.
 					if (instance.amount.isZero || fillMode == 1)
@@ -492,7 +491,6 @@ namespace jessielesbian.OpenCEX{
 					second.Debit(ret, second.price);
 				}
 			}
-			CheckSafety(first.amount.isZero || second.amount.isZero, "Orders not fully matched (should not reach here)!", true);
 			CheckSafety2(ret.isZero, "Order matched without output (should not reach here)!", true);
 			return true;
 		}
@@ -514,6 +512,7 @@ namespace jessielesbian.OpenCEX{
 				this.amount = amount ?? throw new ArgumentNullException(nameof(amount));
 				this.id = id;
 				this.placedby = placedby;
+				Balance = initialAmount.Sub(totalCost);
 			}
 			public void Debit(SafeUint amt, SafeUint price = null)
 			{
@@ -524,27 +523,12 @@ namespace jessielesbian.OpenCEX{
 				} else{
 					temp = totalCost.Add(amt.Mul(price).Div(ether));
 				}
-				CheckSafety2(temp > initialAmount, "Negative order size (should not reach here)!", true);
+				Balance = initialAmount.Sub(temp, "Negative order size (should not reach here)!", true);
 				amount = amount.Sub(amt, "Negative order amount (should not reach here)!", true);
 				totalCost = temp;
 			}
-			public void Debit2(SafeUint amt){
-				SafeUint temp = totalCost.Add(amt);
-				CheckSafety2(temp > initialAmount, "Negative order size (should not reach here)!", true);
-				amount = amount.Sub(amt.Mul(amount).Div(Balance), "Negative order amount (should not reach here)!", true);
-				totalCost = temp;
-			}
 
-			public SafeUint MaxOutput(bool sell){
-				if(sell)
-				{
-					return Balance.Mul(price).Div(ether);
-				} else{
-					return Balance.Mul(ether).Div(price);
-				}
-			}
-
-			public SafeUint Balance => initialAmount.Sub(totalCost);
+			public SafeUint Balance;
 		}
 
 		//Ported from PHP server

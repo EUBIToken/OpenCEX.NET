@@ -192,7 +192,7 @@ namespace jessielesbian.OpenCEX{
 						StaticUtils.Append(postCommit);
 						postCommit = null;
 					}
-					if(doflush2){
+					if(doflush2 && (!StaticUtils.Multiserver)){
 						while (pendingFlush.TryDequeue(out KeyValuePair<string, SafeUint> result))
 						{
 							try{
@@ -215,7 +215,7 @@ namespace jessielesbian.OpenCEX{
 								Console.Error.WriteLine("Error while unlocking balances cache: " + e.ToString());
 							}
 						}
-					}	
+					}
 				}
 				else
 				{
@@ -230,15 +230,17 @@ namespace jessielesbian.OpenCEX{
 						mySqlTransaction = null;
 						netBalanceEffects.Clear();
 						//Release balances cache locks (battle override active)
-						while (pendingLockRelease.TryDequeue(out string result))
-						{
-							try
+						if(!StaticUtils.Multiserver){
+							while (pendingLockRelease.TryDequeue(out string result))
 							{
-								L3BalancesCache2.Unlock(result);
-							}
-							catch (Exception e)
-							{
-								Console.Error.WriteLine("Error while unlocking balances cache: " + e.ToString());
+								try
+								{
+									L3BalancesCache2.Unlock(result);
+								}
+								catch (Exception e)
+								{
+									Console.Error.WriteLine("Error while unlocking balances cache: " + e.ToString());
+								}
 							}
 						}
 					}

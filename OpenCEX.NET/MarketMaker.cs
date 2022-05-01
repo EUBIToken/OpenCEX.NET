@@ -202,41 +202,6 @@ namespace jessielesbian.OpenCEX{
 			return lpreserve;
 		}
 
-		public static SafeUint ComputeProfitMaximizingTrade(SafeUint truePriceTokenB, LPReserve lpreserve, out bool buy)
-		{
-			SafeUint invariant = lpreserve.reserve0.Mul(lpreserve.reserve1);
-			if(invariant.isZero){
-				buy = false;
-				return zero;
-			}
-			else{
-				buy = lpreserve.reserve0.Mul(truePriceTokenB).Div(lpreserve.reserve1) < ether;
-
-				SafeUint truePriceTokenIn;
-				SafeUint truePriceTokenOut;
-				if (buy)
-				{
-					truePriceTokenIn = ether;
-					truePriceTokenOut = truePriceTokenB;
-				}
-				else
-				{
-					truePriceTokenIn = truePriceTokenB;
-					truePriceTokenOut = ether;
-				}
-
-				SafeUint leftSide = invariant.Mul(thousand).Mul(truePriceTokenIn).Mul(truePriceTokenOut.Mul(afterfees)).Sqrt();
-				SafeUint rightSide = truePriceTokenIn.Mul(thousand).Div(afterfees);
-				if (leftSide < rightSide)
-				{
-					return zero;
-				}
-				else
-				{
-					return leftSide.Sub(rightSide);
-				}
-			}
-		}
 		/// <summary>
 		/// Fills order using Uniswap.NET (NO MUTATE)
 		/// </summary>
@@ -245,22 +210,50 @@ namespace jessielesbian.OpenCEX{
 			if(lpreserve.reserve0.isZero || lpreserve.reserve1.isZero){
 				return lpreserve;
 			}
-			SafeUint ArbitrageIn = ComputeProfitMaximizingTrade(price, lpreserve, out bool arbitrageBuy);
-
-
-			if(arbitrageBuy == buy){
-				ArbitrageIn = ArbitrageIn.Min(instance.Balance);
-			} else{
+			SafeUint ArbitrageIn;
+			SafeUint invariant = lpreserve.reserve0.Mul(lpreserve.reserve1);
+			if (invariant.isZero)
+			{
 				return lpreserve;
 			}
-			
+			else
+			{
+				if (buy == lpreserve.reserve0.Mul(price).Div(lpreserve.reserve1) < ether){
+					SafeUint leftSide;
+					if(buy){
+						leftSide = invariant.Mul(thousand).Mul(ether).Div(price.Mul(afterfees)).Sqrt();
+					} else{
+						leftSide = invariant.Mul(thousand).Mul(price).Div(afterether).Sqrt();
+					}
+
+					SafeUint rightSide = ether.Mul(thousand).Div(afterfees);
+					if (leftSide < rightSide)
+					{
+						return lpreserve;
+					}
+					else
+					{
+						ArbitrageIn = leftSide.Sub(rightSide);
+					}
+				} else{
+					return lpreserve;
+				}
+			}
+
+
+			ArbitrageIn = ArbitrageIn.Min(instance.Balance);
+
 
 			if (ArbitrageIn.isZero)
 			{
 				return lpreserve;
 			} else{
 				//Partial order cancellation
-				instance.Debit2(ArbitrageIn);
+				if(buy){
+					instance.Debit(ArbitrageIn.Mul(ether).Div(price), price);
+				} else{
+					instance.Debit(ArbitrageIn);
+				}
 
 				//Swap using Uniswap.NET
 				return sqlCommandFactory.SwapLP(primary, secondary, instance.placedby, ArbitrageIn, buy, lpreserve, out _);
