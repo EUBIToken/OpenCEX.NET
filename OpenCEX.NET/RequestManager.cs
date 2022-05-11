@@ -14,6 +14,8 @@ using Newtonsoft.Json;
 using System.IO;
 using System.Web;
 using Nethereum.Util;
+using System.Threading;
+using FreeRedis;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -23,8 +25,10 @@ namespace jessielesbian.OpenCEX.RequestManager
 		public readonly HttpListenerContext httpListenerContext;
 		public readonly IDictionary<string, object> args;
 		public readonly SQLCommandFactory sqlCommandFactory;
+		public readonly SharedAuthenticationHint sharedAuthenticationHint;
+		
 
-		public Request(SQLCommandFactory sqlCommandFactory, RequestMethod method, HttpListenerContext httpListenerContext, IDictionary<string, object> args)
+		public Request(SQLCommandFactory sqlCommandFactory, RequestMethod method, HttpListenerContext httpListenerContext, IDictionary<string, object> args, SharedAuthenticationHint sharedAuthenticationHint)
 		{
 			if(method.needSQL){
 				this.sqlCommandFactory = sqlCommandFactory ?? throw new ArgumentNullException(nameof(sqlCommandFactory));
@@ -35,6 +39,48 @@ namespace jessielesbian.OpenCEX.RequestManager
 			this.method = method ?? throw new ArgumentNullException(nameof(method));
 			this.httpListenerContext = httpListenerContext ?? throw new ArgumentNullException(nameof(httpListenerContext));
 			this.args = args ?? throw new ArgumentNullException(nameof(args));
+			this.sharedAuthenticationHint = sharedAuthenticationHint ?? throw new ArgumentNullException(nameof(sharedAuthenticationHint));
+			
+		}
+
+		public ulong GetUserID()
+		{
+			lock(sharedAuthenticationHint){
+				if (sharedAuthenticationHint.touched)
+				{
+					StaticUtils.CheckSafety2(sharedAuthenticationHint.userid == 0, "Previous authentication attempt failed!");
+				} else{
+					sharedAuthenticationHint.touched = true;
+					Cookie cookie;
+					lock (httpListenerContext)
+					{
+						cookie = httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"];
+					}
+					StaticUtils.CheckSafety(cookie, "Missing session token!");
+
+					byte[] bytes;
+					try{
+						bytes = Convert.FromBase64String(WebUtility.UrlDecode(cookie.Value));
+					} catch{
+						throw new SafetyException("Invalid session token!");
+					}
+
+					StaticUtils.CheckSafety(bytes.Length == 64, "Invalid session token!");
+
+					SHA256 hash = SHA256.Create();
+					string result = "SESSION_" + BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-", string.Empty);
+					hash.Dispose();
+
+					lock (sharedAuthenticationHint.redisClient)
+					{
+						string struserid = sharedAuthenticationHint.redisClient.Get(result);
+						StaticUtils.CheckSafety(struserid, "Invalid session token!");
+						sharedAuthenticationHint.userid = Convert.ToUInt64(struserid);
+					}
+				}
+				return sharedAuthenticationHint.userid;
+			}
+			
 		}
 
 		protected override object ExecuteIMPL()
@@ -72,10 +118,13 @@ namespace jessielesbian.OpenCEX.RequestManager
 	public abstract class RequestMethod{
 		public abstract object Execute(Request request);
 		protected abstract bool NeedSQL();
+		protected abstract bool NeedRedis();
 		public readonly bool needSQL;
+		public readonly bool needRedis;
 
 		public RequestMethod(){
 			needSQL = NeedSQL();
+			needRedis = NeedRedis();
 		}
 	}
 }
@@ -102,6 +151,11 @@ namespace jessielesbian.OpenCEX{
 			}
 
 			protected override bool NeedSQL()
+			{
+				return true;
+			}
+
+			protected override bool NeedRedis()
 			{
 				return true;
 			}
@@ -148,6 +202,11 @@ namespace jessielesbian.OpenCEX{
 			}
 
 			protected override bool NeedSQL()
+			{
+				return true;
+			}
+
+			protected override bool NeedRedis()
 			{
 				return true;
 			}
@@ -366,6 +425,10 @@ namespace jessielesbian.OpenCEX{
 			{
 				return true;
 			}
+			protected override bool NeedRedis()
+			{
+				return true;
+			}
 		}
 
 		private sealed class UpdateChart : ConcurrentJob
@@ -574,6 +637,10 @@ namespace jessielesbian.OpenCEX{
 			{
 				return true;
 			}
+			protected override bool NeedRedis()
+			{
+				return false;
+			}
 		}
 
 
@@ -721,6 +788,10 @@ namespace jessielesbian.OpenCEX{
 			{
 				return true;
 			}
+			protected override bool NeedRedis()
+			{
+				return true;
+			}
 		}
 
 		private sealed class GetBalances : RequestMethod
@@ -778,6 +849,10 @@ namespace jessielesbian.OpenCEX{
 			{
 				return true;
 			}
+			protected override bool NeedRedis()
+			{
+				return true;
+			}
 		}
 
 		private sealed class GetUsername : RequestMethod{
@@ -818,6 +893,10 @@ namespace jessielesbian.OpenCEX{
 			}
 
 			protected override bool NeedSQL()
+			{
+				return true;
+			}
+			protected override bool NeedRedis()
 			{
 				return true;
 			}
@@ -866,6 +945,10 @@ namespace jessielesbian.OpenCEX{
 			{
 				return true;
 			}
+			protected override bool NeedRedis()
+			{
+				return true;
+			}
 		}
 		private sealed class Login : CaptchaProtectedRequestMethod
 		{
@@ -907,7 +990,12 @@ namespace jessielesbian.OpenCEX{
 					randomNumberGenerator.GetBytes(SessionToken);
 					randomNumberGenerator.Dispose();
 					SHA256 sha256 = SHA256.Create();
-					request.sqlCommandFactory.SafeExecuteNonQuery("INSERT INTO Sessions (SessionTokenHash, UserID, Expiry) VALUES (\"" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty) + "\", " + userid + ", " + DateTimeOffset.Now.AddSeconds(2592000).ToUnixTimeSeconds() + ");");
+					string selector = "SESSION_" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty);
+					sha256.Dispose();
+					lock(request.sharedAuthenticationHint.redisClient){
+						request.sharedAuthenticationHint.redisClient.SetNx(selector, userid.ToString(), 2592000);
+					}
+
 					string cookie = "__Secure-OpenCEX_session =" + WebUtility.UrlEncode(Convert.ToBase64String(SessionToken)) + (remember ? ("; Domain=" + CookieOrigin + "; Max-Age=2592000; Path=/; Secure; HttpOnly; SameSite=None") : ("; Domain=" + CookieOrigin + "; Path=/; Secure; HttpOnly; SameSite=None"));
 					lock (request.httpListenerContext)
 					{
@@ -1091,6 +1179,10 @@ namespace jessielesbian.OpenCEX{
 			{
 				return true;
 			}
+			protected override bool NeedRedis()
+			{
+				return true;
+			}
 		}
 		private abstract class CaptchaProtectedRequestMethod : RequestMethod{
 			public abstract void Execute2(Request request);
@@ -1138,6 +1230,11 @@ namespace jessielesbian.OpenCEX{
 				return null;
 			}
 			protected override bool NeedSQL()
+			{
+				return true;
+			}
+
+			protected override bool NeedRedis()
 			{
 				return true;
 			}
@@ -1194,19 +1291,33 @@ namespace jessielesbian.OpenCEX{
 			}
 			public override object Execute(Request request)
 			{
-				ulong userid = request.GetUserID(false);
-				if(userid > 0)
-				{
-					byte[] cookie = Convert.FromBase64String(WebUtility.UrlDecode(request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"].Value));
-					SHA256 sha256 = SHA256.Create();
-					string hash = BitConverter.ToString(sha256.ComputeHash(cookie)).Replace("-", string.Empty);
-					sha256.Dispose();
-					request.sqlCommandFactory.SafeExecuteNonQuery("DELETE FROM Sessions WHERE SessionTokenHash = \"" + hash + "\";");
+				Cookie cookie = request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"];
+				if(cookie != null){
+					byte[] bytes;
+					try
+					{
+						bytes = Convert.FromBase64String(WebUtility.UrlDecode(cookie.Value));
+					}
+					catch
+					{
+						return null;
+					}
+					SHA256 hash = SHA256.Create();
+					bytes = hash.ComputeHash(bytes);
+					hash.Dispose();
+					lock(request.sharedAuthenticationHint.redisClient)
+					{
+						request.sharedAuthenticationHint.redisClient.Del("SESSION_" + BitConverter.ToString(bytes).Replace("-", string.Empty));
+					}
 				}
 				return null;
 			}
 
 			protected override bool NeedSQL()
+			{
+				return false;
+			}
+			protected override bool NeedRedis()
 			{
 				return true;
 			}
@@ -1251,6 +1362,10 @@ namespace jessielesbian.OpenCEX{
 			}
 
 			protected override bool NeedSQL()
+			{
+				return true;
+			}
+			protected override bool NeedRedis()
 			{
 				return true;
 			}
@@ -1330,6 +1445,10 @@ namespace jessielesbian.OpenCEX{
 			{
 				return true;
 			}
+			protected override bool NeedRedis()
+			{
+				return false;
+			}
 		}
 		private sealed class MintLP1 : RequestMethod
 		{
@@ -1379,6 +1498,10 @@ namespace jessielesbian.OpenCEX{
 			}
 
 			protected override bool NeedSQL()
+			{
+				return true;
+			}
+			protected override bool NeedRedis()
 			{
 				return true;
 			}

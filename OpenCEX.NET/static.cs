@@ -14,6 +14,8 @@ using Newtonsoft.Json.Linq;
 using System.Web;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using jessielesbian.OpenCEX.oracle;
+using FreeRedis;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SafetyException : Exception, ISafetyException
@@ -215,6 +217,7 @@ namespace jessielesbian.OpenCEX{
 
 		private static readonly HttpListener httpListener = new HttpListener();
 		private static readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
+		public static readonly JsonSerializerSettings oracleJsonSerializerSettings = new JsonSerializerSettings();
 		public static readonly Dictionary<string, RequestMethod> requestMethods = new Dictionary<string, RequestMethod>();
 		public static readonly int MaximumBalanceCacheSize = ReducedInitSelector.set ? 65536 : (int)(Convert.ToUInt32(GetEnv("MaximumBalanceCacheSize")) - 1);
 		public static readonly ushort thrlimit = ReducedInitSelector.set ? ((ushort)64) : Convert.ToUInt16(GetEnv("ExecutionThreadCount"));
@@ -256,6 +259,8 @@ namespace jessielesbian.OpenCEX{
 		static StaticUtils(){
 			jsonSerializerSettings.MaxDepth = 3;
 			jsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
+			oracleJsonSerializerSettings.MaxDepth = 6;
+			oracleJsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Error;
 			if (ReducedInitSelector.set){
 				return;
 			}
@@ -295,7 +300,8 @@ namespace jessielesbian.OpenCEX{
 			thread.Start();
 			ManagedAbortThread.Append(thread);
 
-			if (leadServer){
+			if (dyno == GetEnv("DepositManagerDyno"))
+			{
 				//Start deposit manager
 				thread = new Thread(DepositManager)
 				{
@@ -303,9 +309,23 @@ namespace jessielesbian.OpenCEX{
 				};
 				thread.Start();
 				ManagedAbortThread.Append(thread);
-
+			}
+			if (dyno == GetEnv("SendingManagerDyno"))
+			{
 				//Start transaction sending manager
 				SendingManagerThread.Start();
+			}
+			//Init oracle
+			//oracles.Add("MintME", new CoinMarketCrackOracle(3361, 18));
+
+			if (dyno == GetEnv("OracleDyno")){
+				//Start oracle
+				thread = new Thread(OracleThread)
+				{
+					Name = "OpenCEX.NET oracle thread"
+				};
+				thread.Start();
+				ManagedAbortThread.Append(thread);
 			}
 		}
 
@@ -397,38 +417,47 @@ namespace jessielesbian.OpenCEX{
 			manualResetEventSlim.Set();
 		}
 
+		private static readonly PooledManualResetEvent noabort = PooledManualResetEvent.GetInstance(false);
+
 		public static void Start(){
 			//Start HTTP listening
 			ManagedAbortThread.Append(Thread.CurrentThread);
 			AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-			ushort port = Convert.ToUInt16(GetEnv("PORT"));
-			lock (httpListener){
-				httpListener.Prefixes.Add($"http://*:{port}/");
-				httpListener.Start();
-			}
-
-			while (httpListener.IsListening)
-			{
-				HttpListenerContext httpListenerContext = null;
-				try
+			if(dyno.StartsWith("web.")){
+				ushort port = Convert.ToUInt16(GetEnv("PORT"));
+				lock (httpListener)
 				{
-					//Establish connection
-					httpListenerContext = httpListener.GetContext();
-				}
-				catch
-				{
-					
+					httpListener.Prefixes.Add($"http://*:{port}/");
+					httpListener.Start();
 				}
 
-				if(httpListenerContext == null)
+				while (httpListener.IsListening)
 				{
-					continue;
-				} else{
-					Append(new ProcessHTTP(httpListenerContext));
+					HttpListenerContext httpListenerContext = null;
+					try
+					{
+						//Establish connection
+						httpListenerContext = httpListener.GetContext();
+					}
+					catch
+					{
+
+					}
+
+					if (httpListenerContext == null)
+					{
+						continue;
+					}
+					else
+					{
+						Append(new ProcessHTTP(httpListenerContext));
+					}
+
 				}
-				
+				httpListener.Close();
+			} else{
+				noabort.Wait();
 			}
-			httpListener.Close();
 
 			//Wait for all execution threads to complete
 			while(!concurrentJobs.IsEmpty){
@@ -487,6 +516,8 @@ namespace jessielesbian.OpenCEX{
 				{
 					httpListener.Stop();
 				}
+
+				noabort.Set();
 			}
 			ManagedAbortThread.JoinAll();
 		}
@@ -519,7 +550,7 @@ namespace jessielesbian.OpenCEX{
 		private static readonly string origin = ReducedInitSelector.set ? null : GetEnv("Origin");
 
 		//The lead server is responsible for deposit finalization.
-		public static bool leadServer = ReducedInitSelector.set ? true : (GetEnv("DYNO") == "web.1");
+		public static readonly string dyno = GetEnv("DYNO");
 
 		public static void HandleHTTPRequest(HttpListenerContext httpListenerContext){
 			
@@ -527,6 +558,7 @@ namespace jessielesbian.OpenCEX{
 				HttpListenerRequest httpListenerRequest = httpListenerContext.Request;
 				HttpListenerResponse httpListenerResponse = httpListenerContext.Response;
 				StreamWriter streamWriter = new StreamWriter(httpListenerResponse.OutputStream, httpListenerResponse.ContentEncoding);
+				IDisposable disposeRedisClient = null;
 				try
 				{
 					//Headers
@@ -566,12 +598,24 @@ namespace jessielesbian.OpenCEX{
 
 					Request request;
 					Queue<Request> secondExecute = new Queue<Request>();
+					SharedAuthenticationHint sharedAuthenticationHint = new SharedAuthenticationHint();
 					foreach (UnprocessedRequest unprocessedRequest in unprocessedRequests){
 						CheckSafety(unprocessedRequest.method, "Missing request method!");
 						CheckSafety(requestMethods.TryGetValue(unprocessedRequest.method, out RequestMethod requestMethod), "Unknown request method!");
 						IDictionary<string, object> data = unprocessedRequest.data ?? new Dictionary<string, object>(0);
 
-						request = new Request(requestMethod.needSQL ? GetSQL() : null, requestMethod, httpListenerContext, data);
+						if(requestMethod.needRedis && sharedAuthenticationHint.redisClient == null){
+							string redisurl = Environment.GetEnvironmentVariable("REDIS_URL");
+							CheckSafety(redisurl, "Missing Redis URL (should not reach here)!", true);
+							CheckSafety(redisurl.StartsWith("redis://:"), "Invalid Redis URL (should not reach here)!");
+							string[] strings = redisurl.Split('@');
+							CheckSafety(strings.Length == 2, "Invalid Redis URL (should not reach here)!", true);
+
+							sharedAuthenticationHint.redisClient = new RedisClient(strings[1] + ",password=" + strings[0][9..]);
+							disposeRedisClient = sharedAuthenticationHint.redisClient;
+						}
+
+						request = new Request(requestMethod.needSQL ? GetSQL() : null, requestMethod, httpListenerContext, data, sharedAuthenticationHint);
 						secondExecute.Enqueue(request);
 					}
 
@@ -628,6 +672,9 @@ namespace jessielesbian.OpenCEX{
 				finally{
 					streamWriter.Flush();
 					httpListenerResponse.Close();
+					if(disposeRedisClient != null){
+						disposeRedisClient.Dispose();
+					}
 				}
 			}
 			
@@ -674,5 +721,13 @@ namespace jessielesbian.OpenCEX{
 
 	public static class ReducedInitSelector{
 		public static bool set = false;
+	}
+
+	public sealed class SharedAuthenticationHint{
+		public ulong userid = 0;
+		public bool touched = false;
+
+		//Hijack
+		public RedisClient redisClient = null;
 	}
 }

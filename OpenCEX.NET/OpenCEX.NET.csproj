@@ -22,6 +22,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FreeRedis" Version="0.5.2" />
     <PackageReference Include="MySql.Data" Version="8.0.28" />
     <PackageReference Include="Nethereum.Web3" Version="4.2.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
