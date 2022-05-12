@@ -14,7 +14,9 @@ namespace jessielesbian.OpenCEX.Tests
 		public void MatchOrdersTest()
 		{
 			ReducedInitSelector.set = true;
+#pragma warning disable IDE0059 // Unnecessary assignment of a value
 			SafeUint expandedHalf = GetSafeUint("500000000000000000");
+#pragma warning restore IDE0059 // Unnecessary assignment of a value
 			SafeUint expandedOne = GetSafeUint("1000000000000000000");
 			SafeUint expandedTwo = GetSafeUint("2000000000000000000");
 			SafeUint expanddedThree = GetSafeUint("3000000000000000000");

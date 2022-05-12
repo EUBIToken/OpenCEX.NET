@@ -3,7 +3,7 @@ using Nethereum.Hex.HexTypes;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-
+using System.Data;
 using System.Threading;
 namespace jessielesbian.OpenCEX{
 	public static partial class StaticUtils{
@@ -24,7 +24,7 @@ namespace jessielesbian.OpenCEX{
 					Append(updates);
 					try
 					{
-						SQLCommandFactory sqlCommandFactory = GetSQL();
+						SQLCommandFactory sqlCommandFactory = GetSQL(IsolationLevel.RepeatableRead);
 						try
 						{
 							HandleDepositsIMPL(sqlCommandFactory.GetCommand("SELECT LastTouched, URL, URL2, Id FROM WorkerTasks;").ExecuteReader(), updates);
@@ -179,7 +179,7 @@ namespace jessielesbian.OpenCEX{
 					if(!(transaction.blockNumber is null)){
 						if(safeheight > Convert.ToUInt64(GetSafeUint(Convert.ToString(transaction.blockNumber)).ToString()))
 						{
-							SQLCommandFactory sqlCommandFactory = GetSQL();
+							SQLCommandFactory sqlCommandFactory = GetSQL(IsolationLevel.RepeatableRead);
 							Exception deferred = null;
 							try
 							{

@@ -16,6 +16,7 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using jessielesbian.OpenCEX.oracle;
 using FreeRedis;
+using System.Data;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SafetyException : Exception, ISafetyException
@@ -168,19 +169,21 @@ namespace jessielesbian.OpenCEX{
 		//But when we run in testing, we use a "balances update replay cache" to detect flash floating and unbacked balances
 		public static readonly bool ReplayBalanceUpdates = Convert.ToBoolean(GetEnv2("ReplayBalanceUpdates", "false"));
 
+#pragma warning disable IDE0075 // Simplify conditional expression
 		public static readonly bool Multiserver = ReducedInitSelector.set ? false : Convert.ToBoolean(GetEnv("Multiserver"));
+#pragma warning restore IDE0075 // Simplify conditional expression
 
 		private static readonly PooledManualResetEvent depositBlocker = PooledManualResetEvent.GetInstance(false);
 
 		private static readonly string SQLConnectionString = ReducedInitSelector.set ? null : GetEnv("SQLConnectionString");
 
-		public static SQLCommandFactory GetSQL(){
+		public static SQLCommandFactory GetSQL(IsolationLevel isolationLevel){
 			MySqlConnection mySqlConnection = null;
 			try
 			{
 				mySqlConnection = new MySqlConnection(SQLConnectionString);
 				mySqlConnection.Open();
-				MySqlTransaction tx = mySqlConnection.BeginTransaction();
+				MySqlTransaction tx = mySqlConnection.BeginTransaction(isolationLevel);
 
 				
 				CheckSafety(tx, "MySQL connection establishment failed: invalid MySQL transaction object!");
@@ -537,7 +540,9 @@ namespace jessielesbian.OpenCEX{
 				this.reason = reason ?? throw new ArgumentNullException(nameof(reason));
 			}
 		}
+#pragma warning disable IDE0075 // Simplify conditional expression
 		public static readonly bool debug = ReducedInitSelector.set ? true : Convert.ToBoolean(GetEnv("Debug"));
+#pragma warning restore IDE0075 // Simplify conditional expression
 
 		[JsonObject(MemberSerialization.Fields)]
 		private sealed class UnprocessedRequest{
@@ -605,17 +610,17 @@ namespace jessielesbian.OpenCEX{
 						IDictionary<string, object> data = unprocessedRequest.data ?? new Dictionary<string, object>(0);
 
 						if(requestMethod.needRedis && sharedAuthenticationHint.redisClient == null){
-							string redisurl = Environment.GetEnvironmentVariable("REDIS_URL");
+							string redisurl = Environment.GetEnvironmentVariable("REDIS_TLS_URL");
 							CheckSafety(redisurl, "Missing Redis URL (should not reach here)!", true);
-							CheckSafety(redisurl.StartsWith("redis://:"), "Invalid Redis URL (should not reach here)!");
+							CheckSafety(redisurl.StartsWith("rediss://:"), "Invalid Redis URL (should not reach here)!");
 							string[] strings = redisurl.Split('@');
 							CheckSafety(strings.Length == 2, "Invalid Redis URL (should not reach here)!", true);
 
-							sharedAuthenticationHint.redisClient = new RedisClient(strings[1] + ",password=" + strings[0][9..]);
+							sharedAuthenticationHint.redisClient = new RedisClient(strings[1] + ",ssl=true,password=" + strings[0][10..]);
 							disposeRedisClient = sharedAuthenticationHint.redisClient;
 						}
 
-						request = new Request(requestMethod.needSQL ? GetSQL() : null, requestMethod, httpListenerContext, data, sharedAuthenticationHint);
+						request = new Request(requestMethod.needSQL ? GetSQL(requestMethod.SQLMode2) : null, requestMethod, httpListenerContext, data, sharedAuthenticationHint);
 						secondExecute.Enqueue(request);
 					}
 

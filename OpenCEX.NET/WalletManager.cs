@@ -23,6 +23,7 @@ using Newtonsoft.Json;
 using Nethereum.Contracts.ContractHandlers;
 using Nethereum.RPC.Eth.DTOs;
 using Nethereum.Util;
+using System.Data;
 
 namespace jessielesbian.OpenCEX
 {
@@ -278,7 +279,7 @@ namespace jessielesbian.OpenCEX
 			private readonly MySqlCommand appendDeposit;
 			private readonly MySqlCommand blacklist;
 			private SendingManagerThread(){
-				sql = GetSQL();
+				sql = GetSQL(IsolationLevel.RepeatableRead);
 
 				read = sql.GetCommand("SELECT * FROM PendingTransactions ORDER BY Id FOR UPDATE;");
 

@@ -16,6 +16,7 @@ using System.Web;
 using Nethereum.Util;
 using System.Threading;
 using FreeRedis;
+using System.Data;
 
 namespace jessielesbian.OpenCEX.RequestManager
 {
@@ -117,14 +118,16 @@ namespace jessielesbian.OpenCEX.RequestManager
 
 	public abstract class RequestMethod{
 		public abstract object Execute(Request request);
-		protected abstract bool NeedSQL();
 		protected abstract bool NeedRedis();
+		protected abstract IsolationLevel SQLMode();
 		public readonly bool needSQL;
 		public readonly bool needRedis;
+		public readonly IsolationLevel SQLMode2;
 
 		public RequestMethod(){
-			needSQL = NeedSQL();
 			needRedis = NeedRedis();
+			SQLMode2 = SQLMode();
+			needSQL = SQLMode2 != IsolationLevel.Unspecified;
 		}
 	}
 }
@@ -150,14 +153,14 @@ namespace jessielesbian.OpenCEX{
 				return null;
 			}
 
-			protected override bool NeedSQL()
+			protected override bool NeedRedis()
 			{
 				return true;
 			}
 
-			protected override bool NeedRedis()
+			protected override IsolationLevel SQLMode()
 			{
-				return true;
+				return IsolationLevel.RepeatableRead;
 			}
 		}
 
@@ -201,14 +204,13 @@ namespace jessielesbian.OpenCEX{
 				return null;
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
-
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.RepeatableRead;
 			}
 		}
 
@@ -421,13 +423,14 @@ namespace jessielesbian.OpenCEX{
 
 				return null;
 			}
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.RepeatableRead;
 			}
 		}
 
@@ -446,7 +449,7 @@ namespace jessielesbian.OpenCEX{
 
 			protected override object ExecuteIMPL()
 			{
-				SQLCommandFactory sqlCommandFactory = GetSQL();
+				SQLCommandFactory sqlCommandFactory = GetSQL(IsolationLevel.RepeatableRead);
 				bool commit;
 				try{
 					MySqlCommand prepared = sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp DESC FOR UPDATE;");
@@ -633,13 +636,13 @@ namespace jessielesbian.OpenCEX{
 				return new string[] {SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, true)), SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, false))};
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return false;
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.ReadUncommitted;
 			}
 		}
 
@@ -784,13 +787,14 @@ namespace jessielesbian.OpenCEX{
 				return null;
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.RepeatableRead;
 			}
 		}
 
@@ -845,13 +849,14 @@ namespace jessielesbian.OpenCEX{
 				
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.ReadUncommitted;
 			}
 		}
 
@@ -892,13 +897,13 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.ReadUncommitted;
 			}
 		}
 
@@ -941,13 +946,13 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.ReadUncommitted;
 			}
 		}
 		private sealed class Login : CaptchaProtectedRequestMethod
@@ -1008,6 +1013,10 @@ namespace jessielesbian.OpenCEX{
 				} else{
 					throw new SafetyException("Unexpected internal server error while logging in (should not reach here)!", throws);
 				}
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.ReadUncommitted;
 			}
 		}
 
@@ -1175,13 +1184,13 @@ namespace jessielesbian.OpenCEX{
 				return null;
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.RepeatableRead;
 			}
 		}
 		private abstract class CaptchaProtectedRequestMethod : RequestMethod{
@@ -1228,10 +1237,6 @@ namespace jessielesbian.OpenCEX{
 
 				Execute2(request);
 				return null;
-			}
-			protected override bool NeedSQL()
-			{
-				return true;
 			}
 
 			protected override bool NeedRedis()
@@ -1282,6 +1287,10 @@ namespace jessielesbian.OpenCEX{
 				request.args.Add("renember", true);
 				((Login) Login.instance).Execute2(request);
 			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.RepeatableRead;
+			}
 		}
 
 		private sealed class Logout : RequestMethod{
@@ -1313,13 +1322,13 @@ namespace jessielesbian.OpenCEX{
 				return null;
 			}
 
-			protected override bool NeedSQL()
-			{
-				return false;
-			}
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.Unspecified;
 			}
 		}
 
@@ -1361,13 +1370,13 @@ namespace jessielesbian.OpenCEX{
 				
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.ReadUncommitted;
 			}
 		}
 
@@ -1441,13 +1450,13 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return false;
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.ReadUncommitted;
 			}
 		}
 		private sealed class MintLP1 : RequestMethod
@@ -1497,13 +1506,13 @@ namespace jessielesbian.OpenCEX{
 				return null;
 			}
 
-			protected override bool NeedSQL()
-			{
-				return true;
-			}
 			protected override bool NeedRedis()
 			{
 				return true;
+			}
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.RepeatableRead;
 			}
 		}
 		private sealed class PostWithdrawal : ConcurrentJob
@@ -1535,7 +1544,7 @@ namespace jessielesbian.OpenCEX{
 				catch (Exception e)
 				{
 					Console.Error.WriteLine("Exception while sending withdrawal: " + e.ToString());
-					SQLCommandFactory sql = GetSQL();
+					SQLCommandFactory sql = GetSQL(IsolationLevel.RepeatableRead);
 					bool commit;
 					try
 					{
