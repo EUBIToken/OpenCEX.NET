@@ -668,6 +668,7 @@ namespace jessielesbian.OpenCEX{
 					case "EUBI":
 					case "1000x":
 					case "CLICK":
+					case "Haoma":
 					case "MS-Coin":
 						blockchainManager = BlockchainManager.MintME;
 						break;
@@ -709,6 +710,9 @@ namespace jessielesbian.OpenCEX{
 				switch(token){
 					case "CLICK":
 						token_address = "0xf4811b341af177bde2407b976311af66c4b08021";
+						break;
+					case "Haoma":
+						token_address = "0x60ac85dda46937251eb7473a68a1b9367ee2a1f1";
 						break;
 					case "MS-Coin":
 						token_address = "0x34c171a4ee5a3e6ad7ea1b356600e30d7c333d5e";
@@ -1068,6 +1072,7 @@ namespace jessielesbian.OpenCEX{
 					case "EUBI":
 					case "1000x":
 					case "CLICK":
+					case "Haoma":
 					case "MS-Coin":
 						blockchainManager = BlockchainManager.MintME;
 						break;
@@ -1108,6 +1113,10 @@ namespace jessielesbian.OpenCEX{
 						break;
 					case "CLICK":
 						tokenAddress = "0xf4811b341af177bde2407b976311af66c4b08021";
+						backed = false;
+						break;
+					case "Haoma":
+						tokenAddress = "0x60ac85dda46937251eb7473a68a1b9367ee2a1f1";
 						backed = false;
 						break;
 					case "PolyEUBI":
@@ -1573,6 +1582,49 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				return null;
+			}
+		}
+
+		private sealed class MintDerivatives : RequestMethod
+		{
+			public override object Execute(Request request)
+			{
+				ulong userid = request.GetUserID();
+				string contract = request.ExtractRequestArg<string>("contract");
+				try{
+					GetEnv("IsDerivative_" + contract);
+				} catch{
+					throw new SafetyException("Invalid derivatives!");
+				}
+				int pivot = contract.LastIndexOf('_');
+				IDerivativeContract derivativeType = contract[pivot..] switch
+				{
+					"_PUT" => PutOption.instance,
+					_ => throw new Exception("Unknown derivative type!"),
+				};
+				SafeUint amount = request.ExtractSafeUint("amount");
+				MySqlCommand command = request.sqlCommandFactory.GetCommand("SELECT Strike FROM Derivatives WHERE Name = @coin FOR UPDATE;");
+				command.Parameters.AddWithValue("@coin", contract);
+				command.Prepare();
+				SafeUint strike;
+				using (MySqlDataReader tmpreader2 = command.ExecuteReader())
+				{
+					CheckSafety(tmpreader2.Read(), "Missing derivatives record!");
+					strike = GetSafeUint(tmpreader2.GetString("Strike"));
+					tmpreader2.CheckSingletonResult();
+				}
+				request.Debit("Dai", userid, derivativeType.CalculateMaxShortLoss(strike), true);
+				return null;
+			}
+
+			protected override bool NeedRedis()
+			{
+				return true;
+			}
+
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.RepeatableRead;
 			}
 		}
 	}

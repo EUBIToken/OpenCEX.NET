@@ -61,25 +61,24 @@ namespace jessielesbian.OpenCEX{
 			MySqlCommand mySqlCommand = sql.GetCommand("SELECT Reserve0, Reserve1, TotalSupply FROM UniswapReserves WHERE Pri = @pri AND Sec = @sec FOR UPDATE;");
 			mySqlCommand.Parameters.AddWithValue("@pri", primary);
 			mySqlCommand.Parameters.AddWithValue("@sec", secondary);
-			using(MySqlDataReader mySqlDataReader = mySqlCommand.ExecuteReader()){
-				if (mySqlDataReader.Read())
-				{
-					reserve0 = GetSafeUint(mySqlDataReader.GetString("Reserve0"));
-					reserve1 = GetSafeUint(mySqlDataReader.GetString("Reserve1"));
-					totalSupply = GetSafeUint(mySqlDataReader.GetString("TotalSupply"));
-					CheckSafety2(mySqlDataReader.Read(), "Uniswap.NET: Duplicate LP records (should not reach here)!", true);
-					return false;
-				}
-				else
-				{
-					reserve0 = zero;
-					reserve1 = zero;
-					totalSupply = zero;
-					return true;
-				}
+			using MySqlDataReader mySqlDataReader = mySqlCommand.ExecuteReader();
+			if (mySqlDataReader.Read())
+			{
+				reserve0 = GetSafeUint(mySqlDataReader.GetString("Reserve0"));
+				reserve1 = GetSafeUint(mySqlDataReader.GetString("Reserve1"));
+				totalSupply = GetSafeUint(mySqlDataReader.GetString("TotalSupply"));
+				CheckSafety2(mySqlDataReader.Read(), "Uniswap.NET: Duplicate LP records (should not reach here)!", true);
+				return false;
 			}
-			
-			
+			else
+			{
+				reserve0 = zero;
+				reserve1 = zero;
+				totalSupply = zero;
+				return true;
+			}
+
+
 		}
 
 		private static void WriteLP(SQLCommandFactory sql, string primary, string secondary, LPReserve lpreserve)
@@ -111,6 +110,18 @@ namespace jessielesbian.OpenCEX{
 		/// </summary>
 		public static LPReserve MintLP(this SQLCommandFactory sql, string pri, string sec, SafeUint amount0, SafeUint amount1, ulong to, LPReserve lpreserve)
 		{
+			try
+			{
+				GetEnv("IsDerivative_" + sec);
+				throw new SafetyException("Uniswap.NET derivatives liquidity not yet supported!");
+			}
+			catch (Exception e)
+			{
+				if (e is SafetyException)
+				{
+					throw;
+				}
+			}
 			sql.Debit(pri, to, amount0, true);
 			sql.Debit(sec, to, amount1, true);
 
@@ -207,7 +218,15 @@ namespace jessielesbian.OpenCEX{
 		/// </summary>
 		private static LPReserve TryArb(this SQLCommandFactory sqlCommandFactory, string primary, string secondary, bool buy, Order instance, SafeUint price, LPReserve lpreserve)
 		{
-			if(lpreserve.reserve0.isZero || lpreserve.reserve1.isZero){
+			try
+			{
+				//Optimization: If it is a derivative then DON'T EVEN BOTHER 
+				GetEnv("IsDerivative_" + secondary);
+				return lpreserve;
+			} catch{
+				
+			}
+			if (lpreserve.reserve0.isZero || lpreserve.reserve1.isZero){
 				return lpreserve;
 			}
 			SafeUint ArbitrageIn;

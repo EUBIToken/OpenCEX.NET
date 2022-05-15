@@ -93,7 +93,9 @@ namespace jessielesbian.OpenCEX{
 							List<string> updates = new List<string>(limit3);
 							foreach (KeyValuePair<string, BigInteger> keyValuePair in netBalanceEffects)
 							{
-								updates.Add(keyValuePair.Key);
+								if(!keyValuePair.Value.IsZero){
+									updates.Add(keyValuePair.Key);
+								}
 							}
 
 							updates.Sort();
@@ -390,13 +392,19 @@ namespace jessielesbian.OpenCEX{
 		private readonly Queue<ReplayedBalanceUpdate> replayedBalanceUpdates = StaticUtils.ReplayBalanceUpdates ? new Queue<ReplayedBalanceUpdate>() : null;
 		
 		private void ShiftBalance(string key, BigInteger bigInteger){
-			if(netBalanceEffects.TryGetValue(key, out BigInteger balanceEffect)){
-				netBalanceEffects[key] = balanceEffect + bigInteger;
-			} else{
-				StaticUtils.CheckSafety(netBalanceEffects.TryAdd(key, bigInteger), "Unable to add balance to effects optimization cache (should not reach here)!", true);
-			}
-			if(StaticUtils.ReplayBalanceUpdates){
-				replayedBalanceUpdates.Enqueue(new ReplayedBalanceUpdate(key, bigInteger));
+			if(!bigInteger.IsZero){
+				if (netBalanceEffects.TryGetValue(key, out BigInteger balanceEffect))
+				{
+					netBalanceEffects[key] = balanceEffect + bigInteger;
+				}
+				else
+				{
+					StaticUtils.CheckSafety(netBalanceEffects.TryAdd(key, bigInteger), "Unable to add balance to effects optimization cache (should not reach here)!", true);
+				}
+				if (StaticUtils.ReplayBalanceUpdates)
+				{
+					replayedBalanceUpdates.Enqueue(new ReplayedBalanceUpdate(key, bigInteger));
+				}
 			}
 		}
 

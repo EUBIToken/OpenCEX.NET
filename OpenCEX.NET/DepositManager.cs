@@ -143,6 +143,7 @@ namespace jessielesbian.OpenCEX{
 					case "EUBI":
 					case "1000x":
 					case "CLICK":
+					case "Haoma":
 					case "MS-Coin":
 						walletManager = BlockchainManager.MintME.ExchangeWalletManager;
 						backed = false;
