@@ -1121,6 +1121,15 @@ namespace jessielesbian.OpenCEX{
 					case "LP_MintME_BNB":
 						BurnLP(request.sqlCommandFactory, "MintME", "BNB", amount, userid);
 						return null;
+					case "LP_MintME_CLICK":
+						BurnLP(request.sqlCommandFactory, "MintME", "CLICK", amount, userid);
+						return null;
+					case "LP_MintME_Haoma":
+						BurnLP(request.sqlCommandFactory, "MintME", "Haoma", amount, userid);
+						return null;
+					case "LP_MintME_MS-Coin":
+						BurnLP(request.sqlCommandFactory, "MintME", "MS-Coin", amount, userid);
+						return null;
 					case "LP_MintME_PolyEUBI":
 						BurnLP(request.sqlCommandFactory, "MintME", "PolyEUBI", amount, userid);
 						return null;
