@@ -35,12 +35,15 @@ namespace jessielesbian.OpenCEX
 									CheckSafety(oracles.TryGetValue(underlying, out IOracle oracle), "Missing oracle!");
 									try
 									{
-										price = oracle.GetPriceAt(expiry, 3600);
+										price = oracle.GetPriceAt(expiry, int.MaxValue);
 									}
 									catch
 									{
 										//BATTLE SHORT this mode of failure
 										continue;
+									}
+									if(price is null){
+										continue; //Oracle failure
 									}
 								}
 
@@ -51,6 +54,7 @@ namespace jessielesbian.OpenCEX
 							if (debug)
 							{
 								//Prevent repeated settlements on dev server due to downtime
+								trueExpiry = Math.Max(trueExpiry, time);
 								trueExpiry = Math.Max(trueExpiry, time);
 							}
 							waiting.Enqueue(new DerivativesSettlementJob(longname, longname + "_SHORT", trueExpiry, longname[pivot..] switch
@@ -122,7 +126,7 @@ namespace jessielesbian.OpenCEX
 				CheckSafety2(longPayouts.Add(shortPayouts) > derivativeContract.CalculateMaxShortLoss(strike), "Negative balances while settling negative balances protected derivatives!");
 
 				//Balances
-				command = sql.GetCommand("SELECT Balance, UserID FROM Balances WHERE Coin = @coin;");
+				command = sql.GetCommand("SELECT Balance, UserID FROM Balances WHERE Coin = @coin FOR UPDATE;");
 				command.Parameters.AddWithValue("@coin", longname);
 				command.Prepare();
 				Settle2(sql, command, longPayouts, 0);
@@ -130,7 +134,7 @@ namespace jessielesbian.OpenCEX
 				Settle2(sql, command, shortPayouts, 1);
 
 				//Outstanding orders
-				command = sql.GetCommand("SELECT Amount, InitialAmount, TotalCost, PlacedBy FROM Orders WHERE Sec = @coin AND Buy = 0;");
+				command = sql.GetCommand("SELECT Amount, InitialAmount, TotalCost, PlacedBy FROM Orders WHERE Sec = @coin AND Buy = 0 FOR UPDATE;");
 				command.Parameters.AddWithValue("@coin", longname);
 				command.Prepare();
 				Settle2(sql, command, longPayouts, 2);
@@ -161,21 +165,27 @@ namespace jessielesbian.OpenCEX
 			}
 
 			private void Settle2(SQLCommandFactory sql, MySqlCommand mySqlCommand, SafeUint payout, byte mode){
-				using MySqlDataReader reader = mySqlCommand.ExecuteReader();
-				while(reader.Read()){
-					SafeUint balance;
-					ulong userid;
-					if(mode == 2){
-						balance = GetSafeUint(reader.GetString("Amount")).Min(GetSafeUint(reader.GetString("InitialAmount")).Sub(GetSafeUint(reader.GetString("TotalCost"))));
-						userid = reader.GetUInt64("PlacedBy");
-					} else{
-						balance = GetSafeUint(reader.GetString("Balance"));
-						userid = reader.GetUInt64("UserID");
+				if(!payout.isZero){
+					using MySqlDataReader reader = mySqlCommand.ExecuteReader();
+					while (reader.Read())
+					{
+						SafeUint balance;
+						ulong userid;
+						if (mode == 2)
+						{
+							balance = GetSafeUint(reader.GetString("Amount")).Min(GetSafeUint(reader.GetString("InitialAmount")).Sub(GetSafeUint(reader.GetString("TotalCost"))));
+							userid = reader.GetUInt64("PlacedBy");
+						}
+						else
+						{
+							balance = GetSafeUint(reader.GetString("Balance"));
+							userid = reader.GetUInt64("UserID");
+						}
+						if (userid != 0)
+						{
+							sql.Credit("Dai", userid, payout.Mul(balance).Div(ether), true);
+						}
 					}
-					if(userid != 0){
-						sql.Credit("Dai", userid, payout.Mul(balance).Div(ether), true);
-					}
-					
 				}
 			}
 		}

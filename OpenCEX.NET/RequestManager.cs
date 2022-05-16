@@ -177,9 +177,12 @@ namespace jessielesbian.OpenCEX{
 			{
 				CheckSafety(request.args.TryGetValue("target", out object target2), "Order cancellation must specify target!");
 				ulong target;
-				try{
+				try
+				{
 					target = Convert.ToUInt64(target2);
-				} catch{
+				}
+				catch
+				{
 					throw new SafetyException("Target must be unsigned number!");
 				}
 
@@ -189,9 +192,12 @@ namespace jessielesbian.OpenCEX{
 				CheckSafety(mySqlDataReader.HasRows, "Nonexistant order!");
 				CheckSafety(mySqlDataReader.GetUInt64("PlacedBy") == userid, "Attempted to cancel another user's order!");
 				string refund;
-				if(mySqlDataReader.GetUInt32("Buy") == 0){
+				if (mySqlDataReader.GetUInt32("Buy") == 0)
+				{
 					refund = mySqlDataReader.GetString("Sec");
-				} else{
+				}
+				else
+				{
 					refund = mySqlDataReader.GetString("Pri");
 				}
 				SafeUint amount = GetSafeUint(mySqlDataReader.GetString("InitialAmount")).Sub(GetSafeUint(mySqlDataReader.GetString("TotalCost")));
@@ -232,7 +238,8 @@ namespace jessielesbian.OpenCEX{
 				string primary = request.ExtractRequestArg<string>("primary");
 				string secondary = request.ExtractRequestArg<string>("secondary");
 				bool buy = request.ExtractRequestArg<bool>("buy");
-				if(buy){
+				if (buy)
+				{
 					CheckSafety2(price.isZero, "Zero-price buy order!");
 				}
 
@@ -277,7 +284,7 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety2(amount.isZero, "Zero limit order size!");
 					CheckSafety2(amount < GetSafeUint(GetEnv("MinimumLimit_" + selected)), "Order is smaller than minimum limit order size!");
 				}
-				
+
 				Queue<Order> moddedOrders = new Queue<Order>();
 				SafeUint close = null;
 
@@ -298,13 +305,15 @@ namespace jessielesbian.OpenCEX{
 						{
 							break;
 						}
-						if (other.Balance.isZero || other.amount.isZero){
+						if (other.Balance.isZero || other.amount.isZero)
+						{
 							read = reader.Read();
 							continue;
 						}
-						
+
 						lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, buy, instance, other.price, lpreserve);
-						if (old != lpreserve.reserve0){
+						if (old != lpreserve.reserve0)
+						{
 							close = lpreserve.reserve0.Mul(ether).Div(lpreserve.reserve1);
 						}
 						SafeUint oldamt1 = instance.Balance;
@@ -321,7 +330,8 @@ namespace jessielesbian.OpenCEX{
 							request.Credit(output, userid, oldamt2.Sub(other.Balance), true);
 							request.Credit(selected, other.placedby, outamt, true);
 							read = reader.Read();
-							if(!other.Balance.isZero){
+							if (!other.Balance.isZero)
+							{
 								lpreserve = TryArb(request.sqlCommandFactory, primary, secondary, sell, other, other.price, lpreserve);
 							}
 						}
@@ -347,9 +357,12 @@ namespace jessielesbian.OpenCEX{
 					//Tail safety check
 					SafeUint amount3;
 					balance2 = instance.Balance;
-					if (buy) {
+					if (buy)
+					{
 						amount3 = balance2.Mul(ether).Div(price);
-					} else {
+					}
+					else
+					{
 						amount3 = balance2;
 					}
 
@@ -451,7 +464,8 @@ namespace jessielesbian.OpenCEX{
 			{
 				SQLCommandFactory sqlCommandFactory = GetSQL(IsolationLevel.RepeatableRead);
 				bool commit;
-				try{
+				try
+				{
 					MySqlCommand prepared = sqlCommandFactory.GetCommand("SELECT Timestamp, Open, High, Low, Close FROM HistoricalPrices WHERE Pri = @primary AND Sec = @secondary ORDER BY Timestamp DESC FOR UPDATE;");
 					prepared.Parameters.AddWithValue("@primary", primary);
 					prepared.Parameters.AddWithValue("@secondary", secondary);
@@ -524,35 +538,49 @@ namespace jessielesbian.OpenCEX{
 					prepared.Prepare();
 					CheckSafety(prepared.ExecuteNonQuery() == 1, "Excessive write effect (should not reach here)!", true);
 					commit = true;
-				} catch(Exception e){
+				}
+				catch (Exception e)
+				{
 					Console.Error.WriteLine("Unexpected exception while writing chart: " + e.ToString());
 					commit = false;
 				}
-				try{
+				try
+				{
 					sqlCommandFactory.DestroyTransaction(commit, true);
-				} catch (Exception e){
+				}
+				catch (Exception e)
+				{
 					Console.Error.WriteLine("Unexpected exception while closing chart: " + e.ToString());
 				}
 				return null;
 			}
 		}
 
-		public static bool MatchOrders(Order first, Order second, bool buy){
+		public static bool MatchOrders(Order first, Order second, bool buy)
+		{
 			SafeUint ret = first.amount.Min(second.amount);
-			if (buy){
+			if (buy)
+			{
 				ret = ret.Min(first.Balance.Mul(ether).Div(second.price)).Min(second.Balance);
-				if(second.price > first.price){
+				if (second.price > first.price)
+				{
 					return false;
-				} else{
+				}
+				else
+				{
 					first.Debit(ret, second.price);
 					second.Debit(ret);
 				}
-			} else{
+			}
+			else
+			{
 				ret = ret.Min(first.Balance).Min(second.Balance.Mul(ether).Div(second.price));
 				if (first.price > second.price)
 				{
 					return false;
-				} else{
+				}
+				else
+				{
 					first.Debit(ret);
 					second.Debit(ret, second.price);
 				}
@@ -583,10 +611,13 @@ namespace jessielesbian.OpenCEX{
 			public void Debit(SafeUint amt, SafeUint price = null)
 			{
 				SafeUint temp;
-					
-				if(price is null){
+
+				if (price is null)
+				{
 					temp = totalCost.Add(amt);
-				} else{
+				}
+				else
+				{
 					temp = totalCost.Add(amt.Mul(price).Div(ether));
 				}
 				Balance = initialAmount.Sub(temp, "Negative order size (should not reach here)!", true);
@@ -598,11 +629,15 @@ namespace jessielesbian.OpenCEX{
 		}
 
 		//Ported from PHP server
-		private static SafeUint GetBidOrAsk(SQLCommandFactory sqlCommandFactory, string pri, string sec, bool bid){
+		private static SafeUint GetBidOrAsk(SQLCommandFactory sqlCommandFactory, string pri, string sec, bool bid)
+		{
 			MySqlCommand mySqlCommand;
-			if(bid){
+			if (bid)
+			{
 				mySqlCommand = sqlCommandFactory.GetCommand("SELECT Price FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 1 ORDER BY Price DESC LIMIT 1;");
-			} else{
+			}
+			else
+			{
 				mySqlCommand = sqlCommandFactory.GetCommand("SELECT Price FROM Orders WHERE Pri = @primary AND Sec = @secondary AND Buy = 0 ORDER BY Price ASC LIMIT 1;");
 			}
 
@@ -611,11 +646,14 @@ namespace jessielesbian.OpenCEX{
 			mySqlCommand.Prepare();
 			MySqlDataReader reader = sqlCommandFactory.SafeExecuteReader(mySqlCommand);
 			SafeUint returns;
-			if (reader.HasRows){
+			if (reader.HasRows)
+			{
 				returns = GetSafeUint(reader.GetString("Price"));
 				reader.CheckSingletonResult();
-				
-			} else{
+
+			}
+			else
+			{
 				returns = null;
 			}
 			sqlCommandFactory.SafeDestroyReader();
@@ -625,15 +663,16 @@ namespace jessielesbian.OpenCEX{
 		private sealed class BidAsk : RequestMethod
 		{
 			public static readonly RequestMethod instance = new BidAsk();
-			private BidAsk(){
-				
+			private BidAsk()
+			{
+
 			}
 			public override object Execute(Request request)
 			{
 				string pri = request.ExtractRequestArg<string>("primary");
 				string sec = request.ExtractRequestArg<string>("secondary");
-				
-				return new string[] {SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, true)), SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, false))};
+
+				return new string[] { SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, true)), SafeSerializeSafeUint(GetBidOrAsk(request.sqlCommandFactory, pri, sec, false)) };
 			}
 
 			protected override bool NeedRedis()
@@ -663,7 +702,8 @@ namespace jessielesbian.OpenCEX{
 					token = (string)temp;
 				}
 				BlockchainManager blockchainManager;
-				switch(token){
+				switch (token)
+				{
 					//Traditional tokens
 					case "EUBI":
 					case "1000x":
@@ -707,7 +747,8 @@ namespace jessielesbian.OpenCEX{
 				request.sqlCommandFactory.SafeDestroyReader();
 
 				string token_address;
-				switch(token){
+				switch (token)
+				{
 					case "CLICK":
 						token_address = "0xf4811b341af177bde2407b976311af66c4b08021";
 						break;
@@ -730,9 +771,12 @@ namespace jessielesbian.OpenCEX{
 						token_address = "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063";
 						break;
 					case "MintME":
-						if(blockchainManager.chainid == 24734){
+						if (blockchainManager.chainid == 24734)
+						{
 							token_address = null;
-						} else{
+						}
+						else
+						{
 							token_address = "0x2b7bede8a97021da880e6c84e8b915492d2ae216";
 							token = "WMintME";
 						}
@@ -753,7 +797,9 @@ namespace jessielesbian.OpenCEX{
 					amount = walletManager.GetEthBalance().Sub(gasPrice.Mul(basegas), "Amount not enough to cover blockchain fee!", false);
 					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, ExchangeWalletAddress, gasPrice, basegas, null, userid, true, token, zero, "shitcoin");
-				} else{
+				}
+				else
+				{
 					string formattedTokenAddress = ExpandABIAddress(token_address);
 					string postfix = formattedTokenAddress + ExpandABIAddress(walletManager.address);
 					walletManager = blockchainManager.ExchangeWalletManager;
@@ -774,12 +820,15 @@ namespace jessielesbian.OpenCEX{
 						default:
 							throw new SafetyException("Unsupported blockchain!");
 					}
-					try{
+					try
+					{
 						amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, gasPrice, zero, abi2));
-					} catch{
+					}
+					catch
+					{
 						amount = GetSafeUint(walletManager.Vcall(ERC20DepositManager, zero, zero, abi2));
 					}
-					
+
 					CheckSafety2(amount.isZero, "Zero-value deposit!");
 					string abi = "0x64d7cd50" + postfix + amount.ToHex(false);
 					SafeUint gas = walletManager.EstimateGas(ERC20DepositManager, gasPrice, zero, abi);
@@ -805,23 +854,30 @@ namespace jessielesbian.OpenCEX{
 		private sealed class GetBalances : RequestMethod
 		{
 			public static readonly RequestMethod instance = new GetBalances();
-			private GetBalances(){
-				
+			private GetBalances()
+			{
+
 			}
 			public override object Execute(Request request)
 			{
 				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.GetCommand("SELECT Coin, Balance FROM Balances WHERE UserID = " + request.GetUserID() + " ORDER BY Coin DESC;").ExecuteReader();
 				object ret;
-				try{
+				try
+				{
 					Dictionary<string, string> balances = new Dictionary<string, string>();
-					while(mySqlDataReader.Read()){
+					while (mySqlDataReader.Read())
+					{
 						CheckSafety(balances.TryAdd(mySqlDataReader.GetString("Coin"), mySqlDataReader.GetString("Balance")), "Corrupted balances table (should not reach here)!", true);
 					}
 
 					ret = balances;
-				} catch (Exception x){
+				}
+				catch (Exception x)
+				{
 					ret = x;
-				} finally{
+				}
+				finally
+				{
 					mySqlDataReader.Close();
 				}
 
@@ -850,7 +906,7 @@ namespace jessielesbian.OpenCEX{
 					ThrowInternal2("Unexpected type while fetching user balance (should not reach here)!");
 					return null;
 				}
-				
+
 			}
 
 			protected override bool NeedRedis()
@@ -864,10 +920,12 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
-		private sealed class GetUsername : RequestMethod{
+		private sealed class GetUsername : RequestMethod
+		{
 			public static readonly GetUsername instance = new GetUsername();
-			private GetUsername(){
-				
+			private GetUsername()
+			{
+
 			}
 			public override object Execute(Request request)
 			{
@@ -892,10 +950,12 @@ namespace jessielesbian.OpenCEX{
 				{
 					throw new SafetyException("Unexpected internal server error while fetching username (should not reach here)!", e);
 				}
-				else if(ret is string)
+				else if (ret is string)
 				{
 					return ret;
-				} else{
+				}
+				else
+				{
 					ThrowInternal2("Unexpected type while fetching user balance (should not reach here)!");
 					return null;
 				}
@@ -911,10 +971,12 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
-		private sealed class GetEthDepAddr : RequestMethod{
+		private sealed class GetEthDepAddr : RequestMethod
+		{
 			public static readonly GetEthDepAddr instance = new GetEthDepAddr();
-			private GetEthDepAddr(){
-				
+			private GetEthDepAddr()
+			{
+
 			}
 			public override object Execute(Request request)
 			{
@@ -962,7 +1024,8 @@ namespace jessielesbian.OpenCEX{
 		private sealed class Login : CaptchaProtectedRequestMethod
 		{
 			public static readonly RequestMethod instance = new Login();
-			private Login(){
+			private Login()
+			{
 
 			}
 
@@ -978,16 +1041,21 @@ namespace jessielesbian.OpenCEX{
 				Exception throws = null;
 				string hash;
 				ulong userid;
-				try{
+				try
+				{
 					CheckSafety(mySqlDataReader.Read(), "Invalid credentials!");
 					hash = mySqlDataReader.GetString("Passhash");
 					userid = mySqlDataReader.GetUInt64("UserID");
 					mySqlDataReader.CheckSingletonResult();
-				} catch (Exception e){
+				}
+				catch (Exception e)
+				{
 					throws = e;
 					hash = null;
 					userid = 0;
-				} finally{
+				}
+				finally
+				{
 					mySqlDataReader.Close();
 				}
 
@@ -1001,7 +1069,8 @@ namespace jessielesbian.OpenCEX{
 					SHA256 sha256 = SHA256.Create();
 					string selector = "SESSION_" + BitConverter.ToString(sha256.ComputeHash(SessionToken)).Replace("-", string.Empty);
 					sha256.Dispose();
-					lock(request.sharedAuthenticationHint.redisClient){
+					lock (request.sharedAuthenticationHint.redisClient)
+					{
 						request.sharedAuthenticationHint.redisClient.SetNx(selector, userid.ToString(), 2592000);
 					}
 
@@ -1011,10 +1080,12 @@ namespace jessielesbian.OpenCEX{
 						request.httpListenerContext.Response.AddHeader("Set-Cookie", cookie);
 					}
 				}
-				else if(throws is SafetyException)
+				else if (throws is SafetyException)
 				{
 					throw throws;
-				} else{
+				}
+				else
+				{
 					throw new SafetyException("Unexpected internal server error while logging in (should not reach here)!", throws);
 				}
 			}
@@ -1024,10 +1095,12 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
-		private sealed class Withdraw : RequestMethod{
+		private sealed class Withdraw : RequestMethod
+		{
 			public static readonly RequestMethod instance = new Withdraw();
-			private Withdraw(){
-				
+			private Withdraw()
+			{
+
 			}
 			public override object Execute(Request request)
 			{
@@ -1036,7 +1109,8 @@ namespace jessielesbian.OpenCEX{
 				string address = request.ExtractRequestArg<string>("address");
 				SafeUint amount = request.ExtractSafeUint("amount");
 				BlockchainManager blockchainManager;
-				switch(token){
+				switch (token)
+				{
 					//LP tokens
 					case "LP_MATIC_PolyEUBI":
 						BurnLP(request.sqlCommandFactory, "MATIC", "PolyEUBI", amount, userid);
@@ -1062,7 +1136,7 @@ namespace jessielesbian.OpenCEX{
 					case "LP_shitcoin_scamcoin":
 						BurnLP(request.sqlCommandFactory, "shitcoin", "scamcoin", amount, userid);
 						return null;
-					
+
 					//Traditional tokens
 					case "MATIC":
 					case "PolyEUBI":
@@ -1166,12 +1240,16 @@ namespace jessielesbian.OpenCEX{
 
 					//Send withdrawal later
 					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, address, gasPrice, basegas, null, userid, false, token, withfee, token);
-				} else{
+				}
+				else
+				{
 					string gastoken;
-					if(blockchainManager.chainid == 24734)
+					if (blockchainManager.chainid == 24734)
 					{
 						gastoken = "MintME";
-					} else{
+					}
+					else
+					{
 						gastoken = "MATIC";
 					}
 
@@ -1189,7 +1267,7 @@ namespace jessielesbian.OpenCEX{
 					//Send withdrawal later
 					walletManager.Unsafe_SafeSendEther(request.sqlCommandFactory, amount, tokenAddress, gasPrice, gas, data, userid, false, token, amount, token);
 				}
-				
+
 				return null;
 			}
 
@@ -1202,11 +1280,13 @@ namespace jessielesbian.OpenCEX{
 				return IsolationLevel.RepeatableRead;
 			}
 		}
-		private abstract class CaptchaProtectedRequestMethod : RequestMethod{
+		private abstract class CaptchaProtectedRequestMethod : RequestMethod
+		{
 			public abstract void Execute2(Request request);
 
 			[JsonObject(MemberSerialization.Fields)]
-			private sealed class CaptchaResult{
+			private sealed class CaptchaResult
+			{
 				public bool success = false;
 			}
 
@@ -1215,18 +1295,19 @@ namespace jessielesbian.OpenCEX{
 			private static readonly byte[] bytes1 = HttpUtility.UrlEncodeToBytes(GetEnv("CaptchaSecret"));
 			private static readonly JsonSerializerSettings CaptchaValidatorJsonSerializerSettings = new JsonSerializerSettings();
 
-			static CaptchaProtectedRequestMethod(){
+			static CaptchaProtectedRequestMethod()
+			{
 				CaptchaValidatorJsonSerializerSettings.MaxDepth = 2;
 				CaptchaValidatorJsonSerializerSettings.MissingMemberHandling = MissingMemberHandling.Ignore;
 			}
 			public override object Execute(Request request)
 			{
 				string temp = request.ExtractRequestArg<string>("captcha");
-				
+
 				WebRequest httpWebRequest = WebRequest.Create("https://www.google.com/recaptcha/api/siteverify");
 				httpWebRequest.Method = "POST";
 				httpWebRequest.ContentType = "application/x-www-form-urlencoded";
-				
+
 				byte[] bytes2 = HttpUtility.UrlEncodeToBytes(temp);
 
 				using (Stream stream = httpWebRequest.GetRequestStream())
@@ -1239,7 +1320,8 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				string returns;
-				using (WebResponse webResponse = httpWebRequest.GetResponse()) {
+				using (WebResponse webResponse = httpWebRequest.GetResponse())
+				{
 					returns = new StreamReader(webResponse.GetResponseStream()).ReadToEnd();
 				}
 				CheckSafety(JsonConvert.DeserializeObject<CaptchaResult>(returns, CaptchaValidatorJsonSerializerSettings).success, "Invalid captcha!");
@@ -1281,20 +1363,23 @@ namespace jessielesbian.OpenCEX{
 				rng.GetBytes(salt);
 				rng.GetBytes(privatekey);
 				rng.Dispose();
-				
+
 				MySqlCommand mySqlCommand = request.sqlCommandFactory.GetCommand("INSERT INTO Accounts (Username, Passhash, DepositPrivateKey) VALUES (@username, @passhash, \"" + BitConverter.ToString(privatekey).Replace("-", string.Empty).ToLower() + "\");");
 				mySqlCommand.Parameters.AddWithValue("@username", username);
 				mySqlCommand.Parameters.AddWithValue("@passhash", OpenBsdBCrypt.Generate(password.ToCharArray(), salt, 16));
-				try{
+				try
+				{
 					mySqlCommand.SafeExecuteNonQuery();
-				} catch{
+				}
+				catch
+				{
 					throw new SafetyException("Username not available!");
 				}
-				
+
 
 				//HACK: Hijack existing request method
 				request.args.Add("renember", true);
-				((Login) Login.instance).Execute2(request);
+				((Login)Login.instance).Execute2(request);
 			}
 			protected override IsolationLevel SQLMode()
 			{
@@ -1302,15 +1387,18 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
-		private sealed class Logout : RequestMethod{
+		private sealed class Logout : RequestMethod
+		{
 			public static readonly RequestMethod instance = new Logout();
-			private Logout(){
-				
+			private Logout()
+			{
+
 			}
 			public override object Execute(Request request)
 			{
 				Cookie cookie = request.httpListenerContext.Request.Cookies["__Secure-OpenCEX_session"];
-				if(cookie != null){
+				if (cookie != null)
+				{
 					byte[] bytes;
 					try
 					{
@@ -1323,7 +1411,7 @@ namespace jessielesbian.OpenCEX{
 					SHA256 hash = SHA256.Create();
 					bytes = hash.ComputeHash(bytes);
 					hash.Dispose();
-					lock(request.sharedAuthenticationHint.redisClient)
+					lock (request.sharedAuthenticationHint.redisClient)
 					{
 						request.sharedAuthenticationHint.redisClient.Del("SESSION_" + BitConverter.ToString(bytes).Replace("-", string.Empty));
 					}
@@ -1346,14 +1434,15 @@ namespace jessielesbian.OpenCEX{
 			public static readonly RequestMethod instance = new LoadActiveOrders();
 			private LoadActiveOrders()
 			{
-				
+
 			}
 			public override object Execute(Request request)
 			{
 				Queue<object[]> objects = new Queue<object[]>();
 				MySqlDataReader mySqlDataReader = request.sqlCommandFactory.GetCommand("SELECT Pri, Sec, Price, InitialAmount, TotalCost, Id, Buy FROM Orders WHERE PlacedBy = " + request.GetUserID() + ";").ExecuteReader();
 				Exception throwlater = null;
-				try{
+				try
+				{
 					while (mySqlDataReader.Read())
 					{
 						object[] buffer = new object[7];
@@ -1366,17 +1455,22 @@ namespace jessielesbian.OpenCEX{
 						buffer[6] = mySqlDataReader.GetBoolean("Buy");
 						objects.Enqueue(buffer);
 					}
-				} catch(Exception e){
+				}
+				catch (Exception e)
+				{
 					throwlater = e;
 				}
 				mySqlDataReader.Close();
 
-				if(throwlater is null){
+				if (throwlater is null)
+				{
 					return objects.ToArray();
-				} else{
+				}
+				else
+				{
 					throw new SafetyException("Unable to fetch active orders!", throwlater);
 				}
-				
+
 			}
 
 			protected override bool NeedRedis()
@@ -1398,7 +1492,8 @@ namespace jessielesbian.OpenCEX{
 			}
 
 			[JsonObject(MemberSerialization.Fields)]
-			private sealed class Candle{
+			private sealed class Candle
+			{
 				public readonly ulong x;
 				public readonly string o;
 				public readonly string h;
@@ -1424,9 +1519,12 @@ namespace jessielesbian.OpenCEX{
 					CheckSafety(request.args.TryGetValue("secondary", out temp));
 					sec = (string)temp;
 				}
-				try{
+				try
+				{
 					GetEnv("PairExists_" + pri.Replace("_", "__") + "_" + sec);
-				} catch{
+				}
+				catch
+				{
 					throw new SafetyException("Non-existant trading pair!");
 				}
 
@@ -1439,7 +1537,8 @@ namespace jessielesbian.OpenCEX{
 				Exception throwlater = null;
 				try
 				{
-					while(mySqlDataReader.Read()){
+					while (mySqlDataReader.Read())
+					{
 						objects.Enqueue(new Candle(Convert.ToUInt64(mySqlDataReader.GetString("Timestamp")), mySqlDataReader.GetString("Open"), mySqlDataReader.GetString("High"), mySqlDataReader.GetString("Low"), mySqlDataReader.GetString("Close")));
 					}
 				}
@@ -1470,8 +1569,9 @@ namespace jessielesbian.OpenCEX{
 		}
 		private sealed class MintLP1 : RequestMethod
 		{
-			private MintLP1(){
-				
+			private MintLP1()
+			{
+
 			}
 			public static readonly RequestMethod instance = new MintLP1();
 			public override object Execute(Request request)
@@ -1482,7 +1582,7 @@ namespace jessielesbian.OpenCEX{
 				SafeUint amount1;
 				{
 					CheckSafety(request.args.TryGetValue("primary", out object temp), "Missing primary token!");
-					pri = (string) temp;
+					pri = (string)temp;
 					CheckSafety(request.args.TryGetValue("secondary", out temp), "Missing secondary token!");
 					sec = (string)temp;
 					CheckSafety(request.args.TryGetValue("amount0", out temp), "Missing primary amount!");
@@ -1500,13 +1600,17 @@ namespace jessielesbian.OpenCEX{
 				}
 				LPReserve lpreserve = new LPReserve(request.sqlCommandFactory, pri, sec);
 
-				if(!(lpreserve.reserve0.isZero || lpreserve.reserve1.isZero)){
+				if (!(lpreserve.reserve0.isZero || lpreserve.reserve1.isZero))
+				{
 					SafeUint optimal1 = lpreserve.QuoteLP(amount0, true);
-					if (optimal1 > amount1){
+					if (optimal1 > amount1)
+					{
 						SafeUint optimal0 = lpreserve.QuoteLP(amount1, false);
 						CheckSafety2(optimal0 > amount0, "Uniswap.NET: Insufficent primary amount (should not reach here)!", true);
 						amount0 = optimal0;
-					} else{
+					}
+					else
+					{
 						amount1 = optimal1;
 					}
 				}
@@ -1587,20 +1691,28 @@ namespace jessielesbian.OpenCEX{
 
 		private sealed class MintDerivatives : RequestMethod
 		{
+			public static readonly RequestMethod instance = new MintDerivatives();
+			private MintDerivatives()
+			{
+
+			}
 			public override object Execute(Request request)
 			{
 				ulong userid = request.GetUserID();
 				string contract = request.ExtractRequestArg<string>("contract");
-				try{
+				try
+				{
 					GetEnv("IsDerivative_" + contract);
-				} catch{
+				}
+				catch
+				{
 					throw new SafetyException("Invalid derivatives!");
 				}
 				int pivot = contract.LastIndexOf('_');
 				IDerivativeContract derivativeType = contract[pivot..] switch
 				{
 					"_PUT" => PutOption.instance,
-					_ => throw new Exception("Unknown derivative type!"),
+					_ => throw new SafetyException("Unknown derivative type!"),
 				};
 				SafeUint amount = request.ExtractSafeUint("amount");
 				MySqlCommand command = request.sqlCommandFactory.GetCommand("SELECT Strike FROM Derivatives WHERE Name = @coin FOR UPDATE;");
@@ -1613,7 +1725,11 @@ namespace jessielesbian.OpenCEX{
 					strike = GetSafeUint(tmpreader2.GetString("Strike"));
 					tmpreader2.CheckSingletonResult();
 				}
-				request.Debit("Dai", userid, derivativeType.CalculateMaxShortLoss(strike), true);
+				request.Debit("Dai", userid, amount.Mul(derivativeType.CalculateMaxShortLoss(strike)).Div(ether), true);
+
+				//Create new derivatives contracts
+				request.Credit(contract, userid, amount, false);
+				request.Credit(contract + "_SHORT", userid, amount, false);
 				return null;
 			}
 
@@ -1625,6 +1741,35 @@ namespace jessielesbian.OpenCEX{
 			protected override IsolationLevel SQLMode()
 			{
 				return IsolationLevel.RepeatableRead;
+			}
+		}
+		private sealed class GetDerivativeInfo : RequestMethod
+		{
+			public static readonly RequestMethod instance = new GetDerivativeInfo();
+			private GetDerivativeInfo()
+			{
+
+			}
+			public override object Execute(Request request)
+			{
+				MySqlCommand cmd = request.sqlCommandFactory.GetCommand("SELECT Expiry, Strike FROM Derivatives WHERE Name = @name;");
+				cmd.Parameters.AddWithValue("@name", request.ExtractRequestArg<string>("contract"));
+				using(MySqlDataReader reader = cmd.ExecuteReader()){
+					CheckSafety(reader.Read(), "Invalid derivatives!");
+					object tmp = new object[] {reader.GetUInt64("Expiry"), reader.GetString("Strike")};
+					CheckSafety2(reader.Read(), "Duplicate derivatives records!");
+					return tmp;
+				}
+			}
+
+			protected override bool NeedRedis()
+			{
+				return false;
+			}
+
+			protected override IsolationLevel SQLMode()
+			{
+				return IsolationLevel.ReadUncommitted;
 			}
 		}
 	}

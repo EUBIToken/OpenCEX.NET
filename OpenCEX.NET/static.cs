@@ -284,6 +284,8 @@ namespace jessielesbian.OpenCEX{
 			requestMethods.Add("load_active_orders", LoadActiveOrders.instance);
 			requestMethods.Add("get_chart", GetChart.instance);
 			requestMethods.Add("mint_lp", MintLP1.instance);
+			requestMethods.Add("mint_derivatives", MintDerivatives.instance);
+			requestMethods.Add("get_derivatives", GetDerivativeInfo.instance);
 
 			//Start threads
 			Thread thread;
@@ -532,6 +534,8 @@ namespace jessielesbian.OpenCEX{
 				}
 
 				noabort.Set();
+				depositBlocker.Set();
+
 			}
 			ManagedAbortThread.JoinAll();
 		}
@@ -727,7 +731,7 @@ namespace jessielesbian.OpenCEX{
 			}
 		}
 
-		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "CLICK", "Haoma", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x", "Dai", "MS-Coin", "LP_MATIC_PolyEUBI", "LP_MintME_MATIC", "LP_MintME_BNB", "LP_MintME_PolyEUBI", "LP_MintME_EUBI", "LP_MintME_1000x", "LP_BNB_PolyEUBI", "LP_shitcoin_scamcoin", "LP_Dai_MATIC", "LP_Dai_BNB", "LP_Dai_MintME", "LP_Dai_PolyEUBI", "LP_MintME_CLICK", "LP_MintME_MS-Coin", "LP_MintME_Haoma"};
+		public static readonly string[] listedTokensHint = new string[] { "shitcoin", "scamcoin", "CLICK", "Haoma", "MATIC", "MintME", "BNB", "PolyEUBI", "EUBI", "1000x", "Dai", "MS-Coin", "LP_MATIC_PolyEUBI", "LP_MintME_MATIC", "LP_MintME_BNB", "LP_MintME_PolyEUBI", "LP_MintME_EUBI", "LP_MintME_1000x", "LP_BNB_PolyEUBI", "LP_shitcoin_scamcoin", "LP_Dai_MATIC", "LP_Dai_BNB", "LP_Dai_MintME", "LP_Dai_PolyEUBI", "LP_MintME_CLICK", "LP_MintME_MS-Coin", "LP_MintME_Haoma", "MintME_PUT"};
 
 	}
 	public interface ISafetyException

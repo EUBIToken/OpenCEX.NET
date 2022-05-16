@@ -148,12 +148,17 @@ namespace jessielesbian.OpenCEX{
 				}
 			}
 		}
-		public void Clear()
+		/// <summary>
+		/// DERIVATIVES ONLY!!!
+		/// </summary>
+		/// <param name="callback"></param>
+		public void Clear2(Func<int> callback)
 		{
 			lock (lok)
 			{
 				gen1.Clear();
 				gen2.Clear();
+				callback.Invoke();
 			}
 		}
 	}

@@ -386,7 +386,7 @@ namespace jessielesbian.OpenCEX
 
 			public void DoStupidThings(){
 				bool deposited = false;
-				while (true)
+				while (!abort)
 				{
 					byte lim = 0;
 					try

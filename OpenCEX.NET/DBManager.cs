@@ -7,6 +7,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading;
+using System.Linq;
 
 namespace jessielesbian.OpenCEX{
 	public sealed class SQLCommandFactory : IDisposable
@@ -59,6 +60,10 @@ namespace jessielesbian.OpenCEX{
 			this.postCommit = postCommit ?? throw new ArgumentNullException(nameof(postCommit));
 		}
 
+		public static void ClearBalancesCache(Func<int> action){
+			L3BalancesCache2.Clear2(action);
+		}
+
 		public void DestroyTransaction(bool commit, bool destroy)
 		{
 			RequireTransaction();
@@ -101,6 +106,7 @@ namespace jessielesbian.OpenCEX{
 							updates.Sort();
 
 							order = updates.ToArray();
+							limit3 = order.Length;
 						}
 						IDictionary<string, SafeUint> dirtyBalances = new Dictionary<string, SafeUint>(limit3);
 						if (StaticUtils.ReplayBalanceUpdates)
@@ -305,13 +311,16 @@ namespace jessielesbian.OpenCEX{
 		private readonly Dictionary<string, string> OriginalBalances = new Dictionary<string, string>();
 		private static readonly ConcurrentDualGenerationCache<string, SafeUint> L3BalancesCache2 = new ConcurrentDualGenerationCache<string, SafeUint>(StaticUtils.MaximumBalanceCacheSize);
 		private readonly Queue<string> pendingLockRelease = new Queue<string>();
+		
+		//Certain assets should not be balances cached, because they are used with derivatives trading
+		private static readonly string[] noBC = new string[]{"Dai", "MintME_PUT", "MintME_PUT_SHORT"};
 
 		/// <summary>
 		/// Should not be called directly
 		/// </summary>
 		public SafeUint GetBalance(string coin, ulong userid){
 			string key = userid + "_" + coin;
-			if (StaticUtils.Multiserver)
+			if (StaticUtils.Multiserver || noBC.Contains(coin))
 			{
 				return FetchBalanceIMPL(key);
 			}
