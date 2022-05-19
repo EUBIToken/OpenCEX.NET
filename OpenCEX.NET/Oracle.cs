@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using jessielesbian.OpenCEX.oracle;
 using System.Threading;
+using System.Collections.Concurrent;
 
 namespace jessielesbian.OpenCEX
 {
@@ -51,7 +52,7 @@ namespace jessielesbian.OpenCEX
 			}
 			private readonly Uri apicall;
 			private readonly IDictionary<ulong, SafeUint> CachedPrices = new Dictionary<ulong, SafeUint>();
-			private readonly IDictionary<ulong, SafeUint> CachedPrices2 = new Dictionary<ulong, SafeUint>();
+			private readonly ConcurrentDictionary<ulong, SafeUint> CachedPrices2 = new ConcurrentDictionary<ulong, SafeUint>();
 			private readonly object locker = new object();
 			private readonly HttpClient httpClient = new HttpClient();
 			private readonly int length;
@@ -89,33 +90,32 @@ namespace jessielesbian.OpenCEX
 				//More safety checks
 				StaticUtils.CheckSafety(output.data.TryGetValue("points", out Dictionary<string, CMCOracleModel2> l2), "Missing CoinMarketCap price chart!");
 				StaticUtils.CheckSafety(l2, "CoinMarketCap oracle returned null price chart!");
-				lock(locker){
-					CachedPrices2.Clear();
-					foreach (KeyValuePair<string, CMCOracleModel2> keyValuePair in l2)
-					{
-						ulong time = Convert.ToUInt64(keyValuePair.Key);
-						if(!CachedPrices.ContainsKey(time)){
-							string[] parts = keyValuePair.Value.v[0].ToString("r").Split('.');
-							string work = parts[0];
-							if (parts.Length == 2)
+
+				CachedPrices2.Clear();
+				foreach (KeyValuePair<string, CMCOracleModel2> keyValuePair in l2)
+				{
+					ulong time = Convert.ToUInt64(keyValuePair.Key);
+					if(!CachedPrices.ContainsKey(time)){
+						string[] parts = keyValuePair.Value.v[0].ToString("r").Split('.');
+						string work = parts[0];
+						if (parts.Length == 2)
+						{
+							int l3 = parts[1].Length;
+							if (l3 > length)
 							{
-								int l3 = parts[1].Length;
-								if (l3 > length)
-								{
-									work += parts[1].Substring(0, length);
-								}
-								else
-								{
-									work += parts[1] + new string('0', length - l3);
-								}
+								work += parts[1].Substring(0, length);
 							}
 							else
 							{
-								work += filler;
+								work += parts[1] + new string('0', length - l3);
 							}
-
-							StaticUtils.CheckSafety(CachedPrices.TryAdd(time, StaticUtils.GetSafeUint(work)), "Unable to update CoinMarketCap price cache!");
 						}
+						else
+						{
+							work += filler;
+						}
+
+						StaticUtils.CheckSafety(CachedPrices.TryAdd(time, StaticUtils.GetSafeUint(work)), "Unable to update CoinMarketCap price cache!");
 					}
 				}
 			}
@@ -123,37 +123,32 @@ namespace jessielesbian.OpenCEX
 			public SafeUint GetPriceAt(ulong time, ulong tolerance)
 			{
 				StaticUtils.CheckSafety2(StaticUtils.Multiserver, "This oracle is not multiserver-safe!");
-
 				
-				SafeUint ret = null;
-				lock (locker){
-					if(!CachedPrices.TryGetValue(time, out ret)){
-						ulong lastDist = ulong.MaxValue;
+				return CachedPrices2.GetOrAdd(time, (ulong _) => {
+					ulong lastDist = ulong.MaxValue;
+					SafeUint ret = null;
+					lock (locker)
+					{	
 						foreach (KeyValuePair<ulong, SafeUint> keyValuePair in CachedPrices)
 						{
-							ulong dist;
-							if (keyValuePair.Key > time)
+							if (time >= keyValuePair.Key)
 							{
-								dist = keyValuePair.Key - time;
+								ulong dist = time - keyValuePair.Key;
+								if (dist < lastDist && dist < tolerance)
+								{
+									ret = keyValuePair.Value;
+									lastDist = dist;
+								}
 							}
-							else
-							{
-								dist = time - keyValuePair.Key;
-							}
-							if (dist < lastDist && dist < tolerance)
-							{
-								ret = keyValuePair.Value;
-								lastDist = dist;
-							}
+							
 						}
 						if (lastDist < ulong.MaxValue)
 						{
-							StaticUtils.CheckSafety(CachedPrices.TryAdd(time, ret), "Unable to append CoinMarketCap price to L1 cache!");
+							StaticUtils.CheckSafety(CachedPrices2.TryAdd(time, ret), "Unable to append CoinMarketCap price to L2 cache!");
 						}
 					}
-				}
-				
-				return ret;
+					return ret;
+				});
 			}
 		}
 	}
